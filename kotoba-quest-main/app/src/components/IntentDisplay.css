@@ -1,0 +1,161 @@
+/* Intent（予兆）表示 - スタイル */
+
+.intent-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 12px;
+  animation: intent-pulse 2s ease-in-out infinite;
+}
+
+/* 攻撃タイプ別の色 */
+.intent-display.attack_normal {
+  --intent-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.intent-display.attack_heavy {
+  --intent-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.08) 100%);
+  border-color: rgba(239, 68, 68, 0.5);
+  animation: intent-pulse-danger 1s ease-in-out infinite;
+}
+
+.intent-display.attack_multi {
+  --intent-color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.intent-display.charging {
+  --intent-color: #eab308;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.08) 100%);
+  border-color: rgba(234, 179, 8, 0.5);
+  animation: intent-charge 1.5s ease-in-out infinite;
+}
+
+.intent-display.idle {
+  --intent-color: #22c55e;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.03) 100%);
+  border-color: rgba(34, 197, 94, 0.3);
+  animation: none;
+}
+
+/* ヘッダー */
+.intent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.intent-warning-icon {
+  font-size: 14px;
+}
+
+/* コンテンツ */
+.intent-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.intent-icon {
+  font-size: 24px;
+}
+
+.intent-description {
+  flex: 1;
+}
+
+/* ダメージ表示 */
+.intent-damage {
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.damage-value {
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* ヒント */
+.intent-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: 8px;
+  border-left: 3px solid #22c55e;
+}
+
+.hint-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.hint-text {
+  font-size: 13px;
+  color: #86efac;
+  line-height: 1.4;
+}
+
+/* アニメーション */
+@keyframes intent-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+  }
+}
+
+@keyframes intent-pulse-danger {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    transform: scale(1.01);
+  }
+}
+
+@keyframes intent-charge {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(234, 179, 8, 0.3);
+    border-color: rgba(234, 179, 8, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(234, 179, 8, 0.6);
+    border-color: rgba(234, 179, 8, 0.7);
+  }
+}
+
+/* レスポンシブ */
+@media (max-width: 600px) {
+  .intent-display {
+    padding: 12px;
+  }
+
+  .intent-content {
+    font-size: 14px;
+  }
+
+  .intent-icon {
+    font-size: 20px;
+  }
+}

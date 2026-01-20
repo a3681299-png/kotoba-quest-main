@@ -1,0 +1,266 @@
+/* デバッグパネル - スタイル定義 */
+
+.debug-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+  border-radius: 12px;
+  border: 1px solid #3d3d5c;
+  color: #e2e8f0;
+  font-size: 13px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* ヘッダー */
+.debug-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #3d3d5c;
+}
+
+.debug-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+/* ステップモードトグル */
+.step-mode-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: #4a4a6a;
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.toggle-input:checked + .toggle-slider {
+  background: #22c55e;
+}
+
+.toggle-input:checked + .toggle-slider::after {
+  transform: translateX(16px);
+}
+
+.toggle-text {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* セクション */
+.debug-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.debug-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 実行状態表示 */
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  padding: 4px 8px;
+  background: rgba(167, 139, 250, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.current-line {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* 次へボタン */
+.next-step-button {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: pulse-button 1s ease-in-out infinite alternate;
+}
+
+.next-step-button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+@keyframes pulse-button {
+  from {
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+  }
+  to {
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.7);
+  }
+}
+
+/* HP表示 */
+.hp-display {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hp-row {
+  display: grid;
+  grid-template-columns: 80px 60px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.hp-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.hp-value {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.hp-bar-mini {
+  height: 8px;
+  background: #2a2a3e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hp-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.hp-bar-fill.player {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.hp-bar-fill.enemy {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* 変数リスト */
+.variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.variable-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.variable-name {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.variable-equals {
+  color: #94a3b8;
+}
+
+.variable-value {
+  color: #22c55e;
+}
+
+.no-variables {
+  color: #64748b;
+  font-style: italic;
+  padding: 8px;
+}
+
+/* ログリスト */
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.log-row {
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* スクロールバー */
+.debug-panel::-webkit-scrollbar,
+.logs-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.debug-panel::-webkit-scrollbar-track,
+.logs-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.debug-panel::-webkit-scrollbar-thumb,
+.logs-list::-webkit-scrollbar-thumb {
+  background: #4a4a6a;
+  border-radius: 3px;
+}
