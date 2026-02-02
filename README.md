@@ -1,73 +1,56 @@
-# React + TypeScript + Vite
+# Kotoba Quest
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ReactとPixi.jsを使用した、プログラミングバトルゲームプロジェクトです。
+プレイヤーはコードを記述してユニット（ポーンなど）を制御し、相手のキングを倒すことを目指します。
 
-Currently, two official plugins are available:
+## プロジェクト概要
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+「Kotoba Quest」は、独自の簡易言語を使用してユニットの行動をプログラムする戦略ゲームです。
+Peggyを用いて生成されたパーサーがプレイヤーのコードを解析し、その意図に基づいてユニットが自動的に行動します。
 
-## React Compiler
+## 主な機能
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **コードエディタ**: ゲーム内ブラウザでユニットの行動ロジックを記述。
+- **カスタム言語パーサー**: Peggy (pegjs) で定義された文法に基づく、柔軟なコマンド解析。
+- **リアルタイムバトル**: Pixi.jsによる高速でスムーズな2D描画。
+- **ステート管理**: Zustandを使用した効率的なゲーム状態の管理。
 
-## Expanding the ESLint configuration
+## 技術スタック
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Language**: TypeScript
+- **Framework**: React 19
+- **Build Tool**: Vite
+- **Rendering**: Pixi.js v8
+- **Parser Generator**: Peggy
+- **State Management**: Zustand
+- **Testing**: Vitest
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## ディレクトリ構成
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- `src/components`: React UIコンポーネント (エディタ、デバッグパネルなど)
+- `src/game`: Pixi.jsを使用したゲームループ、描画ロジック (`BattleScene.ts` 等)
+- `src/parser`: Peggyの文法定義 (`grammar.pegjs`) と生成されたパーサー
+- `src/interpreter`: パースされたコードを実行するインタプリタ
+- `src/store`: Zustandストア (ゲーム状態管理)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## セットアップと実行
+
+依存関係のインストール:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+開発サーバーの起動:
+```bash
+npm run dev
+```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+ビルド:
+```bash
+npm run build
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+リント:
+```bash
+npm run lint
 ```
