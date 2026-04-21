@@ -13,6 +13,7 @@ export interface CodeEditorRef {
     lineNumber: number,
     status: "executing" | "complete" | "error" | "clear",
   ) => void;
+  focus: () => void;
   clearHighlights: () => void;
   setErrorLine: (lineNumber: number, message: string) => void;
   clearError: () => void;
@@ -47,6 +48,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
     } | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lineNumbersRef = useRef<HTMLDivElement>(null);
+    const highlightsRef = useRef<HTMLDivElement>(null);
 
     // 行数を計算
     const lines = value.split("\n");
@@ -54,8 +56,16 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
 
     // スクロール同期
     const handleScroll = useCallback(() => {
-      if (textareaRef.current && lineNumbersRef.current) {
-        lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      if (lineNumbersRef.current) {
+        lineNumbersRef.current.scrollTop = textarea.scrollTop;
+      }
+
+      // テキストエリアがスクロールする場合でも、ハイライトが同じ行に重なるように追従させる
+      if (highlightsRef.current) {
+        highlightsRef.current.style.transform = `translateY(-${textarea.scrollTop}px)`;
       }
     }, []);
 
@@ -86,16 +96,34 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
           return next;
         });
       },
+      focus: () => {
+        textareaRef.current?.focus();
+      },
       clearError: () => {
         setErrorInfo(null);
       },
     }));
 
-    // テキストエリアの高さを自動調整
+    // テキストエリアの高さを自動調整（ボタンが画面下に隠れないよう上限付き）
     useEffect(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 120)}px`;
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const minHeight = 120;
+      const maxHeight =
+        typeof window !== "undefined" &&
+        window.matchMedia("(max-width: 600px)").matches
+          ? 180
+          : 240;
+
+      textarea.style.height = "auto";
+      const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${Math.max(nextHeight, minHeight)}px`;
+      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+
+      // 高さ調整後にハイライト位置も同期しておく
+      if (highlightsRef.current) {
+        highlightsRef.current.style.transform = `translateY(-${textarea.scrollTop}px)`;
       }
     }, [value]);
 
@@ -118,7 +146,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
         {/* コード入力エリア */}
         <div className="code-editor-input-wrapper">
           {/* ハイライトオーバーレイ */}
-          <div className="code-editor-highlights">
+          <div className="code-editor-highlights" ref={highlightsRef}>
             {lines.map((line, i) => {
               const lineNum = i + 1;
               const highlight = highlights.get(lineNum);

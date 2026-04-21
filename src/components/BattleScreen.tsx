@@ -11,7 +11,7 @@ import { parse } from "../parser/parser";
 import { SpellExecutor, type GameAction } from "../engine/SpellExecutor";
 import { CodeEditor, type CodeEditorRef } from "./CodeEditor";
 import { DebugPanel } from "./DebugPanel";
-import { IntentDisplay } from "./IntentDisplay";
+import { getTutorialGuideContent } from "./tutorialGuide";
 import { useGameStore } from "../store/useGameStore";
 import { STAGES } from "../data/stages";
 import {
@@ -34,13 +34,14 @@ export function BattleScreen() {
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
   const codeEditorRef = useRef<CodeEditorRef>(null);
+  const codeAreaRef = useRef<HTMLDivElement>(null);
+  const executeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Zustand ストアから状態を取得
   const {
     playerHp,
     enemyHp,
     isStepMode,
-    battlePhase,
     turnCount,
     currentIntent,
     isDefending,
@@ -59,6 +60,13 @@ export function BattleScreen() {
 
   const stage = STAGES[currentStageIndex];
   const enemyData = ENEMY_DATA[stage.id];
+  const currentTutorial =
+    showTutorial && stage.tutorialSteps
+      ? stage.tutorialSteps[tutorialStep]
+      : undefined;
+  const tutorialGuide = currentTutorial
+    ? getTutorialGuideContent(currentTutorial, stage.sampleCode)
+    : null;
 
   // バトルシーンの初期化
   useEffect(() => {
@@ -347,6 +355,24 @@ export function BattleScreen() {
     }
   };
 
+  const jumpToTutorialTarget = () => {
+    if (!currentTutorial) return;
+
+    if (currentTutorial.waitForAction === "code_input") {
+      codeAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      codeEditorRef.current?.focus();
+      return;
+    }
+
+    if (currentTutorial.waitForAction === "execute") {
+      executeButtonRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      executeButtonRef.current?.focus();
+    }
+  };
+
   return (
     <div className="battle-screen-container">
       <div className="battle-screen">
@@ -373,38 +399,94 @@ export function BattleScreen() {
           </div>
         </header>
 
-        {/* バトルフィールド */}
-        <div className="battle-field">
-          <div ref={canvasRef} className="battle-canvas" />
+        <div className="battle-main">
+          {currentTutorial && tutorialGuide && (
+            <section className="tutorial-card" aria-live="polite">
+              <div className="tutorial-card-header">
+                <div>
+                  <div className="tutorial-step-badge">
+                    {tutorialGuide.stepLabel}
+                  </div>
+                  <div className="tutorial-message">
+                    {currentTutorial.message}
+                  </div>
+                </div>
+                <div className="tutorial-character" aria-hidden="true">
+                  🧙‍♂️
+                </div>
+              </div>
 
-          {/* プレイヤー情報 */}
-          <div className="character-info player">
-            <div className="character-name">🧙 プレイヤー</div>
-            <div className="hp-bar-container">
-              <div
-                className="hp-bar player"
-                style={{ width: `${playerHp}%` }}
-              />
+              {tutorialGuide.sampleCode && (
+                <div className="tutorial-sample">
+                  <span className="tutorial-sample-label">入力するコード</span>
+                  <code>{tutorialGuide.sampleCode}</code>
+                </div>
+              )}
+
+              <div className="tutorial-actions">
+                {currentTutorial.waitForAction === "none" ? (
+                  <button className="tutorial-next" onClick={advanceTutorial}>
+                    次へ →
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="tutorial-jump"
+                      onClick={jumpToTutorialTarget}
+                    >
+                      {tutorialGuide.jumpLabel}
+                    </button>
+                    <button className="tutorial-skip" onClick={advanceTutorial}>
+                      スキップ
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="tutorial-helper">{tutorialGuide.helperText}</div>
+            </section>
+          )}
+
+          {/* バトルフィールド */}
+          <div className="battle-field">
+            <div ref={canvasRef} className="battle-canvas" />
+
+            {/* プレイヤー情報 */}
+            <div className="character-info player">
+              <div className="character-name">🧙 プレイヤー</div>
+              <div className="hp-bar-container">
+                <div
+                  className="hp-bar player"
+                  style={{ width: `${playerHp}%` }}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* 敵情報 */}
-          <div className="character-info enemy">
-            <div className="character-name">👾 {stage.enemyName}</div>
-            <div className="hp-bar-container">
-              <div
-                className="hp-bar enemy"
-                style={{ width: `${(enemyHp / stage.enemyHp) * 100}%` }}
-              />
+            {/* 敵情報 */}
+            <div className="character-info enemy">
+              <div className="character-name">👾 {stage.enemyName}</div>
+              <div className="hp-bar-container">
+                <div
+                  className="hp-bar enemy"
+                  style={{ width: `${(enemyHp / stage.enemyHp) * 100}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Intent表示 */}
-        {battlePhase === "player_turn" && <IntentDisplay />}
-
         {/* コードエディタエリア */}
-        <div className="code-area">
+        <div className="code-area" ref={codeAreaRef}>
+          {currentTutorial?.waitForAction === "code_input" && (
+            <div className="code-task-card">
+              <div className="code-task-title">最初の一行</div>
+              <div className="code-task-body">
+                下のお手本をそのまま入力してください。
+              </div>
+              <pre className="code-task-sample">{stage.sampleCode}</pre>
+            </div>
+          )}
+
           <CodeEditor
             ref={codeEditorRef}
             value={code}
@@ -441,6 +523,7 @@ export function BattleScreen() {
               📖 ヒント
             </button>
             <button
+              ref={executeButtonRef}
               className="execute-button"
               onClick={executeCode}
               disabled={isExecuting || !code.trim()}
@@ -449,36 +532,6 @@ export function BattleScreen() {
             </button>
           </div>
         </div>
-
-        {/* チュートリアルオーバーレイ */}
-        {showTutorial &&
-          stage.tutorialSteps &&
-          stage.tutorialSteps[tutorialStep] && (
-            <div
-              className={`tutorial-overlay ${
-                stage.tutorialSteps[tutorialStep].waitForAction !== "none"
-                  ? "non-blocking"
-                  : ""
-              }`}
-            >
-              <div className="tutorial-bubble">
-                <div className="tutorial-character">🧙‍♂️</div>
-                <div className="tutorial-message">
-                  {stage.tutorialSteps[tutorialStep].message}
-                </div>
-                {stage.tutorialSteps[tutorialStep].waitForAction === "none" && (
-                  <button className="tutorial-next" onClick={advanceTutorial}>
-                    次へ →
-                  </button>
-                )}
-                {stage.tutorialSteps[tutorialStep].waitForAction !== "none" && (
-                  <div className="tutorial-hint">
-                    👆 上の操作を行うと次に進むよ
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
         {/* ヒントモーダル */}
         {showHint && (

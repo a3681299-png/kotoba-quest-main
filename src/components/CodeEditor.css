@@ -67,6 +67,7 @@
   flex: 1;
   position: relative;
   min-height: 120px;
+  overflow: hidden;
 }
 
 /* ハイライトオーバーレイ */
@@ -82,6 +83,8 @@
   font-size: 14px;
   line-height: 1.6;
   color: transparent;
+  transform: translateY(0);
+  will-change: transform;
 }
 
 .highlight-line {

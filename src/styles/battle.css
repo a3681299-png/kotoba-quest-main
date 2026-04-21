@@ -33,12 +33,13 @@ body {
 /* バトル画面コンテナ（デバッグパネル含む） */
 .battle-screen-container {
   display: flex;
-  min-height: 100vh;
+  align-items: flex-start;
   max-width: 1600px;
   margin: 0 auto;
   gap: 1rem;
   padding: 1rem;
-  overflow-y: auto;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* バトル画面全体 */
@@ -47,7 +48,20 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   gap: 1rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 上側（スクロール領域） */
+.battle-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* デバッグパネルサイドバー */
@@ -89,6 +103,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   padding: 0.75rem 1.5rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
@@ -193,6 +208,38 @@ body {
   border: 1px solid var(--game-code-border);
 }
 
+.code-task-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.18) 0%, rgba(15, 23, 42, 0.75) 100%);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 12px;
+}
+
+.code-task-title {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #93c5fd;
+}
+
+.code-task-body {
+  font-size: 0.95rem;
+  color: #dbeafe;
+}
+
+.code-task-sample {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: rgba(2, 6, 23, 0.72);
+  border-radius: 10px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 1rem;
+  color: #4ade80;
+  white-space: pre-wrap;
+}
+
 .code-editor {
   width: 100%;
   min-height: 100px;
@@ -215,6 +262,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -504,84 +552,113 @@ body {
   text-align: center;
 }
 
-/* チュートリアルオーバーレイ */
-.tutorial-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  padding-bottom: 2rem;
-  z-index: 150;
-}
-
-/* 非ブロッキングモード：下の要素をクリック可能 */
-.tutorial-overlay.non-blocking {
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.tutorial-overlay.non-blocking .tutorial-bubble {
-  pointer-events: auto;
-}
-
-.tutorial-bubble {
-  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-  border: 2px solid var(--game-gold);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  max-width: 500px;
+/* チュートリアルカード */
+.tutorial-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 1rem;
-  animation: slideUp 0.3s ease;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(45, 55, 72, 0.95) 0%, rgba(26, 32, 44, 0.98) 100%);
+  border: 2px solid var(--game-gold);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.tutorial-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.tutorial-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  margin-bottom: 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 215, 0, 0.16);
+  color: var(--game-gold);
+  font-size: 0.85rem;
+  font-weight: bold;
 }
 
 .tutorial-character {
   font-size: 3rem;
+  line-height: 1;
 }
 
 .tutorial-message {
-  font-size: 1.1rem;
-  text-align: center;
+  font-size: 1.05rem;
   line-height: 1.6;
 }
 
-.tutorial-next {
+.tutorial-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  background: rgba(13, 17, 23, 0.72);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+}
+
+.tutorial-sample-label {
+  font-size: 0.8rem;
+  color: var(--game-gold);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tutorial-sample code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 1rem;
+  color: #4ade80;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tutorial-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tutorial-next,
+.tutorial-jump,
+.tutorial-skip {
   padding: 0.75rem 2rem;
   font-size: 1rem;
   font-weight: bold;
-  color: var(--game-bg-primary);
-  background: var(--game-gold);
-  border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.tutorial-next:hover {
-  transform: scale(1.05);
+.tutorial-next,
+.tutorial-jump {
+  color: var(--game-bg-primary);
+  background: var(--game-gold);
+  border: none;
+}
+
+.tutorial-skip {
+  color: var(--game-text);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tutorial-next:hover,
+.tutorial-jump:hover,
+.tutorial-skip:hover {
+  transform: translateY(-1px);
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 }
 
-.tutorial-hint {
-  font-size: 0.85rem;
-  color: var(--game-gold);
-  opacity: 0.8;
-  animation: pulse 2s ease-in-out infinite;
+.tutorial-helper {
+  font-size: 0.9rem;
+  color: #cbd5e1;
 }
 
 /* お手本コード */
@@ -605,5 +682,77 @@ body {
   color: #4ade80;
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+@media (max-width: 1200px) {
+  .battle-screen-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .battle-screen {
+    height: auto;
+    overflow: visible;
+  }
+
+  .battle-main {
+    overflow: visible;
+  }
+
+  .debug-panel-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .battle-header {
+    align-items: flex-start;
+  }
+
+  .learning-goal {
+    margin-left: 0;
+  }
+
+  .tutorial-card-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .battle-screen-container {
+    padding: 0.75rem;
+  }
+
+  .battle-field {
+    height: 240px;
+  }
+
+  .character-info.player {
+    left: 1rem;
+    bottom: 1rem;
+  }
+
+  .character-info.enemy {
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .button-area {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hint-button,
+  .execute-button,
+  .tutorial-next,
+  .tutorial-jump,
+  .tutorial-skip {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
