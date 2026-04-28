@@ -33,6 +33,8 @@ export interface TurnSnapshot {
   playerHp: number;
   enemyHp: number;
   turnCount: number;
+  enemyIsAirborne: boolean;
+  enemyShieldTurnsRemaining: number;
   variables: Map<string, number | string>;
 }
 
@@ -52,6 +54,8 @@ export interface GameState {
   // プレイヤー状態
   isDefending: boolean;
   defenseMultiplier: number;
+  enemyIsAirborne: boolean;
+  enemyShieldTurnsRemaining: number;
 
   // Intent（予兆）システム
   currentIntent: EnemyIntent | null;
@@ -93,6 +97,12 @@ export interface GameActions {
 
   // 防御状態
   setDefending: (defending: boolean) => void;
+
+  // 敵の空中状態
+  setEnemyAirborne: (airborne: boolean) => void;
+
+  // 敵のシールド残りターン
+  setEnemyShieldTurnsRemaining: (turns: number) => void;
 
   // Intent管理
   setIntent: (intent: EnemyIntent | null) => void;
@@ -143,6 +153,8 @@ const initialState: GameState = {
   currentStage: 1,
   isDefending: false,
   defenseMultiplier: 0.5,
+  enemyIsAirborne: false,
+  enemyShieldTurnsRemaining: 0,
   currentIntent: null,
   lastDamageReceived: 0,
   lastDamageBlocked: 0,
@@ -201,6 +213,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   // 防御状態
   setDefending: (defending) => set({ isDefending: defending }),
 
+  // 敵が空中にいるかを切り替える
+  setEnemyAirborne: (airborne) => set({ enemyIsAirborne: airborne }),
+
+  // 敵のシールド残りターンを更新する
+  setEnemyShieldTurnsRemaining: (turns) =>
+    set({ enemyShieldTurnsRemaining: Math.max(0, turns) }),
+
   // Intent管理
   setIntent: (intent) => set({ currentIntent: intent }),
   setLastDamage: (received, blocked) =>
@@ -213,6 +232,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerHp: state.playerHp,
         enemyHp: state.enemyHp,
         turnCount: state.turnCount,
+        enemyIsAirborne: state.enemyIsAirborne,
+        enemyShieldTurnsRemaining: state.enemyShieldTurnsRemaining,
         variables: new Map(state.variables),
       },
     })),
@@ -223,6 +244,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerHp: snapshot.playerHp,
         enemyHp: snapshot.enemyHp,
         turnCount: snapshot.turnCount,
+        enemyIsAirborne: snapshot.enemyIsAirborne,
+        enemyShieldTurnsRemaining: snapshot.enemyShieldTurnsRemaining,
         variables: new Map(snapshot.variables),
         battlePhase: "player_turn",
         isDefending: false,
@@ -332,6 +355,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       ...initialState,
       enemyHp,
       maxEnemyHp: enemyHp,
+      enemyIsAirborne: false,
+      enemyShieldTurnsRemaining: 0,
     }),
 
   // Promise resolver設定

@@ -125,25 +125,41 @@ export const STAGES: StageData[] = [
     enemyId: "orc",
     enemyName: "オーク",
     enemyHp: 80,
-    learningGoal: "もし() で条件によって行動を変える",
-    hint: `敵のHPが多い時と少ない時で
-攻撃を変えよう！
+    learningGoal: "もし() で敵の状態を見て行動を変える",
+    hint: `敵がジャンプすると、敵の状態が 1 になるよ。
+1 は「空中」、0 は「地面」にいるイメージだよ。
 
-もし(敵の体力 > 50) {
-  攻撃("ファイア")
-} そうでなければ {
-  攻撃("サンダー")
+もし(敵の状態 == 1) {
+  防御()
 }
-防御()
+もし(敵の状態 == 0) {
+  攻撃("ファイア")
+}
 
-条件によって違う魔法を使えるよ！`,
-    sampleCode: `もし(敵の体力 > 50) {
-  攻撃("ファイア")
-} そうでなければ {
-  攻撃("サンダー")
+敵が空中のときは攻撃を当てにくい、という考え方を覚えよう！`,
+    sampleCode: `もし(敵の状態 == 1) {
+  防御()
 }
-防御()`,
-    successMessage: "条件分岐をマスター！状況に合わせて行動を変えられるね！",
+もし(敵の状態 == 0) {
+  攻撃("ファイア")
+}`,
+    successMessage: "条件分岐をマスター！敵の状態を見て行動を変えられるね！",
+    tutorialSteps: [
+      {
+        message: "敵がジャンプしたら、敵の状態を見て行動を変えよう！",
+        waitForAction: "none",
+      },
+      {
+        message: "敵の状態が 1 のときは空中。防御() を使うのがヒントだよ。",
+        highlightElement: ".code-editor",
+        waitForAction: "code_input",
+      },
+      {
+        message: '敵の状態が 0 のときは地面。攻撃("ファイア") を使おう！',
+        highlightElement: ".code-editor",
+        waitForAction: "execute",
+      },
+    ],
   },
 
   // ステージ6: ボス戦
@@ -153,7 +169,7 @@ export const STAGES: StageData[] = [
     enemyId: "dragon",
     enemyName: "ドラゴン",
     enemyHp: 150,
-    learningGoal: "全ての技術を組み合わせる",
+    learningGoal: "全ての技術を組み合わせて敵の状態を見分ける",
     hint: `最強の敵、ドラゴン！
 今まで学んだことを全て使おう！
 
@@ -163,12 +179,21 @@ export const STAGES: StageData[] = [
 }
 防御()
 
+敵の状態が 2 のときはシールド中だよ。
+
+もし(敵の状態 == 2) {
+  防御()
+}
+
 変数 + 繰り返し + 防御 の組み合わせだ！`,
     sampleCode: `変数 威力 = 25
 繰り返す(3) {
   攻撃("ファイア")
 }
-防御()`,
+防御()
+もし(敵の状態 == 2) {
+  防御()
+}`,
     successMessage:
       "🎉 ドラゴンを倒した！全クリおめでとう！君は立派なプログラマーだ！",
   },

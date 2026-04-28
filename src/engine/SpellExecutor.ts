@@ -6,6 +6,8 @@ export interface GameContext {
   playerHp: number;
   enemyHp: number;
   maxEnemyHp: number;
+  enemyIsAirborne: boolean;
+  enemyShieldTurnsRemaining: number;
   variables: Map<string, number | string>;
 }
 
@@ -355,6 +357,13 @@ export class SpellExecutor {
       return this.useStore
         ? gameStore.getState().enemyHp
         : this.context.enemyHp;
+    }
+    if (value === "敵の状態" || value === "敵が空中") {
+      const state = this.useStore ? gameStore.getState() : this.context;
+      if (state.enemyShieldTurnsRemaining > 0) {
+        return 2;
+      }
+      return state.enemyIsAirborne ? 1 : 0;
     }
     if (value === "自分の体力") {
       return this.useStore

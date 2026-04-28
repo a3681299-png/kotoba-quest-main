@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   initBattleScene,
   playAttackAnimation,
+  playEnemyJumpAnimation,
   updateEnemyAppearance,
+  setEnemyShieldVisual,
   playDefeatAnimation,
   playEnemyAttackAnimation,
   destroyBattleScene,
@@ -21,7 +23,12 @@ import {
 } from "../engine/EnemyAI";
 import "../styles/battle.css";
 
-export function BattleScreen() {
+interface BattleScreenProps {
+  playerName: string;
+  onBackToStart: () => void;
+}
+
+export function BattleScreen({ playerName, onBackToStart }: BattleScreenProps) {
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [code, setCode] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
@@ -46,6 +53,7 @@ export function BattleScreen() {
     currentIntent,
     isDefending,
     lastDamageBlocked,
+    enemyShieldTurnsRemaining,
     resetStage,
     clearVariables,
     resetExecution,
@@ -56,6 +64,7 @@ export function BattleScreen() {
     nextTurn,
     saveTurnSnapshot,
     restoreFromSnapshot,
+    setEnemyShieldTurnsRemaining,
   } = useGameStore();
 
   const stage = STAGES[currentStageIndex];
@@ -126,11 +135,17 @@ export function BattleScreen() {
   const executeAction = async (
     action: GameAction,
     currentEnemyHp: number,
+    enemyIsAirborne: boolean,
   ): Promise<number> => {
     if (action.type === "attack") {
-      await playAttackAnimation(action.attackType);
-      const newHp = Math.max(0, currentEnemyHp - action.damage);
-      return newHp;
+      await playAttackAnimation(action.attackType, !enemyIsAirborne);
+
+      if (enemyIsAirborne) {
+        addLog("攻撃は空中の敵に当たらなかった！", "normal");
+        return currentEnemyHp;
+      }
+
+      return Math.max(0, currentEnemyHp - action.damage);
     }
     return currentEnemyHp;
   };
@@ -143,34 +158,47 @@ export function BattleScreen() {
       await new Promise((resolve) => setTimeout(resolve, 500));
     } else {
       // ステージ3以降: 攻撃
-      const damage = calculateDamage(currentIntent, isDefending);
-      const blocked = isDefending ? currentIntent.damage - damage : 0;
-
-      // 攻撃アニメーション
-      const attackType =
-        currentIntent.type === "attack_heavy"
-          ? "heavy"
-          : currentIntent.type === "attack_multi"
-            ? "multi"
-            : "normal";
-      await playEnemyAttackAnimation(attackType, isDefending);
-
-      // ダメージ適用
-      damagePlayer(currentIntent.damage);
-
-      if (isDefending) {
-        addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
-        addLog(`${damage}ダメージを受けた！`, "damage");
+      if (currentIntent.type === "jumping") {
+        // ジャンプ中はダメージを受けず、空中状態だけを残す
+        addLog(`🪽 ${stage.enemyName}がジャンプした！`);
+        await playEnemyJumpAnimation();
+        useGameStore.getState().setEnemyAirborne(true);
+      } else if (currentIntent.type === "shielding") {
+        // シールドはランダムなターン数だけ続く
+        const shieldTurns = 1 + Math.floor(Math.random() * 3);
+        addLog(`🛡️ ${stage.enemyName}がシールドを張った！ (${shieldTurns}ターン)`);
+        setEnemyShieldTurnsRemaining(shieldTurns);
+        setEnemyShieldVisual(true);
       } else {
-        addLog(`💥 ${currentIntent.damage}ダメージを受けた！`, "damage");
-      }
+        const damage = calculateDamage(currentIntent, isDefending);
+        const blocked = isDefending ? currentIntent.damage - damage : 0;
 
-      // プレイヤーHPチェック
-      const currentPlayerHp = useGameStore.getState().playerHp;
-      if (currentPlayerHp <= 0) {
-        setBattlePhase("defeat");
-        setShowDefeat(true);
-        return;
+        // 攻撃アニメーション
+        const attackType =
+          currentIntent.type === "attack_heavy"
+            ? "heavy"
+            : currentIntent.type === "attack_multi"
+              ? "multi"
+              : "normal";
+        await playEnemyAttackAnimation(attackType, isDefending);
+
+        // ダメージ適用
+        damagePlayer(currentIntent.damage);
+
+        if (isDefending) {
+          addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
+          addLog(`${damage}ダメージを受けた！`, "damage");
+        } else {
+          addLog(`💥 ${currentIntent.damage}ダメージを受けた！`, "damage");
+        }
+
+        // プレイヤーHPチェック
+        const currentPlayerHp = useGameStore.getState().playerHp;
+        if (currentPlayerHp <= 0) {
+          setBattlePhase("defeat");
+          setShowDefeat(true);
+          return;
+        }
       }
     }
 
@@ -243,6 +271,9 @@ export function BattleScreen() {
         playerHp,
         enemyHp: stage.enemyHp,
         maxEnemyHp: stage.enemyHp,
+        enemyIsAirborne: useGameStore.getState().enemyIsAirborne,
+        enemyShieldTurnsRemaining:
+          useGameStore.getState().enemyShieldTurnsRemaining,
         variables: new Map(),
       },
       { useStore: true },
@@ -279,20 +310,50 @@ export function BattleScreen() {
     // アクションを実行
     let currentEnemyHp = useGameStore.getState().enemyHp;
     let totalDamage = 0;
+    const enemyIsAirborne = useGameStore.getState().enemyIsAirborne;
+    const enemyShielded = useGameStore.getState().enemyShieldTurnsRemaining > 0;
 
     for (const action of result.actions) {
       if (action.type === "attack") {
-        totalDamage += action.damage;
-        currentEnemyHp = await executeAction(action, currentEnemyHp);
-        useGameStore.getState().damageEnemy(action.damage);
+        currentEnemyHp = await executeAction(
+          action,
+          currentEnemyHp,
+          enemyIsAirborne || enemyShielded,
+        );
+
+        if (!enemyIsAirborne && !enemyShielded) {
+          totalDamage += action.damage;
+          useGameStore.getState().damageEnemy(action.damage);
+        } else if (enemyShielded) {
+          addLog("🛡️ 攻撃はシールドに防がれた！", "block");
+        }
       } else if (action.type === "heal") {
         useGameStore.getState().healPlayer(action.amount);
+      }
+    }
+
+    if (enemyIsAirborne) {
+      // 空中状態はプレイヤーの行動ターンだけ有効にする
+      addLog("🪽 敵は着地した。", "normal");
+      useGameStore.getState().setEnemyAirborne(false);
+    }
+
+    if (enemyShielded) {
+      const nextShieldTurns = Math.max(0, enemyShieldTurnsRemaining - 1);
+      // シールドは1ラウンドずつ減る
+      setEnemyShieldTurnsRemaining(nextShieldTurns);
+      if (nextShieldTurns === 0) {
+        addLog("🛡️ シールドが消えた！", "normal");
+        setEnemyShieldVisual(false);
       }
     }
 
     // 敵HPのビジュアル更新
     const finalEnemyHp = useGameStore.getState().enemyHp;
     updateEnemyAppearance(finalEnemyHp / stage.enemyHp);
+    if (useGameStore.getState().enemyShieldTurnsRemaining > 0) {
+      setEnemyShieldVisual(true);
+    }
 
     if (totalDamage > 0) {
       addLog(`${stage.enemyName}に合計${totalDamage}ダメージ！`, "damage");
@@ -383,8 +444,12 @@ export function BattleScreen() {
             <span className="stage-name">{stage.name}</span>
             <span className="turn-info">（ターン {turnCount}）</span>
           </div>
-          <div className="learning-goal">🎯 目標: {stage.learningGoal}</div>
           <div className="header-controls">
+            <div className="player-badge">👤 {playerName}</div>
+            <div className="learning-goal">🎯 目標: {stage.learningGoal}</div>
+            <button className="debug-toggle-button" onClick={onBackToStart}>
+              ⬅️ 名前を変更
+            </button>
             <button
               className="debug-toggle-button"
               onClick={() => setShowDebugPanel(!showDebugPanel)}
@@ -452,8 +517,13 @@ export function BattleScreen() {
             <div ref={canvasRef} className="battle-canvas" />
 
             {/* プレイヤー情報 */}
-            <div className="character-info player">
+            <div
+              className={`character-info player ${isDefending ? "shielded" : ""}`}
+            >
               <div className="character-name">🧙 プレイヤー</div>
+              {isDefending && (
+                <div className="status-badge player-shield">🛡️ 防御中</div>
+              )}
               <div className="hp-bar-container">
                 <div
                   className="hp-bar player"
@@ -463,8 +533,17 @@ export function BattleScreen() {
             </div>
 
             {/* 敵情報 */}
-            <div className="character-info enemy">
+            <div
+              className={`character-info enemy ${
+                enemyShieldTurnsRemaining > 0 ? "shielded" : ""
+              }`}
+            >
               <div className="character-name">👾 {stage.enemyName}</div>
+              {enemyShieldTurnsRemaining > 0 && (
+                <div className="status-badge enemy-shield">
+                  🛡️ シールド {enemyShieldTurnsRemaining}
+                </div>
+              )}
               <div className="hp-bar-container">
                 <div
                   className="hp-bar enemy"

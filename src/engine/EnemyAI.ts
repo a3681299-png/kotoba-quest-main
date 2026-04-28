@@ -5,6 +5,8 @@ export type IntentType =
   | "attack_normal" // 通常攻撃
   | "attack_heavy" // 強攻撃（防御推奨）
   | "attack_multi" // 連続攻撃
+  | "jumping" // ジャンプ中（空中で攻撃をかわす）
+  | "shielding" // シールド中（攻撃を防ぐ）
   | "charging" // 力を溜めている（次ターン強攻撃）
   | "defending" // 防御中（攻撃が効きにくい）
   | "idle"; // 何もしない（ステージ1-2用）
@@ -41,6 +43,8 @@ export type IntentCondition =
   | { type: "hp_below"; threshold: number } // HP割合が閾値以下
   | { type: "hp_above"; threshold: number } // HP割合が閾値以上
   | { type: "turn_multiple"; multiple: number } // ターン数が倍数
+  | { type: "turn_even" } // 偶数ターン
+  | { type: "turn_odd" } // 奇数ターン
   | { type: "player_defending" } // プレイヤーが防御中
   | { type: "random"; chance: number }; // 確率
 
@@ -141,7 +145,8 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
     ],
   },
 
-  // ステージ5: オーク - HP依存攻撃（条件分岐練習）
+  // ステージ5: オーク - if の練習
+  // 敵の状態を見て行動を変える練習用に、攻撃とジャンプを交互に行う
   5: {
     id: "orc",
     name: "オーク",
@@ -149,37 +154,26 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
     stage: 5,
     attackPatterns: [
       {
-        condition: { type: "hp_above", threshold: 0.5 },
+        condition: { type: "turn_odd" },
         intent: {
           type: "attack_normal",
           damage: 12,
           description: "攻撃の構え！",
-          hint: "HPが高いうちは通常攻撃",
+          hint: "敵の状態が0のときは攻撃のチャンス！",
           icon: "⚔️",
         },
-        weight: 2,
+        weight: 1,
       },
       {
-        condition: { type: "hp_below", threshold: 0.5 },
+        condition: { type: "turn_even" },
         intent: {
-          type: "attack_heavy",
-          damage: 30,
-          description: "怒りの強攻撃！",
-          hint: "HPが減ると怒り出す！防御() しよう！",
-          icon: "💢",
+          type: "jumping",
+          damage: 0,
+          description: "ジャンプして空中に逃げた！",
+          hint: "敵の状態が1なら、攻撃が当たりにくいよ。",
+          icon: "🪽",
         },
-        weight: 3,
-      },
-      {
-        condition: { type: "turn_multiple", multiple: 3 },
-        intent: {
-          type: "attack_multi",
-          damage: 10,
-          description: "連続攻撃の準備！",
-          hint: "3ターンごとに連続攻撃！",
-          icon: "⚡",
-        },
-        weight: 2,
+        weight: 1,
       },
     ],
   },
@@ -235,6 +229,17 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
         },
         weight: 1,
       },
+      {
+        condition: { type: "random", chance: 0.35 },
+        intent: {
+          type: "shielding",
+          damage: 0,
+          description: "防御の壁を作った！",
+          hint: "敵の状態が 2 のときはシールド中。攻撃が防がれるよ。",
+          icon: "🛡️",
+        },
+        weight: 1,
+      },
     ],
   },
 };
@@ -260,6 +265,10 @@ export function decideEnemyIntent(
         return hpRatio >= cond.threshold;
       case "turn_multiple":
         return turnCount > 0 && turnCount % cond.multiple === 0;
+      case "turn_even":
+        return turnCount > 0 && turnCount % 2 === 0;
+      case "turn_odd":
+        return turnCount > 0 && turnCount % 2 === 1;
       case "player_defending":
         return isPlayerDefending;
       case "random":

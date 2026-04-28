@@ -5,6 +5,8 @@ export interface GameContext {
     playerHp: number;
     enemyHp: number;
     maxEnemyHp: number;
+    enemyIsAirborne: boolean;
+    enemyShieldTurnsRemaining: number;
     variables: Map<string, number | string>;
 }
 
@@ -154,6 +156,12 @@ export class Interpreter {
         // 特殊な識別子
         if (value === "体力" || value === "敵の体力") {
             return this.context.enemyHp;
+        }
+        if (value === "敵の状態" || value === "敵が空中") {
+            if (this.context.enemyShieldTurnsRemaining > 0) {
+                return 2;
+            }
+            return this.context.enemyIsAirborne ? 1 : 0;
         }
         if (value === "自分の体力") {
             return this.context.playerHp;

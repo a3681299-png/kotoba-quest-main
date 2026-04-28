@@ -150,6 +150,7 @@ function createEnemySprite() {
 // 攻撃アニメーション
 export function playAttackAnimation(
   attackType: "fire" | "ice" | "thunder" | "normal" = "fire",
+  didHit: boolean = true,
 ): Promise<void> {
   return new Promise((resolve) => {
     if (!app || !app.stage || !playerSprite || !enemySprite) {
@@ -177,7 +178,8 @@ export function playAttackAnimation(
 
     // アニメーション
     const targetX = enemySprite.x;
-    const targetY = enemySprite.y;
+    // 空振り時は少し下を通るようにして、ジャンプ回避を見せる
+    const targetY = didHit ? enemySprite.y : enemySprite.y + 55;
     const startX = attackEffect.x;
     const startY = attackEffect.y;
     const duration = 500;
@@ -201,7 +203,9 @@ export function playAttackAnimation(
         requestAnimationFrame(animate);
       } else {
         // ヒットエフェクト
-        playHitEffect(targetX, targetY, color);
+        if (didHit) {
+          playHitEffect(targetX, targetY, color);
+        }
 
         // エフェクトを削除
         try {
@@ -211,12 +215,52 @@ export function playAttackAnimation(
           // 無視
         }
 
-        // 敵を揺らす
-        if (enemySprite) {
+        // 命中したときだけ敵を揺らす
+        if (didHit && enemySprite) {
           shakeSprite(enemySprite);
         }
 
         setTimeout(resolve, 300);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  });
+}
+
+// 敵のジャンプアニメーション
+export function playEnemyJumpAnimation(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!enemySprite || !app || !app.stage) {
+      resolve();
+      return;
+    }
+
+    // 少し大きめの跳躍にして、空中にいるのが分かるようにする
+    const startY = enemySprite.y;
+    const jumpHeight = 70;
+    const duration = 450;
+    const startTime = Date.now();
+
+    const animate = () => {
+      if (!enemySprite || !app || !app.stage) {
+        resolve();
+        return;
+      }
+
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const arc = Math.sin(progress * Math.PI);
+
+      enemySprite.y = startY - jumpHeight * arc;
+      enemySprite.scale.set(1 + arc * 0.08);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        enemySprite.y = startY;
+        enemySprite.scale.set(1);
+        resolve();
       }
     };
 
@@ -296,6 +340,15 @@ export function updateEnemyAppearance(hpPercent: number) {
     enemySprite.tint = 0xffa500;
   } else {
     enemySprite.tint = 0xffffff;
+  }
+}
+
+// シールド中の見た目を更新
+export function setEnemyShieldVisual(isShielded: boolean) {
+  if (!enemySprite) return;
+
+  if (isShielded) {
+    enemySprite.tint = 0x60a5fa;
   }
 }
 
