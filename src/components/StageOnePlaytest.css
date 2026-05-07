@@ -1,0 +1,327 @@
+.stage-one-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stage-one-hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 20px;
+  padding: 28px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 171, 107, 0.18), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.2);
+}
+
+.stage-one-kicker {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffcb8d;
+}
+
+.stage-one-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3.6vw, 3.1rem);
+  line-height: 1.05;
+}
+
+.stage-one-hero-copy p:last-child {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 60ch;
+}
+
+.stage-one-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stage-one-metrics div,
+.stage-one-result-summary div {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-one-metrics span,
+.stage-one-result-summary span {
+  display: block;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.stage-one-metrics strong,
+.stage-one-result-summary strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.1rem;
+}
+
+.stage-one-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.stage-one-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stage-one-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.stage-one-panel {
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.stage-one-panel h2,
+.stage-one-panel h3 {
+  margin: 0;
+}
+
+.stage-one-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stage-one-list.compact {
+  gap: 6px;
+}
+
+.stage-one-wave-list,
+.stage-one-enemy-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.stage-one-wave-card,
+.stage-one-enemy-card,
+.stage-one-enemy-section,
+.stage-one-syntax-banner,
+.stage-one-empty-state,
+.stage-one-failure-reason {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-one-wave-card.active,
+.stage-one-enemy-section.current {
+  border-color: rgba(110, 231, 183, 0.3);
+  background: rgba(110, 231, 183, 0.08);
+}
+
+.stage-one-wave-card.cleared {
+  border-color: rgba(255, 209, 102, 0.24);
+}
+
+.stage-one-wave-head,
+.stage-one-enemy-header,
+.stage-one-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.stage-one-wave-head span,
+.stage-one-enemy-header span {
+  color: #ffd166;
+  font-size: 0.84rem;
+}
+
+.stage-one-wave-card p,
+.stage-one-empty-state p,
+.stage-one-enemy-section p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.stage-one-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stage-one-button-row button {
+  border: none;
+  border-radius: 14px;
+  padding: 11px 14px;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.stage-one-button-row button:hover {
+  transform: translateY(-1px);
+}
+
+.stage-one-button-row button:disabled {
+  opacity: 0.48;
+  cursor: default;
+  transform: none;
+}
+
+.stage-one-button-row .primary {
+  background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%);
+  color: white;
+}
+
+.stage-one-button-row .ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-one-syntax-banner {
+  margin: 14px 0;
+  color: rgba(255, 246, 220, 0.88);
+  background: rgba(255, 209, 102, 0.08);
+  border-color: rgba(255, 209, 102, 0.16);
+}
+
+.stage-one-wave-guide {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.stage-one-error {
+  margin-top: 14px;
+  color: #ffb4b4;
+}
+
+.stage-one-result-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.stage-one-log {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.stage-one-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.stage-one-summary-grid div {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-one-summary-grid span {
+  display: block;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.stage-one-summary-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.06rem;
+}
+
+.stage-one-log-entry {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.stage-one-log-entry.system {
+  border-color: rgba(255, 209, 102, 0.16);
+  color: #ffe1a8;
+}
+
+.stage-one-log-entry.player {
+  border-color: rgba(110, 231, 183, 0.16);
+}
+
+.stage-one-log-entry.enemy {
+  border-color: rgba(255, 125, 125, 0.16);
+}
+
+.stage-one-log-entry.success {
+  border-color: rgba(118, 255, 168, 0.2);
+  color: #a7ffbe;
+}
+
+.stage-one-log-entry.failure,
+.stage-one-failure-reason {
+  border-color: rgba(255, 125, 125, 0.22);
+  color: #ffb3b3;
+}
+
+@media (max-width: 1180px) {
+  .stage-one-hero,
+  .stage-one-layout,
+  .stage-one-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .stage-one-hero,
+  .stage-one-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .stage-one-metrics,
+  .stage-one-result-summary,
+  .stage-one-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-one-panel-head,
+  .stage-one-enemy-header,
+  .stage-one-wave-head {
+    flex-direction: column;
+  }
+
+  .stage-one-button-row {
+    width: 100%;
+  }
+
+  .stage-one-button-row button {
+    flex: 1;
+  }
+}
