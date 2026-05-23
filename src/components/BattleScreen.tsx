@@ -18,6 +18,7 @@ import {
   shouldRunCodeAfterCardAnimation,
   type EditorCardMotionState,
 } from "./editorCardMotion";
+import { playBattleSound, unlockBattleAudio } from "../audio/battleAudio";
 import { useGameStore } from "../store/useGameStore";
 import { STAGES } from "../data/stages";
 import {
@@ -174,9 +175,13 @@ export function BattleScreen() {
     currentEnemyHp: number,
   ): Promise<number> => {
     if (action.type === "attack") {
+      playBattleSound("attack");
       await playAttackAnimation(action.attackType);
       const newHp = Math.max(0, currentEnemyHp - action.damage);
       return newHp;
+    }
+    if (action.type === "heal") {
+      playBattleSound("heal");
     }
     return currentEnemyHp;
   };
@@ -199,6 +204,7 @@ export function BattleScreen() {
           : currentIntent.type === "attack_multi"
             ? "multi"
             : "normal";
+      playBattleSound("enemyAttack");
       await playEnemyAttackAnimation(attackType, isDefending);
 
       // ダメージ適用
@@ -214,6 +220,7 @@ export function BattleScreen() {
       // プレイヤーHPチェック
       const currentPlayerHp = useGameStore.getState().playerHp;
       if (currentPlayerHp <= 0) {
+        playBattleSound("defeat");
         setBattlePhase("defeat");
         setShowDefeat(true);
         return;
@@ -267,6 +274,7 @@ export function BattleScreen() {
     saveTurnSnapshot();
 
     addLog(`🔮 呪文を詠唱中...`);
+    playBattleSound("cast");
 
     // パース
     const parseResult = parse(code.trim());
@@ -335,6 +343,8 @@ export function BattleScreen() {
         useGameStore.getState().damageEnemy(action.damage);
       } else if (action.type === "heal") {
         useGameStore.getState().healPlayer(action.amount);
+      } else if (action.type === "defend") {
+        playBattleSound("defend");
       }
     }
 
@@ -378,6 +388,7 @@ export function BattleScreen() {
     }
 
     pendingCodeRunRef.current = true;
+    void unlockBattleAudio();
     setEditorCardMotionState("submitting");
   };
 
@@ -393,6 +404,7 @@ export function BattleScreen() {
 
   // リトライ
   const handleRetry = () => {
+    playBattleSound("ui");
     restoreFromSnapshot();
     setShowDefeat(false);
     setBattlePhase("player_turn");
@@ -401,6 +413,7 @@ export function BattleScreen() {
 
   // 次のステージへ
   const goToNextStage = () => {
+    playBattleSound("ui");
     if (currentStageIndex < STAGES.length - 1) {
       const nextStageIdx = currentStageIndex + 1;
       setCurrentStageIndex(nextStageIdx);
@@ -409,6 +422,7 @@ export function BattleScreen() {
       setShowVictory(false);
       codeEditorRef.current?.clearHighlights();
     } else {
+      playBattleSound("victory");
       alert("🎉 おめでとう！全ステージクリア！君は立派なプログラマーだ！");
     }
   };
