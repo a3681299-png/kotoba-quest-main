@@ -12,7 +12,7 @@ export interface WaveData {
   codeExample?: string;
   // StageConfig.stateGimmick を Wave 単位で上書き
   stateGimmickOverride?: import("../engine/types").StateGimmick | null;
-  // true の場合、Wave 内の敵が同時に出現する（Stage4 Wave3 専用）
+  // true の場合、Wave 内の敵が同時に出現する（複数体同時戦闘）
   simultaneous?: boolean;
   // Stage3 以降: NPC コード領域
   npc?: {
@@ -77,6 +77,7 @@ export const STAGE1: StageData = {
       title: "Wave 2 — 2体の敵",
       description: "片方は攻撃してくる。防御コマンドも使ってみよう。",
       hint: "「防御()」を使うと敵の攻撃ダメージを10減らせるよ。MPが残っているときは魔法で攻撃しよう！",
+      simultaneous: true,
       codeExample: "繰り返す(敵が生きている あいだ):\n  もし 自分のHP が 50 以下 ならば:\n    防御()\n  そうでなければ:\n    魔法(フレイム)",
       enemies: [
         {
@@ -159,6 +160,7 @@ export const STAGE2: StageData = {
       title: "Wave 2 — 長いコードは通じない",
       description: "この敵はコードが長いと攻撃を弾いてしまう！短くまとめよう。",
       hint: "「繰り返す」を使うとコードが短くなって、この敵にしっかりダメージが通るよ！",
+      simultaneous: true,
       codeExample: "繰り返す(敵が生きている あいだ):\n  繰り返す(4):\n    魔法(スパーク)",
       enemies: [
         {
@@ -244,6 +246,7 @@ export const STAGE3: StageData = {
       title: "Wave 2 — 変数で連携",
       description: "プレイヤーが変数を使ってなかまに合図を送れる。なかまのコードを読んで、変数名のズレを直そう。",
       hint: "プレイヤーコードの変数名と、なかまが参照している変数名を合わせよう。「プレイヤー.変数名」で参照できるよ。",
+      simultaneous: true,
       codeExample:
         "繰り返す(敵が生きている あいだ):\n  あいず = 1\n  魔法(フレイム)\n  魔法(アクア)",
       enemies: [
@@ -345,6 +348,7 @@ export const STAGE4: StageData = {
       description: "2体それぞれが別の有効属性を持つ。5属性すべてに対応するコードを書こう。",
       hint: "2体の敵の状態は独立してランダムに変わる。「敵[1番目]へ 魔法(…)」でターゲットを指定できるよ。",
       stateGimmickOverride: { type: "wave2" },
+      simultaneous: true,
       codeExample: [
         "繰り返す(敵が生きている あいだ):",
         "  もし 敵が火状態 ならば:",

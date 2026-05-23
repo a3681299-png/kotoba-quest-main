@@ -131,6 +131,24 @@ export function BattleAnimator({
   const displayedLogs = allLogs.slice(0, stepIndex);
   const currentEntry = allLogs[stepIndex]; // 次に表示されるエントリ
 
+  // 敵ごとの一時ハイライト（ダメージを視覚化）
+  const prevEnemyHpsRef = useRef<number[]>(wave.enemies.map((e) => e.maxHp));
+  const [flashMap, setFlashMap] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    const prev = prevEnemyHpsRef.current;
+    const curr = currentState.enemyHps;
+    curr.forEach((hp, i) => {
+      if ((prev[i] ?? 0) > hp) {
+        setFlashMap((m) => ({ ...m, [i]: true }));
+        const t = setTimeout(() => setFlashMap((m) => ({ ...m, [i]: false })), 350);
+        // クリーンアップしない（短時間なので問題ない）
+        void t;
+      }
+    });
+    prevEnemyHpsRef.current = [...curr];
+  }, [stepIndex, currentState.enemyHps]);
+
   // アニメーションループ
   const advance = useCallback(() => {
     setStepIndex((i) => i + 1);
@@ -251,27 +269,17 @@ export function BattleAnimator({
               color="#63b3ed"
             />
             <div style={s.statusDivider} />
-            {isSimultaneous
-              // 多体バトル: 全敵のHPバーを表示
-              ? wave.enemies.map((e, i) => (
-                  <StatusBarAnimated
-                    key={e.id}
-                    label={e.name}
-                    value={currentState.enemyHps[i] ?? 0}
-                    max={e.maxHp}
-                    color={e.charLimit ? "#f6e05e" : "#fc8181"}
-                  />
-                ))
-              // 単体バトル: 現在の敵を表示
-              : currentEnemy && (
-                  <StatusBarAnimated
-                    label={currentEnemy.name}
-                    value={currentState.enemyHp}
-                    max={currentEnemy.maxHp}
-                    color="#fc8181"
-                  />
-                )
-            }
+            {/* すべての敵を一覧で表示する（同時・逐次どちらでも全員表示） */}
+            {wave.enemies.map((e, i) => (
+              <StatusBarAnimated
+                key={e.id ?? i}
+                label={e.name}
+                value={currentState.enemyHps[i] ?? e.maxHp}
+                max={e.maxHp}
+                color={e.charLimit ? "#f6e05e" : "#fc8181"}
+                flash={!!flashMap[i]}
+              />
+            ))}
           </div>
 
           {/* 現在の行動表示 */}
@@ -294,17 +302,18 @@ export function BattleAnimator({
 
 // ─── サブコンポーネント ────────────────────────────────
 
-function StatusBarAnimated({ label, value, max, color }: {
-  label: string; value: number; max: number; color: string;
+function StatusBarAnimated({ label, value, max, color, flash }: {
+  label: string; value: number; max: number; color: string; flash?: boolean;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
       <span style={{ fontSize: 11, color: "#718096", width: 72, flexShrink: 0 }}>{label}</span>
-      <div style={{ flex: 1, height: 8, background: "#2d3748", borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ flex: 1, height: 8, background: "#2d3748", borderRadius: 4, overflow: "hidden", boxShadow: flash ? "0 0 8px rgba(255,255,255,0.06)" : undefined }}>
         <div style={{
           width: `${pct}%`, height: "100%", background: color, borderRadius: 4,
-          transition: "width 0.2s ease",
+          transition: "width 0.2s ease, box-shadow 0.15s",
+          transform: flash ? "scaleY(1.12)" : undefined,
         }} />
       </div>
       <span style={{ fontSize: 11, color: "#a0aec0", width: 28, textAlign: "right" }}>{value}</span>

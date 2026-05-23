@@ -80,7 +80,7 @@ export interface BattleState {
 // ─── プレイヤー行動 ─────────────────────────────────────
 
 export type PlayerAction =
-  | { type: "MagicUse"; magic: MagicName }
+  | { type: "MagicUse"; magic: MagicName; targetIndex?: number }
   | { type: "Defend" }
   | { type: "Heal" }
   | { type: "Wait" };

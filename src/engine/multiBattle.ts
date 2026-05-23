@@ -194,7 +194,21 @@ function playerTurn(body: ASTNode[], state: MultiState): void {
       continue;
     }
     state.playerMp -= 10;
-    const target = state.enemies.find((e) => e.hp > 0);
+    let target: MultiEnemy | undefined;
+    if (action.targetIndex !== undefined) {
+      const idx = action.targetIndex - 1;
+      target = state.enemies[idx];
+      if (!target) {
+        addLog(state, "playerAction", `指定した敵が見つからないため ${action.magic} は不発`);
+        continue;
+      }
+      if (target.hp <= 0) {
+        addLog(state, "playerAction", `指定した敵は既に倒れているため ${action.magic} は不発`);
+        continue;
+      }
+    } else {
+      target = state.enemies.find((e) => e.hp > 0);
+    }
     if (!target) break;
     applySingleMagicToEnemy(action.magic, target, state.enemies.indexOf(target), state);
   }
