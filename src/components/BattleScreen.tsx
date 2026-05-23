@@ -84,7 +84,13 @@ export function BattleScreen() {
     setCurrentStage(stage.id);
     // 初回の予兆を設定
     if (enemyData) {
-      const intent = decideEnemyIntent(enemyData, enemyData.maxHp, 0, false);
+      const intent = decideEnemyIntent(
+        enemyData,
+        enemyData.maxHp,
+        0,
+        false,
+        null,
+      );
       setIntent(intent);
     }
     // チュートリアルがあれば表示
@@ -134,36 +140,46 @@ export function BattleScreen() {
       addLog(`👾 ${stage.enemyName}はこちらを見ている...`);
       await new Promise((resolve) => setTimeout(resolve, 500));
     } else {
-      // ステージ3以降: 攻撃
-      const damage = calculateDamage(currentIntent, isDefending);
-      const blocked = isDefending ? currentIntent.damage - damage : 0;
-
-      // 攻撃アニメーション
-      const attackType =
-        currentIntent.type === "attack_heavy"
-          ? "heavy"
-          : currentIntent.type === "attack_multi"
-            ? "multi"
-            : "normal";
-      await playEnemyAttackAnimation(attackType, isDefending);
-
-      // ダメージ適用
-      damagePlayer(currentIntent.damage);
-
-      if (isDefending) {
-        addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
-        addLog(`${damage}ダメージを受けた！`, "damage");
+      // no-op
+    } else {
+      // 溜め（予兆）処理: turnsUntilAction が 1 以上なら攻撃は次ターンに持ち越す
+      if (currentIntent.turnsUntilAction && currentIntent.turnsUntilAction > 0) {
+        addLog(`⚡ ${currentIntent.description}`);
+        // 溜めターンをひとつ減らした状態を保存（次の decide でフォローアップを選べるようにする）
+        setIntent({ ...currentIntent, turnsUntilAction: currentIntent.turnsUntilAction - 1 });
+        // 演出の短い待ち
+        await new Promise((resolve) => setTimeout(resolve, 600));
       } else {
-        addLog(`💥 ${currentIntent.damage}ダメージを受けた！`, "damage");
-      }
+        // ステージ3以降: 攻撃
+        const effectiveDamage = calculateDamage(currentIntent, isDefending);
+        const blocked = isDefending ? currentIntent.damage - effectiveDamage : 0;
 
-      // プレイヤーHPチェック
-      const currentPlayerHp = useGameStore.getState().playerHp;
-      if (currentPlayerHp <= 0) {
-        setBattlePhase("defeat");
-        setShowDefeat(true);
-        return;
-      }
+        // 攻撃アニメーション
+        const attackType =
+          currentIntent.type === "attack_heavy"
+            ? "heavy"
+            : currentIntent.type === "attack_multi"
+              ? "multi"
+              : "normal";
+        await playEnemyAttackAnimation(attackType, isDefending);
+
+        // ダメージ適用
+        damagePlayer(effectiveDamage, true);
+
+        if (isDefending) {
+          addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
+          addLog(`${effectiveDamage}ダメージを受けた！`, "damage");
+        } else {
+          addLog(`💥 ${effectiveDamage}ダメージを受けた！`, "damage");
+        }
+
+        // プレイヤーHPチェック
+        const currentPlayerHp = useGameStore.getState().playerHp;
+        if (currentPlayerHp <= 0) {
+          setBattlePhase("defeat");
+          setShowDefeat(true);
+          return;
+        }
     }
 
     // 次のターンへ
@@ -176,6 +192,7 @@ export function BattleScreen() {
         useGameStore.getState().enemyHp,
         turnCount + 1,
         false,
+        useGameStore.getState().currentIntent,
       );
       setIntent(newIntent);
     }

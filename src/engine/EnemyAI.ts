@@ -245,8 +245,38 @@ export function decideEnemyIntent(
   enemyHp: number,
   turnCount: number,
   isPlayerDefending: boolean,
+  previousIntent: EnemyIntent | null = null,
 ): EnemyIntent {
   const hpRatio = enemyHp / enemyData.maxHp;
+
+  // もし前ターンの intent が charging なら、そのフォローアップを実行する
+  if (previousIntent && previousIntent.type === "charging") {
+    // フォローアップとして最もダメージの高い攻撃タイプを選ぶ（charging の対象）
+    const attackCandidates = enemyData.attackPatterns
+      .map((p) => p.intent)
+      .filter((i) => i.type.startsWith("attack"));
+
+    if (attackCandidates.length > 0) {
+      const max = attackCandidates.reduce((best, cur) =>
+        cur.damage > best.damage ? cur : best,
+      attackCandidates[0],
+      );
+      return {
+        ...max,
+        turnsUntilAction: 0,
+      };
+    }
+
+    // フォールバック
+    return {
+      type: "attack_normal",
+      damage: 10,
+      description: "溜めの後の攻撃",
+      hint: "",
+      icon: "⚔️",
+      turnsUntilAction: 0,
+    };
+  }
 
   // 条件を満たすパターンを収集
   const validPatterns = enemyData.attackPatterns.filter((pattern) => {
@@ -288,6 +318,14 @@ export function decideEnemyIntent(
   for (const pattern of validPatterns) {
     random -= pattern.weight;
     if (random <= 0) {
+      // 選ばれたパターンが charging の場合は turnsUntilAction を設定して予兆状態にする
+      if (pattern.intent.type === "charging") {
+        return {
+          ...pattern.intent,
+          turnsUntilAction: 1,
+        };
+      }
+
       return {
         ...pattern.intent,
         turnsUntilAction: 0,
@@ -296,9 +334,10 @@ export function decideEnemyIntent(
   }
 
   // フォールバック
+  const fallback = validPatterns[0].intent;
   return {
-    ...validPatterns[0].intent,
-    turnsUntilAction: 0,
+    ...fallback,
+    turnsUntilAction: fallback.type === "charging" ? 1 : 0,
   };
 }
 

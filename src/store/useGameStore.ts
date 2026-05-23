@@ -83,7 +83,7 @@ export interface GameActions {
   setPlayerHp: (hp: number) => void;
   setEnemyHp: (hp: number) => void;
   damageEnemy: (amount: number) => void;
-  damagePlayer: (amount: number) => void;
+  damagePlayer: (amount: number, ignoreDefense?: boolean) => void;
   healPlayer: (amount: number) => void;
 
   // ターン管理
@@ -171,12 +171,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     set((state) => ({
       enemyHp: Math.max(0, state.enemyHp - amount),
     })),
-  damagePlayer: (amount) =>
+  damagePlayer: (amount, ignoreDefense = false) =>
     set((state) => {
-      const actualDamage = state.isDefending
-        ? Math.floor(amount * state.defenseMultiplier)
-        : amount;
-      const blocked = amount - actualDamage;
+      const actualDamage =
+        ignoreDefense || !state.isDefending
+          ? amount
+          : Math.floor(amount * state.defenseMultiplier);
+      const blocked = ignoreDefense || !state.isDefending ? 0 : amount - actualDamage;
       return {
         playerHp: Math.max(0, state.playerHp - actualDamage),
         lastDamageReceived: actualDamage,
