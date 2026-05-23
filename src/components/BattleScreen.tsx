@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   initBattleScene,
   playAttackAnimation,
@@ -12,6 +13,11 @@ import { SpellExecutor, type GameAction } from "../engine/SpellExecutor";
 import { CodeEditor, type CodeEditorRef } from "./CodeEditor";
 import { DebugPanel } from "./DebugPanel";
 import { IntentDisplay } from "./IntentDisplay";
+import {
+  editorCardVariants,
+  shouldRunCodeAfterCardAnimation,
+  type EditorCardMotionState,
+} from "./editorCardMotion";
 import { useGameStore } from "../store/useGameStore";
 import { STAGES } from "../data/stages";
 import {
@@ -28,12 +34,15 @@ export function BattleScreen() {
   const [showHint, setShowHint] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(true);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [showTutorial, setShowTutorial] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [battleLog, setBattleLog] = useState<string[]>([]);
+  const [editorCardMotionState, setEditorCardMotionState] =
+    useState<EditorCardMotionState>("entering");
   const canvasRef = useRef<HTMLDivElement>(null);
   const codeEditorRef = useRef<CodeEditorRef>(null);
+  const pendingCodeRunRef = useRef(false);
 
   // Zustand ストアから状態を取得
   const {
@@ -59,6 +68,35 @@ export function BattleScreen() {
 
   const stage = STAGES[currentStageIndex];
   const enemyData = ENEMY_DATA[stage.id];
+  const enemyHpPercent = Math.max(0, (enemyHp / stage.enemyHp) * 100);
+  const phaseTitle =
+    battlePhase === "player_turn"
+      ? "準備フェーズ"
+      : battlePhase === "executing"
+        ? "詠唱中"
+        : battlePhase === "show_intent"
+          ? "敵の予兆"
+          : battlePhase === "enemy_turn"
+            ? "戦闘フェーズ"
+            : battlePhase === "victory"
+              ? "勝利"
+              : "敗北";
+  const phaseSubText =
+    battlePhase === "player_turn"
+      ? "コードを編集中"
+      : battlePhase === "executing"
+        ? "コードを実行中"
+        : battlePhase === "enemy_turn"
+          ? "敵が行動中"
+          : "戦況を確認中";
+
+  const playEditorCardEnterAnimation = useCallback(() => {
+    pendingCodeRunRef.current = false;
+    setEditorCardMotionState("entering");
+    return requestAnimationFrame(() => {
+      setEditorCardMotionState("ready");
+    });
+  }, []);
 
   // バトルシーンの初期化
   useEffect(() => {
@@ -77,6 +115,22 @@ export function BattleScreen() {
       destroyBattleScene();
     };
   }, [currentStageIndex]);
+
+  useEffect(() => {
+    if (battlePhase !== "player_turn" || showVictory || showDefeat) return;
+
+    const animationFrame = playEditorCardEnterAnimation();
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [
+    battlePhase,
+    turnCount,
+    showVictory,
+    showDefeat,
+    playEditorCardEnterAnimation,
+  ]);
 
   // ステージ変更時にストアをリセット
   useEffect(() => {
@@ -226,6 +280,7 @@ export function BattleScreen() {
       addLog(friendlyMessage, "normal");
       setIsExecuting(false);
       setBattlePhase("player_turn");
+      playEditorCardEnterAnimation();
       return;
     }
 
@@ -261,6 +316,7 @@ export function BattleScreen() {
       addLog(result.error, "normal");
       setIsExecuting(false);
       setBattlePhase("player_turn");
+      playEditorCardEnterAnimation();
       return;
     }
 
@@ -311,6 +367,30 @@ export function BattleScreen() {
     setIsExecuting(false);
   };
 
+  const handleConfirmCode = () => {
+    if (
+      isExecuting ||
+      !code.trim() ||
+      editorCardMotionState !== "ready" ||
+      pendingCodeRunRef.current
+    ) {
+      return;
+    }
+
+    pendingCodeRunRef.current = true;
+    setEditorCardMotionState("submitting");
+  };
+
+  const handleEditorCardAnimationComplete = (definition: unknown) => {
+    if (
+      shouldRunCodeAfterCardAnimation(editorCardMotionState, definition) &&
+      pendingCodeRunRef.current
+    ) {
+      pendingCodeRunRef.current = false;
+      void executeCode();
+    }
+  };
+
   // リトライ
   const handleRetry = () => {
     restoreFromSnapshot();
@@ -350,14 +430,20 @@ export function BattleScreen() {
   return (
     <div className="battle-screen-container">
       <div className="battle-screen">
-        {/* ヘッダー */}
         <header className="battle-header">
-          <div className="stage-info">
-            <span className="stage-number">ステージ {stage.id}</span>
-            <span className="stage-name">{stage.name}</span>
-            <span className="turn-info">（ターン {turnCount}）</span>
+          <div className="game-brand">
+            <span className="brand-mark">◆</span>
+            <span className="brand-title">KotobaQuest</span>
           </div>
-          <div className="learning-goal">🎯 目標: {stage.learningGoal}</div>
+          <div className="stage-info">
+            <span className="stage-number">フロア {stage.id}</span>
+            <span className="stage-name">{stage.name}</span>
+          </div>
+          <div className="resource-strip" aria-label="プレイヤーステータス">
+            <span className="resource-item hp-resource">♥ {playerHp}/100</span>
+            <span className="resource-item">✦ {turnCount}</span>
+            <span className="resource-item">目標: {stage.learningGoal}</span>
+          </div>
           <div className="header-controls">
             <button
               className="debug-toggle-button"
@@ -365,90 +451,151 @@ export function BattleScreen() {
             >
               {showDebugPanel ? "🔍 パネル非表示" : "🔍 デバッグ"}
             </button>
-            <div className="player-status">
-              <span className="hp-icon">❤️</span>
-              <span className="hp-text">HP: {playerHp}</span>
-              {isDefending && <span className="defending-icon">🛡️</span>}
-            </div>
+            {isDefending && <span className="defending-icon">防御中</span>}
           </div>
         </header>
 
-        {/* バトルフィールド */}
         <div className="battle-field">
           <div ref={canvasRef} className="battle-canvas" />
 
-          {/* プレイヤー情報 */}
+          <div className="phase-banner" aria-label="現在のフェーズ">
+            <div className="phase-chip active">
+              <span className="phase-title">{phaseTitle}</span>
+              <span className="phase-subtext">{phaseSubText}</span>
+            </div>
+            <div className="phase-arrow">›</div>
+            <div className="phase-chip muted">
+              <span className="phase-title">戦闘フェーズ</span>
+              <span className="phase-subtext">自動で戦闘が進行</span>
+            </div>
+          </div>
+
           <div className="character-info player">
-            <div className="character-name">🧙 プレイヤー</div>
+            <div className="character-name">コードナイト</div>
             <div className="hp-bar-container">
               <div
                 className="hp-bar player"
                 style={{ width: `${playerHp}%` }}
               />
             </div>
+            <div className="combat-stats">
+              <span>剣 7</span>
+              <span>盾 {isDefending ? 8 : 5}</span>
+            </div>
           </div>
 
-          {/* 敵情報 */}
           <div className="character-info enemy">
-            <div className="character-name">👾 {stage.enemyName}</div>
+            <div className="character-name">{stage.enemyName}</div>
             <div className="hp-bar-container">
               <div
                 className="hp-bar enemy"
-                style={{ width: `${(enemyHp / stage.enemyHp) * 100}%` }}
+                style={{ width: `${enemyHpPercent}%` }}
               />
             </div>
+            <div className="combat-stats">
+              <span>牙 10</span>
+              <span>盾 5</span>
+            </div>
           </div>
-        </div>
 
-        {/* Intent表示 */}
-        {battlePhase === "player_turn" && <IntentDisplay />}
+          {battlePhase === "player_turn" && (
+            <aside className="enemy-intel-panel">
+              <IntentDisplay />
+            </aside>
+          )}
+        </div>
 
         {/* コードエディタエリア */}
-        <div className="code-area">
-          <CodeEditor
-            ref={codeEditorRef}
-            value={code}
-            onChange={handleCodeChange}
-            disabled={isExecuting}
-            placeholder={`例: ${stage.sampleCode.split("\n")[0]}`}
-          />
-
-          {/* バトルログ */}
-          {battleLog.length > 0 && (
-            <div className="battle-log">
-              {battleLog.map((log, index) => (
-                <div
-                  key={index}
-                  className={`log-entry ${
-                    log.includes("[damage]")
-                      ? "damage"
-                      : log.includes("[success]")
-                        ? "success"
-                        : log.includes("[block]")
-                          ? "block"
-                          : ""
-                  }`}
-                >
-                  {log.replace(/\[(normal|damage|success|block)\]\s*/, "")}
-                </div>
-              ))}
+        <motion.div
+          className="code-area code-workbench"
+          variants={editorCardVariants}
+          initial="entering"
+          animate={editorCardMotionState}
+          onAnimationComplete={handleEditorCardAnimationComplete}
+        >
+          <div className="code-workbench-tabs" aria-label="コードエディター">
+            <div className="code-tab command-tab">コマンド一覧</div>
+            <div className="code-tab active-tab">戦闘ロジック</div>
+            <div className="code-tab file-tab">main.logic</div>
+            <div className="code-tab add-tab" aria-hidden="true">
+              +
             </div>
-          )}
+          </div>
 
-          {/* ボタンエリア */}
-          <div className="button-area">
-            <button className="hint-button" onClick={() => setShowHint(true)}>
-              📖 ヒント
-            </button>
+          <div className="code-workbench-body">
+            <section className="code-editor-panel" aria-label="戦闘ロジック">
+              <CodeEditor
+                ref={codeEditorRef}
+                value={code}
+                onChange={handleCodeChange}
+                disabled={isExecuting}
+                placeholder={`例: ${stage.sampleCode.split("\n")[0]}`}
+              />
+            </section>
+
+            <aside className="execution-preview" aria-label="実行プレビュー">
+              <div className="execution-preview-header">実行プレビュー</div>
+              <div className="execution-preview-list">
+                {battleLog.length > 0 ? (
+                  battleLog.slice(-4).map((log, index) => (
+                    <div
+                      key={`${index}-${log}`}
+                      className={`preview-step ${
+                        log.includes("[damage]")
+                          ? "damage"
+                          : log.includes("[success]")
+                            ? "success"
+                            : log.includes("[block]")
+                              ? "block"
+                              : ""
+                      }`}
+                    >
+                      <span className="preview-step-index">{index + 1}</span>
+                      <span>
+                        {log.replace(/\[(normal|damage|success|block)\]\s*/, "")}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="preview-step empty">
+                    <span className="preview-step-index">1</span>
+                    <span>コード待機中</span>
+                  </div>
+                )}
+              </div>
+            </aside>
+          </div>
+
+          <div className="code-workbench-footer">
+            <div className="utility-actions">
+              <button className="hint-button" onClick={() => setShowHint(true)}>
+                📖 ヒント
+              </button>
+              <button
+                className="hint-button"
+                onClick={() => {
+                  setCode("");
+                  codeEditorRef.current?.clearHighlights();
+                  codeEditorRef.current?.clearError();
+                }}
+                disabled={isExecuting || !code}
+              >
+                ↺ リセット
+              </button>
+            </div>
             <button
               className="execute-button"
-              onClick={executeCode}
-              disabled={isExecuting || !code.trim()}
+              onClick={handleConfirmCode}
+              disabled={
+                isExecuting || !code.trim() || editorCardMotionState !== "ready"
+              }
             >
-              {isExecuting ? "⏳ 詠唱中..." : "▶️ 呪文を唱える！"}
+              {isExecuting || editorCardMotionState === "submitting"
+                ? "詠唱中..."
+                : "コード確定"}
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* チュートリアルオーバーレイ */}
         {showTutorial &&

@@ -6,6 +6,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import { tokenizeCodeLine } from "./codeSyntax";
 import "./CodeEditor.css";
 
 export interface CodeEditorRef {
@@ -101,55 +102,73 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
 
     return (
       <div className="code-editor-container">
-        {/* 行番号 */}
-        <div className="code-editor-line-numbers" ref={lineNumbersRef}>
-          {Array.from({ length: lineCount }, (_, i) => {
-            const lineNum = i + 1;
-            const highlight = highlights.get(lineNum);
-            const highlightClass = highlight ? `line-${highlight.status}` : "";
-            return (
-              <div key={lineNum} className={`line-number ${highlightClass}`}>
-                {lineNum}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* コード入力エリア */}
-        <div className="code-editor-input-wrapper">
-          {/* ハイライトオーバーレイ */}
-          <div className="code-editor-highlights">
-            {lines.map((line, i) => {
+        <div className="code-editor-main">
+          {/* 行番号 */}
+          <div className="code-editor-line-numbers" ref={lineNumbersRef}>
+            {Array.from({ length: lineCount }, (_, i) => {
               const lineNum = i + 1;
               const highlight = highlights.get(lineNum);
-              const highlightClass = highlight
-                ? `highlight-${highlight.status}`
-                : "";
+              const highlightClass = highlight ? `line-${highlight.status}` : "";
               return (
-                <div
-                  key={lineNum}
-                  className={`highlight-line ${highlightClass}`}
-                >
-                  {line || " "}
+                <div key={lineNum} className={`line-number ${highlightClass}`}>
+                  {lineNum}
                 </div>
               );
             })}
           </div>
 
-          {/* テキストエリア */}
-          <textarea
-            ref={textareaRef}
-            className="code-editor-textarea"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onScroll={handleScroll}
-            disabled={disabled}
-            placeholder={placeholder}
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-          />
+          {/* コード入力エリア */}
+          <div className="code-editor-input-wrapper">
+            {/* ハイライトオーバーレイ */}
+            <div className="code-editor-highlights">
+              {lines.map((line, i) => {
+                const lineNum = i + 1;
+                const highlight = highlights.get(lineNum);
+                const highlightClass = highlight
+                  ? `highlight-${highlight.status}`
+                  : "";
+                return (
+                  <div
+                    key={lineNum}
+                    className={`highlight-line ${highlightClass}`}
+                  >
+                    {line || " "}
+                  </div>
+                );
+              })}
+            </div>
+
+            <pre className="code-editor-syntax" aria-hidden="true">
+              {lines.map((line, lineIndex) => (
+                <span className="syntax-line" key={`${lineIndex}-${line}`}>
+                  {tokenizeCodeLine(line).map((token, tokenIndex) => (
+                    <span
+                      className={`syntax-token syntax-${token.type}`}
+                      key={`${tokenIndex}-${token.text}`}
+                    >
+                      {token.text}
+                    </span>
+                  ))}
+                  {lineIndex < lines.length - 1 ? "\n" : ""}
+                </span>
+              ))}
+            </pre>
+
+            {/* テキストエリア */}
+            <textarea
+              ref={textareaRef}
+              className="code-editor-textarea"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onScroll={handleScroll}
+              disabled={disabled}
+              placeholder={placeholder}
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+          </div>
         </div>
 
         {/* エラーメッセージ表示 */}

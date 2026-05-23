@@ -1,5 +1,26 @@
 import * as PIXI from "pixi.js";
 
+import bgFarUrl from "../assets/backgrounds/bg_far.png";
+import bgGroundUrl from "../assets/backgrounds/bg_ground.png";
+import bgMidUrl from "../assets/backgrounds/bg_mid.png";
+import bgRocksUrl from "../assets/backgrounds/bg_rocks.png";
+import {
+  calculateLayerLayout,
+  type LayerVerticalAlign,
+} from "./backgroundLayout";
+
+interface BackgroundLayer {
+  src: string;
+  verticalAlign: LayerVerticalAlign;
+}
+
+const BACKGROUND_LAYERS: BackgroundLayer[] = [
+  { src: bgFarUrl, verticalAlign: "center" },
+  { src: bgMidUrl, verticalAlign: "bottom" },
+  { src: bgRocksUrl, verticalAlign: "bottom" },
+  { src: bgGroundUrl, verticalAlign: "bottom" },
+];
+
 // Pixi.jsアプリケーションインスタンス
 let app: PIXI.Application | null = null;
 
@@ -42,7 +63,7 @@ export async function initBattleScene(
     container.appendChild(app.canvas);
 
     // 背景を描画
-    drawBackground();
+    await drawBackground();
 
     // キャラクターを配置
     createPlayerSprite();
@@ -56,25 +77,32 @@ export async function initBattleScene(
 }
 
 // 背景の描画
-function drawBackground() {
+async function drawBackground() {
   if (!app || !app.stage) return;
 
-  const bgGraphics = new PIXI.Graphics();
+  const activeApp = app;
+  const viewport = {
+    width: activeApp.screen.width,
+    height: activeApp.screen.height,
+  };
 
-  // 地面
-  bgGraphics.rect(
-    0,
-    app.screen.height * 0.7,
-    app.screen.width,
-    app.screen.height * 0.3,
-  );
-  bgGraphics.fill(0x16213e);
+  for (const layer of BACKGROUND_LAYERS) {
+    const texture = await PIXI.Assets.load<PIXI.Texture>(layer.src);
+    if (app !== activeApp || !activeApp.stage) return;
 
-  // 魔法陣
-  bgGraphics.circle(app.screen.width / 2, app.screen.height * 0.8, 100);
-  bgGraphics.stroke({ color: 0x2d3748, width: 2 });
+    const layout = calculateLayerLayout({
+      viewport,
+      texture: { width: texture.width, height: texture.height },
+      verticalAlign: layer.verticalAlign,
+    });
+    const sprite = new PIXI.Sprite(texture);
 
-  app.stage.addChild(bgGraphics);
+    sprite.x = layout.x;
+    sprite.y = layout.y;
+    sprite.scale.set(layout.scale);
+
+    activeApp.stage.addChild(sprite);
+  }
 }
 
 // プレイヤースプライトの作成

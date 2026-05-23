@@ -1,165 +1,185 @@
-/* コードエディタ - スタイル定義 */
+/* コードエディタ - ゲームUIスタイル */
 
 .code-editor-container {
   display: flex;
   flex-direction: column;
   width: 100%;
-  border-radius: 12px;
+  min-height: 318px;
   overflow: hidden;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border: 2px solid #2d3748;
+  background:
+    linear-gradient(180deg, rgba(11, 23, 28, 0.96), rgba(5, 13, 17, 0.98)),
+    radial-gradient(circle at 18% 0%, rgba(42, 142, 184, 0.22), transparent 32%);
+  border: 1px solid rgba(205, 151, 77, 0.42);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  font-family: "Consolas", "Monaco", "Menlo", monospace;
+    inset 0 1px 0 rgba(255, 236, 181, 0.1),
+    inset 0 0 28px rgba(0, 0, 0, 0.42);
+  font-family: "Cascadia Code", "Consolas", "Monaco", "Menlo", monospace;
 }
 
-/* 行番号とコードエリアのラッパー */
-.code-editor-container > div:first-child {
+.code-editor-main {
   display: flex;
-  flex-direction: row;
+  min-height: 318px;
 }
 
-/* 行番号エリア */
 .code-editor-line-numbers {
   display: flex;
   flex-direction: column;
-  padding: 12px 0;
-  background: rgba(0, 0, 0, 0.2);
-  border-right: 1px solid #2d3748;
+  flex: 0 0 58px;
+  padding: 16px 0;
+  background:
+    linear-gradient(180deg, rgba(10, 18, 21, 0.92), rgba(8, 14, 17, 0.98)),
+    linear-gradient(90deg, rgba(214, 156, 72, 0.14), transparent);
+  border-right: 1px solid rgba(205, 151, 77, 0.28);
   user-select: none;
   overflow: hidden;
-  min-width: 40px;
 }
 
 .line-number {
-  padding: 0 12px;
+  height: 30px;
+  padding: 0 16px 0 8px;
   text-align: right;
-  color: #4a5568;
-  font-size: 14px;
-  line-height: 1.6;
-  height: 22.4px;
-  transition: all 0.3s ease;
+  color: rgba(230, 218, 190, 0.54);
+  font-size: 18px;
+  line-height: 30px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
-/* 実行中の行番号 */
 .line-number.line-executing {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.2);
-  font-weight: bold;
-  animation: pulse-line 0.5s ease-in-out infinite alternate;
+  color: #f6c15a;
+  background: linear-gradient(90deg, transparent, rgba(246, 193, 90, 0.2));
+  font-weight: 700;
 }
 
-/* 完了した行番号 */
 .line-number.line-complete {
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
+  color: #7dd36d;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 109, 0.12));
 }
 
-/* エラーの行番号 */
 .line-number.line-error {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.2);
+  color: #ff654f;
+  background: linear-gradient(90deg, transparent, rgba(255, 101, 79, 0.18));
 }
 
-/* コード入力エリアのラッパー */
 .code-editor-input-wrapper {
   flex: 1;
   position: relative;
-  min-height: 120px;
+  min-width: 0;
+  min-height: 318px;
 }
 
-/* ハイライトオーバーレイ */
-.code-editor-highlights {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 12px;
-  pointer-events: none;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-size: 14px;
-  line-height: 1.6;
-  color: transparent;
-}
-
-.highlight-line {
-  height: 22.4px;
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-/* 実行中の行ハイライト */
-.highlight-line.highlight-executing {
-  background: linear-gradient(
-    90deg,
-    rgba(251, 191, 36, 0.3) 0%,
-    rgba(251, 191, 36, 0.1) 100%
-  );
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
-  animation: glow-executing 0.5s ease-in-out infinite alternate;
-}
-
-/* 完了した行ハイライト */
-.highlight-line.highlight-complete {
-  background: linear-gradient(
-    90deg,
-    rgba(34, 197, 94, 0.2) 0%,
-    rgba(34, 197, 94, 0.05) 100%
-  );
-}
-
-/* エラーの行ハイライト */
-.highlight-line.highlight-error {
-  background: linear-gradient(
-    90deg,
-    rgba(239, 68, 68, 0.3) 0%,
-    rgba(239, 68, 68, 0.1) 100%
-  );
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-}
-
-/* テキストエリア */
+.code-editor-highlights,
+.code-editor-syntax,
 .code-editor-textarea {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: 120px;
-  padding: 12px;
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  color: #e2e8f0;
-  font-size: 14px;
-  line-height: 1.6;
+  min-height: 318px;
+  padding: 16px 20px;
+  font-size: 22px;
+  line-height: 30px;
   font-family: inherit;
-  caret-color: #fbbf24;
-  position: relative;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  tab-size: 2;
+}
+
+.code-editor-highlights {
+  pointer-events: none;
+  color: transparent;
   z-index: 1;
 }
 
+.highlight-line {
+  height: 30px;
+  border-radius: 0;
+  transition: background 0.2s ease;
+}
+
+.highlight-line.highlight-executing {
+  background: linear-gradient(90deg, rgba(246, 193, 90, 0.22), transparent 74%);
+  box-shadow: inset 3px 0 0 #f6c15a;
+}
+
+.highlight-line.highlight-complete {
+  background: linear-gradient(90deg, rgba(125, 211, 109, 0.16), transparent 70%);
+  box-shadow: inset 3px 0 0 #7dd36d;
+}
+
+.highlight-line.highlight-error {
+  background: linear-gradient(90deg, rgba(255, 101, 79, 0.2), transparent 70%);
+  box-shadow: inset 3px 0 0 #ff654f;
+}
+
+.code-editor-syntax {
+  margin: 0;
+  color: #e8dfca;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.syntax-keyword {
+  color: #d95cff;
+}
+
+.syntax-command {
+  color: #38c8ff;
+  font-weight: 700;
+}
+
+.syntax-number {
+  color: #f0c965;
+}
+
+.syntax-operator {
+  color: #d7a66a;
+}
+
+.syntax-stat {
+  color: #ff6a4d;
+  font-weight: 700;
+}
+
+.syntax-plain {
+  color: #86d86d;
+}
+
+.code-editor-textarea {
+  border: none;
+  outline: none;
+  resize: none;
+  color: transparent;
+  background: transparent;
+  caret-color: #f6c15a;
+  position: relative;
+  z-index: 3;
+  overflow: auto;
+}
+
+.code-editor-textarea::selection {
+  background: rgba(43, 145, 199, 0.34);
+}
+
 .code-editor-textarea::placeholder {
-  color: #4a5568;
+  color: rgba(230, 218, 190, 0.42);
+  -webkit-text-fill-color: rgba(230, 218, 190, 0.42);
 }
 
 .code-editor-textarea:disabled {
-  opacity: 0.6;
+  opacity: 0.62;
   cursor: not-allowed;
 }
 
-/* エラーメッセージ */
 .code-editor-error {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: linear-gradient(
-    90deg,
-    rgba(239, 68, 68, 0.2) 0%,
-    rgba(239, 68, 68, 0.1) 100%
-  );
-  border-top: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
+  background: linear-gradient(90deg, rgba(113, 28, 24, 0.72), rgba(34, 13, 14, 0.92));
+  border-top: 1px solid rgba(255, 101, 79, 0.38);
+  color: #ffd0c6;
   font-size: 13px;
 }
 
@@ -171,39 +191,30 @@
   flex: 1;
 }
 
-/* アニメーション */
-@keyframes pulse-line {
-  from {
-    opacity: 0.8;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes glow-executing {
-  from {
-    box-shadow: 0 0 5px rgba(251, 191, 36, 0.3);
-  }
-  to {
-    box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
-  }
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 600px) {
-  .code-editor-container {
-    border-radius: 8px;
+@media (max-width: 900px) {
+  .code-editor-container,
+  .code-editor-main,
+  .code-editor-input-wrapper,
+  .code-editor-highlights,
+  .code-editor-syntax,
+  .code-editor-textarea {
+    min-height: 260px;
   }
 
-  .line-number {
-    padding: 0 8px;
-    font-size: 12px;
+  .code-editor-line-numbers {
+    flex-basis: 46px;
   }
 
-  .code-editor-textarea,
-  .code-editor-highlights {
-    font-size: 13px;
-    padding: 8px;
+  .line-number,
+  .code-editor-highlights,
+  .code-editor-syntax,
+  .code-editor-textarea {
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  .line-number,
+  .highlight-line {
+    height: 26px;
   }
 }
