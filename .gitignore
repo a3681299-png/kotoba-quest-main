@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .agents/
+andrej-karpathy-skills
+.codegraph/
