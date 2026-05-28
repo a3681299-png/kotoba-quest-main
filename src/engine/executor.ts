@@ -29,6 +29,7 @@ export function executeRoundBody(
     state, variables, actions, error: null,
     peerVariables: options.peerVariables,
     selfId: options.selfId,
+    healUsed: false,
   };
 
   for (const node of nodes) {
@@ -50,6 +51,7 @@ interface ExecContext {
   selfId?: "プレイヤー" | "なかま";
   actions: PlayerAction[];
   error: string | null;
+  healUsed: boolean;
 }
 
 // ─── ノード実行 ───────────────────────────────────────
@@ -75,7 +77,11 @@ function execNode(node: ASTNode, ctx: ExecContext): void {
       break;
 
     case "HealCmd":
-      ctx.actions.push({ type: "Heal" });
+      // 回復は1ラウンド1回まで。繰り返しで回復量が増殖しないようにする。
+      if (!ctx.healUsed) {
+        ctx.actions.push({ type: "Heal" });
+        ctx.healUsed = true;
+      }
       break;
 
     case "WaitCmd":

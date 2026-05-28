@@ -59,14 +59,13 @@ describe("waveRunner", () => {
     }
   });
 
-  it("Wave勝利後のHP/MP引き継ぎが計算される", () => {
+  it("Wave勝利後にHP/MPがWave開始時の値へリセットされる", () => {
     const wave = STAGE1.waves[0];
     const waveResult = runWave(SIMPLE_MAGIC_CODE, wave, STAGE1.config, 100, 50);
     if (waveResult.outcome === "victory") {
       const transition = calcWaveTransition(waveResult, STAGE1.config);
-      expect(transition.nextPlayerHp).toBeGreaterThan(0);
-      // MP は最低 initialMaxMp（Stage1 = 50）以上を保証
-      expect(transition.nextPlayerMp).toBeGreaterThanOrEqual(50);
+      expect(transition.nextPlayerHp).toBe(100);
+      expect(transition.nextPlayerMp).toBe(STAGE1.config.initialMaxMp);
     }
   });
 });

@@ -165,6 +165,18 @@ describe("parse - 条件分岐", () => {
     const node = r.ast[0] as IfNode;
     expect(node.condition.type).toBe("Logic");
   });
+
+  it("全角スペースを含む条件をパースできる", () => {
+    const src = [
+      "もし 自分のMP が 80 以上　かつ 敵のHP が 30 より小さい ならば:",
+      "  魔法(フレイム)",
+    ].join("\n");
+    const r = parse(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const node = r.ast[0] as IfNode;
+    expect(node.condition.type).toBe("Logic");
+  });
 });
 
 // ─── 相互参照（MemberRef）─────────────────────────────────

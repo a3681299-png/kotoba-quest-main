@@ -155,6 +155,25 @@ describe("battle - 合体魔法", () => {
     const comboLogs = result.log.filter(l => l.category === "comboMagic");
     expect(comboLogs.length).toBeGreaterThan(0);
   });
+
+  it("5属性合体魔法は耐性を無視して200ダメージを与える", () => {
+    const config: StageConfig = { stageNumber: 4, initialMaxMp: 120, playerAttack: 25, stateGimmick: null };
+    const ast = parseCode([
+      "繰り返す(敵が生きている あいだ):",
+      "  もし 自分のMP が 120 以上 ならば:",
+      "    魔法(フレイム)",
+      "    魔法(アクア)",
+      "    魔法(スパーク)",
+      "    魔法(フロスト)",
+      "    魔法(ゲイル)",
+      "  そうでなければ:",
+      "    待機()",
+    ].join("\n"));
+    const result = runBattle(ast, { ...WEAK_ENEMY, maxHp: 200, attackPatterns: [{ minDamage: 0, maxDamage: 0 }] }, config);
+    expect(result.log.some(l => l.category === "comboMagic" && l.message.includes("200 ダメージ"))).toBe(true);
+    expect(result.phase).toBe("victory");
+    expect(result.finalEnemyHp).toBe(0);
+  });
 });
 
 // ─── ログ確認 ─────────────────────────────────────────

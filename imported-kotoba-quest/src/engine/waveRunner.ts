@@ -134,7 +134,7 @@ export function runWave(
   };
 }
 
-// ─── Wave間のHP/MP引き継ぎルール ─────────────────────
+// ─── Wave間のHP/MPリセットルール ─────────────────────
 
 export interface WaveTransition {
   nextPlayerHp: number;
@@ -142,18 +142,13 @@ export interface WaveTransition {
 }
 
 // Wave完了後に次Wave開始時のHP/MPを決定する
-// HP: 引き継ぎ + Wave間ボーナス回復（+40）
-// MP: 実際の最終MPをそのまま引き継ぎ（initialMaxMp 未満なら底上げ）
+// 1WaveごとにHPは100、MPはステージの initialMaxMp へリセットする
 export function calcWaveTransition(
   waveResult: WaveResult,
   config: StageConfig,
 ): WaveTransition {
-  const waveBonus = 40;
-  const nextHp = Math.min(100, Math.max(1, waveResult.finalPlayerHp) + waveBonus);
-  // MPは Wave 終了時の値をそのまま引き継ぎ。ただし最低でも initialMaxMp は保証
-  const nextMp = Math.max(config.initialMaxMp, waveResult.finalPlayerMp);
   return {
-    nextPlayerHp: nextHp,
-    nextPlayerMp: nextMp,
+    nextPlayerHp: 100,
+    nextPlayerMp: config.initialMaxMp,
   };
 }

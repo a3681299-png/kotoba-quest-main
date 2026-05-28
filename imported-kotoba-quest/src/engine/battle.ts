@@ -281,7 +281,12 @@ function applyComboMagic(elements: Element[], count: number, state: BattleState)
     })
   );
 
-  const damage = Math.max(1, Math.floor(attackPower * count * maxMult) - state.enemy.defense);
+  let damage: number;
+  if (count === 5) {
+    damage = 200;
+  } else {
+    damage = Math.max(1, Math.floor(attackPower * count * maxMult) - state.enemy.defense);
+  }
   state.enemyHp = Math.max(0, state.enemyHp - damage);
 
   const attrNames = elements.join("・");
