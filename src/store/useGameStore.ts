@@ -253,7 +253,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       errorMessage: null,
     }),
 
-  pauseExecution: (lineNumber, _location) =>
+  pauseExecution: (lineNumber) =>
     set({
       executionStatus: "paused",
       currentLine: lineNumber,

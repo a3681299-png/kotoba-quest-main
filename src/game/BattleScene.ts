@@ -8,6 +8,15 @@ import {
   calculateLayerLayout,
   type LayerVerticalAlign,
 } from "./backgroundLayout";
+import {
+  buildRadialBurstPoints,
+  buildVolleyOffsets,
+  easeOutCubic,
+  getEnemyAttackMotion,
+  getPlayerAttackMotion,
+  sampleAttackArc,
+  type CombatMotionProfile,
+} from "./combatMotion";
 
 interface BackgroundLayer {
   src: string;
@@ -27,6 +36,38 @@ let app: PIXI.Application | null = null;
 // スプライトの参照
 let playerSprite: PIXI.Graphics | null = null;
 let enemySprite: PIXI.Graphics | null = null;
+let playerShadow: PIXI.Graphics | null = null;
+let enemyShadow: PIXI.Graphics | null = null;
+let idleTicker: ((ticker: PIXI.Ticker) => void) | null = null;
+let idleStartTime = 0;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function animateFor(
+  durationMs: number,
+  onFrame: (progress: number, easedProgress: number) => void,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startedAt;
+      const progress = Math.min(elapsed / durationMs, 1);
+
+      onFrame(progress, easeOutCubic(progress));
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        resolve();
+      }
+    };
+
+    requestAnimationFrame(animate);
+  });
+}
 
 // バトルシーンの初期化
 export async function initBattleScene(
@@ -68,6 +109,7 @@ export async function initBattleScene(
     // キャラクターを配置
     createPlayerSprite();
     createEnemySprite();
+    startIdleMotion();
 
     return app;
   } catch (error) {
@@ -105,9 +147,23 @@ async function drawBackground() {
   }
 }
 
+function createGroundShadow(x: number, y: number, width: number): PIXI.Graphics {
+  const shadow = new PIXI.Graphics();
+  shadow.ellipse(0, 0, width, 13);
+  shadow.fill({ color: 0x000000, alpha: 0.34 });
+  shadow.x = x;
+  shadow.y = y;
+  return shadow;
+}
+
 // プレイヤースプライトの作成
 function createPlayerSprite() {
   if (!app || !app.stage) return;
+
+  const x = app.screen.width * 0.25;
+  const y = app.screen.height * 0.6;
+  playerShadow = createGroundShadow(x, y + 70, 52);
+  app.stage.addChild(playerShadow);
 
   playerSprite = new PIXI.Graphics();
 
@@ -136,8 +192,8 @@ function createPlayerSprite() {
   playerSprite.fill(0xfbbf24);
 
   // 位置を設定
-  playerSprite.x = app.screen.width * 0.25;
-  playerSprite.y = app.screen.height * 0.6;
+  playerSprite.x = x;
+  playerSprite.y = y;
 
   app.stage.addChild(playerSprite);
 }
@@ -145,6 +201,11 @@ function createPlayerSprite() {
 // 敵スプライトの作成（スライム風）
 function createEnemySprite() {
   if (!app || !app.stage) return;
+
+  const x = app.screen.width * 0.75;
+  const y = app.screen.height * 0.6;
+  enemyShadow = createGroundShadow(x, y + 44, 60);
+  app.stage.addChild(enemyShadow);
 
   enemySprite = new PIXI.Graphics();
 
@@ -169,149 +230,290 @@ function createEnemySprite() {
   enemySprite.stroke({ color: 0x000000, width: 3 });
 
   // 位置を設定
-  enemySprite.x = app.screen.width * 0.75;
-  enemySprite.y = app.screen.height * 0.6;
+  enemySprite.x = x;
+  enemySprite.y = y;
 
   app.stage.addChild(enemySprite);
+}
+
+function startIdleMotion() {
+  if (!app || !playerSprite || !enemySprite) return;
+
+  const activeApp = app;
+  idleStartTime = Date.now();
+  idleTicker = () => {
+    if (app !== activeApp || !playerSprite || !enemySprite) return;
+
+    const elapsed = (Date.now() - idleStartTime) / 1000;
+    const playerBob = Math.sin(elapsed * 2.1) * 3;
+    const enemyBob = Math.sin(elapsed * 1.8 + 0.6) * 5;
+    const enemyBreath = Math.sin(elapsed * 1.8 + 0.6) * 0.025;
+
+    playerSprite.y = activeApp.screen.height * 0.6 + playerBob;
+    enemySprite.y = activeApp.screen.height * 0.6 + enemyBob;
+    enemySprite.scale.set(1 - enemyBreath, 1 + enemyBreath);
+
+    if (playerShadow) {
+      playerShadow.scale.set(1 + Math.abs(playerBob) * 0.008, 1);
+      playerShadow.alpha = 0.28 + Math.abs(playerBob) * 0.015;
+    }
+
+    if (enemyShadow) {
+      enemyShadow.scale.set(1 + Math.abs(enemyBob) * 0.01, 1);
+      enemyShadow.alpha = 0.28 + Math.abs(enemyBob) * 0.014;
+    }
+  };
+
+  activeApp.ticker.add(idleTicker);
 }
 
 // 攻撃アニメーション
 export function playAttackAnimation(
   attackType: "fire" | "ice" | "thunder" | "normal" = "fire",
 ): Promise<void> {
-  return new Promise((resolve) => {
-    if (!app || !app.stage || !playerSprite || !enemySprite) {
-      resolve();
-      return;
-    }
+  return playPlayerAttack(attackType);
+}
 
-    const colors: Record<string, number> = {
-      fire: 0xe94560,
-      ice: 0x3b82f6,
-      thunder: 0xfbbf24,
-      normal: 0xffffff,
-    };
+async function playPlayerAttack(
+  attackType: "fire" | "ice" | "thunder" | "normal",
+): Promise<void> {
+  if (!app || !app.stage || !playerSprite || !enemySprite) {
+    return;
+  }
 
-    const color = colors[attackType];
+  const activeApp = app;
+  const motion = getPlayerAttackMotion(attackType);
+  const colors: Record<typeof attackType, number> = {
+    fire: 0xe94560,
+    ice: 0x3b82f6,
+    thunder: 0xfbbf24,
+    normal: 0xffffff,
+  };
+  const color = colors[attackType];
 
-    // 攻撃エフェクトの作成
-    const attackEffect = new PIXI.Graphics();
-    attackEffect.circle(0, 0, 15);
-    attackEffect.fill(color);
-    attackEffect.x = playerSprite.x + 50;
-    attackEffect.y = playerSprite.y - 30;
+  await playCasterAnticipation(playerSprite, motion);
 
-    app.stage.addChild(attackEffect);
+  if (app !== activeApp || !playerSprite || !enemySprite) {
+    return;
+  }
 
-    // アニメーション
-    const targetX = enemySprite.x;
-    const targetY = enemySprite.y;
-    const startX = attackEffect.x;
-    const startY = attackEffect.y;
-    const duration = 500;
-    const startTime = Date.now();
+  const start = { x: playerSprite.x + 54, y: playerSprite.y - 36 };
+  const target = { x: enemySprite.x, y: enemySprite.y - 8 };
+  const { projectile, trails } = createProjectileEffect(
+    color,
+    motion.projectileRadius,
+    motion.trailCopies,
+  );
 
-    const animate = () => {
-      if (!app || !app.stage) {
-        resolve();
-        return;
-      }
+  activeApp.stage.addChild(...trails, projectile);
 
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
+  await animateProjectile(activeApp, projectile, trails, start, target, motion);
+  removeDisplayObjects([projectile, ...trails]);
 
-      attackEffect.x = startX + (targetX - startX) * easeProgress;
-      attackEffect.y = startY + (targetY - startY) * easeProgress;
-      attackEffect.scale.set(1 + Math.sin(progress * Math.PI) * 0.5);
+  if (app !== activeApp) {
+    return;
+  }
 
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        // ヒットエフェクト
-        playHitEffect(targetX, targetY, color);
+  playImpactFlash(color, motion.impactFlashAlpha);
+  playHitEffect(target.x, target.y, color, motion);
+  shakeStage(Math.max(4, motion.impactShake * 0.28), motion.stageShakeMs);
 
-        // エフェクトを削除
-        try {
-          app?.stage?.removeChild(attackEffect);
-          attackEffect.destroy();
-        } catch {
-          // 無視
-        }
+  if (enemySprite) {
+    shakeSprite(enemySprite, motion.impactShake, motion.targetShakeMs);
+  }
 
-        // 敵を揺らす
-        if (enemySprite) {
-          shakeSprite(enemySprite);
-        }
+  await wait(motion.hitStopMs + motion.recoveryMs);
+}
 
-        setTimeout(resolve, 300);
-      }
-    };
+function createProjectileEffect(
+  color: number,
+  radius: number,
+  trailCopies: number,
+): { projectile: PIXI.Graphics; trails: PIXI.Graphics[] } {
+  const projectile = new PIXI.Graphics();
+  projectile.circle(0, 0, radius);
+  projectile.fill({ color, alpha: 0.96 });
+  projectile.circle(0, 0, radius * 0.45);
+  projectile.fill({ color: 0xffffff, alpha: 0.58 });
 
-    requestAnimationFrame(animate);
+  const trails = Array.from({ length: trailCopies }, (_, index) => {
+    const trail = new PIXI.Graphics();
+    trail.circle(0, 0, radius * Math.max(0.42, 1 - index * 0.1));
+    trail.fill({ color, alpha: 0.22 });
+    trail.alpha = 0;
+    return trail;
+  });
+
+  return { projectile, trails };
+}
+
+async function animateProjectile(
+  activeApp: PIXI.Application,
+  projectile: PIXI.Graphics,
+  trails: PIXI.Graphics[],
+  start: { x: number; y: number },
+  target: { x: number; y: number },
+  motion: CombatMotionProfile,
+): Promise<void> {
+  await animateFor(motion.travelMs, (progress, easedProgress) => {
+    if (app !== activeApp) return;
+
+    const point = sampleAttackArc({
+      start,
+      target,
+      progress: easedProgress,
+      arcHeight: motion.arcHeight,
+    });
+
+    projectile.x = point.x;
+    projectile.y = point.y;
+    projectile.scale.set(1 + Math.sin(progress * Math.PI) * 0.28);
+
+    trails.forEach((trail, index) => {
+      const trailProgress = Math.max(0, easedProgress - (index + 1) * 0.045);
+      const trailPoint = sampleAttackArc({
+        start,
+        target,
+        progress: trailProgress,
+        arcHeight: motion.arcHeight,
+      });
+
+      trail.x = trailPoint.x;
+      trail.y = trailPoint.y;
+      trail.alpha = Math.max(0, (0.34 - index * 0.045) * progress);
+    });
   });
 }
 
+async function playCasterAnticipation(
+  sprite: PIXI.Graphics,
+  motion: CombatMotionProfile,
+): Promise<void> {
+  const originalX = sprite.x;
+  const originalY = sprite.y;
+  const originalScaleX = sprite.scale.x;
+  const originalScaleY = sprite.scale.y;
+
+  await animateFor(motion.startupMs, (progress) => {
+    const pull = Math.sin(progress * Math.PI);
+    sprite.x = originalX + motion.anticipationX * pull;
+    sprite.y = originalY + motion.anticipationY * pull;
+    sprite.scale.set(
+      originalScaleX * (1 + pull * 0.045),
+      originalScaleY * (1 - pull * 0.025),
+    );
+  });
+
+  sprite.x = originalX;
+  sprite.y = originalY;
+  sprite.scale.set(originalScaleX, originalScaleY);
+}
+
+function removeDisplayObjects(objects: PIXI.Graphics[]) {
+  for (const object of objects) {
+    try {
+      app?.stage?.removeChild(object);
+      object.destroy();
+    } catch {
+      // 無視
+    }
+  }
+}
+
 // ヒットエフェクト
-function playHitEffect(x: number, y: number, color: number) {
+function playHitEffect(
+  x: number,
+  y: number,
+  color: number,
+  motion: CombatMotionProfile = getPlayerAttackMotion("normal"),
+) {
   if (!app || !app.stage) return;
 
   const hitEffect = new PIXI.Graphics();
   hitEffect.x = x;
   hitEffect.y = y;
 
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = 30;
-    hitEffect.circle(Math.cos(angle) * radius, Math.sin(angle) * radius, 5);
+  for (const point of buildRadialBurstPoints(
+    motion.burstCount,
+    motion.burstRadius,
+  )) {
+    hitEffect.circle(point.x, point.y, 5);
   }
   hitEffect.fill(color);
 
   app.stage.addChild(hitEffect);
 
-  let alpha = 1;
-  const fadeOut = () => {
-    alpha -= 0.1;
-    hitEffect.alpha = alpha;
-    hitEffect.scale.set(hitEffect.scale.x + 0.1);
-
-    if (alpha > 0) {
-      requestAnimationFrame(fadeOut);
-    } else {
-      try {
-        app?.stage?.removeChild(hitEffect);
-        hitEffect.destroy();
-      } catch {
-        // 無視
-      }
+  void animateFor(240, (progress) => {
+    hitEffect.alpha = 1 - progress;
+    hitEffect.scale.set(1 + progress * 0.95);
+  }).then(() => {
+    try {
+      app?.stage?.removeChild(hitEffect);
+      hitEffect.destroy();
+    } catch {
+      // 無視
     }
-  };
+  });
+}
 
-  requestAnimationFrame(fadeOut);
+function playImpactFlash(color: number, alpha: number) {
+  if (!app || !app.stage) return;
+
+  const flash = new PIXI.Graphics();
+  flash.rect(0, 0, app.screen.width, app.screen.height);
+  flash.fill({ color, alpha });
+  app.stage.addChild(flash);
+
+  void animateFor(180, (progress) => {
+    flash.alpha = 1 - progress;
+  }).then(() => {
+    try {
+      app?.stage?.removeChild(flash);
+      flash.destroy();
+    } catch {
+      // 無視
+    }
+  });
+}
+
+function shakeStage(amount: number, durationMs: number) {
+  if (!app || !app.stage) return;
+
+  const activeApp = app;
+  const originalX = activeApp.stage.x;
+  const originalY = activeApp.stage.y;
+
+  void animateFor(durationMs, (progress) => {
+    if (app !== activeApp) return;
+    const decay = 1 - progress;
+    activeApp.stage.x =
+      originalX + Math.sin(progress * Math.PI * 10) * amount * decay;
+    activeApp.stage.y =
+      originalY + Math.cos(progress * Math.PI * 8) * amount * 0.45 * decay;
+  }).then(() => {
+    if (app === activeApp) {
+      activeApp.stage.x = originalX;
+      activeApp.stage.y = originalY;
+    }
+  });
 }
 
 // スプライトを揺らす
-function shakeSprite(sprite: PIXI.Graphics) {
+function shakeSprite(
+  sprite: PIXI.Graphics,
+  amount: number = 10,
+  durationMs: number = 300,
+) {
   if (!sprite) return;
 
   const originalX = sprite.x;
-  const shakeAmount = 10;
-  let shakeCount = 0;
-  const maxShakes = 6;
 
-  const shake = () => {
-    if (shakeCount >= maxShakes) {
-      sprite.x = originalX;
-      return;
-    }
-
-    sprite.x = originalX + (shakeCount % 2 === 0 ? shakeAmount : -shakeAmount);
-    shakeCount++;
-
-    setTimeout(shake, 50);
-  };
-
-  shake();
+  void animateFor(durationMs, (progress) => {
+    const decay = 1 - progress;
+    sprite.x = originalX + Math.sin(progress * Math.PI * 9) * amount * decay;
+  }).then(() => {
+    sprite.x = originalX;
+  });
 }
 
 // 敵のHPを更新
@@ -373,91 +575,107 @@ export function playEnemyAttackAnimation(
   attackType: "normal" | "heavy" | "multi" = "normal",
   isBlocked: boolean = false,
 ): Promise<void> {
-  return new Promise((resolve) => {
-    if (!app || !app.stage || !playerSprite || !enemySprite) {
-      resolve();
-      return;
+  return playEnemyAttack(attackType, isBlocked);
+}
+
+async function playEnemyAttack(
+  attackType: "normal" | "heavy" | "multi",
+  isBlocked: boolean,
+): Promise<void> {
+  if (!app || !app.stage || !playerSprite || !enemySprite) {
+    return;
+  }
+
+  const activeApp = app;
+  const motion = getEnemyAttackMotion(attackType, isBlocked);
+  const colors: Record<typeof attackType, number> = {
+    normal: 0xff6b6b,
+    heavy: 0xff0000,
+    multi: 0x8b5cf6,
+  };
+  const color = colors[attackType];
+
+  await playCasterAnticipation(enemySprite, motion);
+
+  if (app !== activeApp || !playerSprite || !enemySprite) {
+    return;
+  }
+
+  const volleyOffsets = buildVolleyOffsets(
+    motion.volleyCount,
+    motion.volleySpread,
+  );
+
+  for (let index = 0; index < volleyOffsets.length; index += 1) {
+    await playEnemyProjectile(
+      activeApp,
+      color,
+      motion,
+      isBlocked,
+      volleyOffsets[index],
+    );
+
+    if (index < volleyOffsets.length - 1) {
+      await wait(motion.volleyDelayMs);
     }
+  }
 
-    const colors: Record<string, number> = {
-      normal: 0xff6b6b,
-      heavy: 0xff0000,
-      multi: 0x8b5cf6,
-    };
+  await wait(motion.recoveryMs);
+}
 
-    const color = colors[attackType];
-    const effectSize = attackType === "heavy" ? 25 : 15;
+async function playEnemyProjectile(
+  activeApp: PIXI.Application,
+  color: number,
+  motion: CombatMotionProfile,
+  isBlocked: boolean,
+  verticalOffset: number = 0,
+): Promise<void> {
+  if (!playerSprite || !enemySprite) return;
 
-    // 敵から攻撃エフェクトを発射
-    const attackEffect = new PIXI.Graphics();
-    attackEffect.circle(0, 0, effectSize);
-    attackEffect.fill(color);
-    attackEffect.x = enemySprite.x - 50;
-    attackEffect.y = enemySprite.y;
+  const start = { x: enemySprite.x - 54, y: enemySprite.y + verticalOffset };
+  const target = {
+    x: playerSprite.x,
+    y: playerSprite.y - 30 + verticalOffset * 0.35,
+  };
+  const { projectile, trails } = createProjectileEffect(
+    color,
+    motion.projectileRadius,
+    motion.trailCopies,
+  );
 
-    app.stage.addChild(attackEffect);
+  activeApp.stage.addChild(...trails, projectile);
+  await animateProjectile(activeApp, projectile, trails, start, target, motion);
+  removeDisplayObjects([projectile, ...trails]);
 
-    // アニメーション
-    const targetX = playerSprite.x;
-    const targetY = playerSprite.y - 30;
-    const startX = attackEffect.x;
-    const startY = attackEffect.y;
-    const duration = attackType === "heavy" ? 600 : 400;
-    const startTime = Date.now();
+  if (app !== activeApp) {
+    return;
+  }
 
-    const animate = () => {
-      if (!app || !app.stage) {
-        resolve();
-        return;
-      }
+  if (isBlocked) {
+    playBlockEffect(target.x, target.y, motion);
+  } else {
+    playHitEffect(target.x, target.y, color, motion);
+  }
 
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
+  playImpactFlash(
+    isBlocked ? 0x3b82f6 : color,
+    motion.impactFlashAlpha,
+  );
+  shakeStage(Math.max(3, motion.impactShake * 0.25), motion.stageShakeMs);
 
-      attackEffect.x = startX + (targetX - startX) * easeProgress;
-      attackEffect.y = startY + (targetY - startY) * easeProgress;
+  if (playerSprite && !isBlocked) {
+    shakeSprite(playerSprite, motion.impactShake, motion.targetShakeMs);
+  }
 
-      // 強攻撃は大きくなる
-      if (attackType === "heavy") {
-        attackEffect.scale.set(1 + progress * 0.5);
-      }
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        // ヒットエフェクト
-        if (isBlocked) {
-          // 防御成功エフェクト（青い輝き）
-          playBlockEffect(targetX, targetY);
-        } else {
-          // 通常ヒット
-          playHitEffect(targetX, targetY, color);
-        }
-
-        // エフェクトを削除
-        try {
-          app?.stage?.removeChild(attackEffect);
-          attackEffect.destroy();
-        } catch {
-          // 無視
-        }
-
-        // プレイヤーを揺らす
-        if (playerSprite && !isBlocked) {
-          shakeSprite(playerSprite);
-        }
-
-        setTimeout(resolve, 300);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  });
+  await wait(motion.hitStopMs);
 }
 
 // 防御成功エフェクト
-function playBlockEffect(x: number, y: number) {
+function playBlockEffect(
+  x: number,
+  y: number,
+  motion: CombatMotionProfile = getEnemyAttackMotion("normal", true),
+) {
   if (!app || !app.stage) return;
 
   const blockEffect = new PIXI.Graphics();
@@ -469,35 +687,33 @@ function playBlockEffect(x: number, y: number) {
   blockEffect.stroke({ color: 0x3b82f6, width: 4 });
   blockEffect.fill({ color: 0x3b82f6, alpha: 0.3 });
 
+  for (const point of buildRadialBurstPoints(8, motion.burstRadius * 0.74)) {
+    blockEffect.circle(point.x, point.y, 3);
+  }
+  blockEffect.fill({ color: 0xb9dcff, alpha: 0.58 });
+
   app.stage.addChild(blockEffect);
 
-  let alpha = 1;
-  let scale = 1;
-  const fadeOut = () => {
-    alpha -= 0.08;
-    scale += 0.05;
-    blockEffect.alpha = alpha;
-    blockEffect.scale.set(scale);
-
-    if (alpha > 0) {
-      requestAnimationFrame(fadeOut);
-    } else {
-      try {
-        app?.stage?.removeChild(blockEffect);
-        blockEffect.destroy();
-      } catch {
-        // 無視
-      }
+  void animateFor(320, (progress) => {
+    blockEffect.alpha = 1 - progress;
+    blockEffect.scale.set(1 + progress * 0.65);
+  }).then(() => {
+    try {
+      app?.stage?.removeChild(blockEffect);
+      blockEffect.destroy();
+    } catch {
+      // 無視
     }
-  };
-
-  requestAnimationFrame(fadeOut);
+  });
 }
 
 // クリーンアップ
 export function destroyBattleScene() {
   if (app) {
     try {
+      if (idleTicker) {
+        app.ticker.remove(idleTicker);
+      }
       app.destroy(true, { children: true });
     } catch {
       // 無視
@@ -507,4 +723,7 @@ export function destroyBattleScene() {
 
   playerSprite = null;
   enemySprite = null;
+  playerShadow = null;
+  enemyShadow = null;
+  idleTicker = null;
 }

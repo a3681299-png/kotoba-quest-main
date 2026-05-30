@@ -539,6 +539,67 @@ body {
   50% { transform: scale(1.05); }
 }
 
+@keyframes castingGlow {
+  from { filter: saturate(1) brightness(1); }
+  to { filter: saturate(1.35) brightness(1.18); }
+}
+
+@keyframes dangerPulse {
+  from { filter: saturate(1) brightness(1); }
+  to { filter: saturate(1.45) brightness(1.22); }
+}
+
+@keyframes combatTextPop {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.82);
+    filter: blur(2px);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.14);
+    filter: blur(0);
+  }
+  28% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-58px) scale(0.96);
+  }
+}
+
+@keyframes telegraphFloat {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes workbenchReadyGlow {
+  from {
+    filter: saturate(1) brightness(1);
+    box-shadow:
+      0 34px 70px rgba(0, 0, 0, 0.62),
+      0 0 0 4px rgba(23, 13, 7, 0.72),
+      0 0 0 7px rgba(226, 161, 73, 0.24),
+      0 0 54px rgba(31, 127, 181, 0.2),
+      inset 0 1px 0 rgba(255, 241, 198, 0.32);
+  }
+  to {
+    filter: saturate(1.08) brightness(1.04);
+    box-shadow:
+      0 38px 78px rgba(0, 0, 0, 0.66),
+      0 0 0 4px rgba(23, 13, 7, 0.72),
+      0 0 0 8px rgba(246, 198, 112, 0.3),
+      0 0 66px rgba(31, 127, 181, 0.28),
+      inset 0 1px 0 rgba(255, 241, 198, 0.38);
+  }
+}
+
 .next-stage-button {
   padding: 1rem 3rem;
   font-size: 1.25rem;
@@ -993,10 +1054,166 @@ body {
   z-index: 2;
 }
 
+.battle-phase-light {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease, background 180ms ease;
+}
+
+.battle-field.phase-executing .battle-phase-light {
+  opacity: 0.34;
+  background:
+    radial-gradient(circle at 28% 58%, rgba(74, 201, 255, 0.28), transparent 22%),
+    linear-gradient(90deg, rgba(23, 114, 166, 0.18), transparent 54%);
+  animation: castingGlow 760ms ease-in-out infinite alternate;
+}
+
+.battle-field.phase-show-intent .battle-phase-light,
+.battle-field.phase-enemy-turn .battle-phase-light {
+  opacity: 0.38;
+  background:
+    radial-gradient(circle at 72% 52%, rgba(255, 73, 51, 0.28), transparent 24%),
+    linear-gradient(270deg, rgba(164, 28, 22, 0.24), transparent 58%);
+}
+
+.battle-field.phase-enemy-turn .battle-phase-light {
+  animation: dangerPulse 420ms ease-in-out infinite alternate;
+}
+
+.battle-field.phase-victory .battle-phase-light {
+  opacity: 0.32;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 229, 123, 0.36), transparent 32%),
+    linear-gradient(180deg, rgba(255, 207, 79, 0.16), transparent 70%);
+}
+
+.battle-field.phase-defeat .battle-phase-light {
+  opacity: 0.44;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(116, 0, 0, 0.28), transparent 32%),
+    linear-gradient(180deg, rgba(44, 0, 0, 0.12), rgba(10, 0, 0, 0.54));
+}
+
 .battle-canvas {
   position: absolute;
   inset: 0;
   z-index: 1;
+}
+
+.floating-combat-text {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.combat-text-pop {
+  position: absolute;
+  left: 50%;
+  top: calc(31% + var(--combat-text-index) * 42px);
+  min-width: 220px;
+  padding: 8px 18px;
+  color: #f5dfb5;
+  text-align: center;
+  font-weight: 900;
+  text-shadow:
+    0 2px 0 #120b05,
+    0 0 12px rgba(255, 207, 99, 0.32);
+  translate: -50% 0;
+  opacity: 0;
+  animation: combatTextPop 1400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--combat-text-index) * 80ms);
+}
+
+.combat-text-pop.damage {
+  color: #ff6658;
+  text-shadow:
+    0 2px 0 #170000,
+    0 0 18px rgba(255, 69, 44, 0.48);
+}
+
+.combat-text-pop.block {
+  color: #9bd8ff;
+  text-shadow:
+    0 2px 0 #061320,
+    0 0 18px rgba(84, 182, 255, 0.48);
+}
+
+.combat-text-pop.success {
+  color: #ffe17f;
+  text-shadow:
+    0 2px 0 #160f02,
+    0 0 18px rgba(255, 218, 90, 0.58);
+}
+
+.enemy-telegraph {
+  position: absolute;
+  right: 18%;
+  bottom: 420px;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 42px minmax(0, auto) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+  max-width: min(360px, 30vw);
+  padding: 8px 12px 8px 9px;
+  color: #f5dfb5;
+  background:
+    linear-gradient(180deg, rgba(22, 23, 20, 0.92), rgba(7, 9, 10, 0.96)),
+    radial-gradient(circle at 15% 0%, rgba(244, 164, 70, 0.2), transparent 45%);
+  border: 1px solid rgba(220, 159, 76, 0.58);
+  border-radius: 4px;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 238, 192, 0.14);
+  animation: telegraphFloat 1550ms ease-in-out infinite alternate;
+}
+
+.enemy-telegraph.danger {
+  border-color: rgba(255, 97, 73, 0.72);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.46),
+    0 0 18px rgba(210, 48, 33, 0.22),
+    inset 0 1px 0 rgba(255, 238, 192, 0.14);
+}
+
+.enemy-telegraph-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(255, 222, 161, 0.24);
+  border-radius: 50%;
+}
+
+.enemy-telegraph-label {
+  min-width: 0;
+  overflow: hidden;
+  color: #f2ddb5;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+}
+
+.enemy-telegraph-damage {
+  min-width: 36px;
+  padding: 4px 8px;
+  color: #ff6658;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 900;
+  background: rgba(60, 7, 5, 0.66);
+  border: 1px solid rgba(255, 102, 88, 0.56);
+  border-radius: 3px;
+  text-shadow: 0 1px 2px #000;
 }
 
 .phase-banner {
@@ -1154,37 +1371,42 @@ body {
 .code-workbench {
   position: absolute;
   left: 50%;
-  bottom: -20px;
+  bottom: clamp(18px, 3vh, 34px);
   z-index: 20;
-  width: min(780px, calc(100vw - 56px));
-  height: 280px;
+  width: min(1180px, calc(100vw - 72px));
+  height: clamp(420px, 72vh, 720px);
+  max-height: calc(100vh - 112px);
   min-height: 0;
-  max-height: none;
   flex: none;
   translate: -50% 0;
-  overflow: visible;
-  border: 1px solid rgba(246, 198, 112, 0.72);
-  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(246, 198, 112, 0.82);
+  border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(12, 26, 31, 0.98), rgba(4, 10, 13, 0.99)),
-    radial-gradient(circle at 50% 0%, rgba(30, 122, 168, 0.14), transparent 42%);
+    radial-gradient(circle at 50% 0%, rgba(30, 122, 168, 0.18), transparent 42%);
   box-shadow:
-    0 26px 48px rgba(0, 0, 0, 0.55),
+    0 34px 70px rgba(0, 0, 0, 0.62),
     0 0 0 4px rgba(23, 13, 7, 0.72),
-    0 0 0 6px rgba(226, 161, 73, 0.2),
+    0 0 0 7px rgba(226, 161, 73, 0.24),
+    0 0 54px rgba(31, 127, 181, 0.2),
     inset 0 1px 0 rgba(255, 241, 198, 0.32);
   transform-origin: 50% 100%;
 }
 
+.code-workbench.is-ready {
+  animation: workbenchReadyGlow 2800ms ease-in-out infinite alternate;
+}
+
 .code-workbench-tabs {
-  min-height: 44px;
-  border-radius: 18px 18px 0 0;
+  min-height: 50px;
+  border-radius: 22px 22px 0 0;
 }
 
 .code-workbench-body {
-  grid-template-columns: minmax(0, 1fr) 210px;
+  grid-template-columns: minmax(0, 1fr) 280px;
   min-height: 0;
-  height: calc(100% - 100px);
+  height: calc(100% - 116px);
 }
 
 .code-editor-panel,
@@ -1203,8 +1425,8 @@ body {
 }
 
 .code-workbench-footer {
-  min-height: 56px;
-  border-radius: 0 0 18px 18px;
+  min-height: 66px;
+  border-radius: 0 0 22px 22px;
 }
 
 .execution-preview {
@@ -1223,24 +1445,24 @@ body {
 .code-workbench .code-editor-highlights,
 .code-workbench .code-editor-syntax,
 .code-workbench .code-editor-textarea {
-  padding: 12px 16px;
-  font-size: 18px;
-  line-height: 24px;
+  padding: 18px 22px;
+  font-size: 20px;
+  line-height: 28px;
 }
 
 .code-workbench .line-number {
-  height: 24px;
-  font-size: 15px;
-  line-height: 24px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 28px;
 }
 
 .code-workbench .highlight-line {
-  height: 24px;
+  height: 28px;
 }
 
 .code-workbench .code-editor-line-numbers {
-  flex-basis: 48px;
-  padding: 12px 0;
+  flex-basis: 56px;
+  padding: 18px 0;
 }
 
 .code-workbench .hint-button {
@@ -1248,9 +1470,9 @@ body {
 }
 
 .code-workbench .execute-button {
-  min-height: 48px;
-  padding: 0.7rem 2.2rem;
-  font-size: 1.1rem;
+  min-height: 52px;
+  padding: 0.8rem 2.5rem;
+  font-size: 1.16rem;
 }
 
 .tutorial-overlay {
@@ -1351,6 +1573,24 @@ body {
     bottom: 180px;
   }
 
+  .enemy-telegraph {
+    right: 4%;
+    bottom: 280px;
+    max-width: 52vw;
+    min-width: 170px;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .enemy-telegraph-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 1.08rem;
+  }
+
+  .enemy-telegraph-label {
+    font-size: 0.86rem;
+  }
+
   .combat-stats {
     gap: 10px;
     font-size: 0.82rem;
@@ -1365,6 +1605,26 @@ body {
     margin: -70px auto 12px;
     translate: 0 0;
     flex: none;
+  }
+
+  .tutorial-overlay {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .tutorial-bubble {
+    width: min(100%, 430px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .tutorial-message {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    line-break: anywhere;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import {
   initBattleScene,
@@ -13,8 +13,12 @@ import { SpellExecutor, type GameAction } from "../engine/SpellExecutor";
 import { CodeEditor, type CodeEditorRef } from "./CodeEditor";
 import { DebugPanel } from "./DebugPanel";
 import { IntentDisplay } from "./IntentDisplay";
+import { getBattleFieldPresentation } from "./battlePresentation";
+import { parseCombatLogEntry } from "./combatText";
+import { getEnemyTelegraph } from "./enemyTelegraph";
 import {
   editorCardVariants,
+  getEditorCardClassName,
   shouldRunCodeAfterCardAnimation,
   type EditorCardMotionState,
 } from "./editorCardMotion";
@@ -69,6 +73,12 @@ export function BattleScreen() {
   const stage = STAGES[currentStageIndex];
   const enemyData = ENEMY_DATA[stage.id];
   const enemyHpPercent = Math.max(0, (enemyHp / stage.enemyHp) * 100);
+  const battleFieldPresentation = getBattleFieldPresentation(battlePhase);
+  const enemyTelegraph = getEnemyTelegraph(currentIntent);
+  const floatingCombatText = battleLog.slice(-3).map((log) => ({
+    raw: log,
+    ...parseCombatLogEntry(log),
+  }));
   const phaseTitle =
     battlePhase === "player_turn"
       ? "準備フェーズ"
@@ -98,6 +108,18 @@ export function BattleScreen() {
     });
   }, []);
 
+  const scheduleEditorCardEnterAnimation = useCallback(() => {
+    let readyAnimationFrame = 0;
+    const enterAnimationFrame = requestAnimationFrame(() => {
+      readyAnimationFrame = playEditorCardEnterAnimation();
+    });
+
+    return () => {
+      cancelAnimationFrame(enterAnimationFrame);
+      cancelAnimationFrame(readyAnimationFrame);
+    };
+  }, [playEditorCardEnterAnimation]);
+
   // バトルシーンの初期化
   useEffect(() => {
     let mounted = true;
@@ -119,17 +141,13 @@ export function BattleScreen() {
   useEffect(() => {
     if (battlePhase !== "player_turn" || showVictory || showDefeat) return;
 
-    const animationFrame = playEditorCardEnterAnimation();
-
-    return () => {
-      cancelAnimationFrame(animationFrame);
-    };
+    return scheduleEditorCardEnterAnimation();
   }, [
     battlePhase,
     turnCount,
     showVictory,
     showDefeat,
-    playEditorCardEnterAnimation,
+    scheduleEditorCardEnterAnimation,
   ]);
 
   // ステージ変更時にストアをリセット
@@ -141,13 +159,18 @@ export function BattleScreen() {
       const intent = decideEnemyIntent(enemyData, enemyData.maxHp, 0, false);
       setIntent(intent);
     }
-    // チュートリアルがあれば表示
-    if (stage.tutorialSteps && stage.tutorialSteps.length > 0) {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    } else {
-      setShowTutorial(false);
-    }
+    const tutorialAnimationFrame = requestAnimationFrame(() => {
+      if (stage.tutorialSteps && stage.tutorialSteps.length > 0) {
+        setShowTutorial(true);
+        setTutorialStep(0);
+      } else {
+        setShowTutorial(false);
+      }
+    });
+
+    return () => {
+      cancelAnimationFrame(tutorialAnimationFrame);
+    };
   }, [
     currentStageIndex,
     stage,
@@ -455,8 +478,34 @@ export function BattleScreen() {
           </div>
         </header>
 
-        <div className="battle-field">
+        <div
+          className={battleFieldPresentation.className}
+          aria-label={battleFieldPresentation.overlayLabel}
+        >
           <div ref={canvasRef} className="battle-canvas" />
+          <div className="battle-phase-light" aria-hidden="true" />
+          <div className="floating-combat-text" aria-live="polite">
+            {floatingCombatText.map((entry, index) => (
+              <div
+                key={`${entry.raw}-${index}`}
+                className={`combat-text-pop ${entry.type}`}
+                style={{ "--combat-text-index": index } as CSSProperties}
+              >
+                {entry.message}
+              </div>
+            ))}
+          </div>
+          {enemyTelegraph && (
+            <div className={enemyTelegraph.className} aria-label="敵の意図">
+              <span className="enemy-telegraph-icon">{enemyTelegraph.icon}</span>
+              <span className="enemy-telegraph-label">{enemyTelegraph.label}</span>
+              {enemyTelegraph.damageLabel && (
+                <span className="enemy-telegraph-damage">
+                  {enemyTelegraph.damageLabel}
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="phase-banner" aria-label="現在のフェーズ">
             <div className="phase-chip active">
@@ -507,11 +556,15 @@ export function BattleScreen() {
 
         {/* コードエディタエリア */}
         <motion.div
-          className="code-area code-workbench"
+          className={getEditorCardClassName(editorCardMotionState)}
           variants={editorCardVariants}
           initial="entering"
           animate={editorCardMotionState}
           onAnimationComplete={handleEditorCardAnimationComplete}
+          style={{
+            pointerEvents:
+              editorCardMotionState === "ready" ? "auto" : "none",
+          }}
         >
           <div className="code-workbench-tabs" aria-label="コードエディター">
             <div className="code-tab command-tab">コマンド一覧</div>

@@ -56,7 +56,7 @@ Arguments
 Expression = StringLiteral / Number / Identifier
 
 StringLiteral
-  = [\\\"'"] chars:[^\\\"'"]* [\\\"'"] { return chars.join(""); }
+  = [\\"'"] chars:[^\\"'"]* [\\"'"] { return chars.join(""); }
 
 Number
   = digits:[0-9]+ { return parseInt(digits.join(""), 10); }

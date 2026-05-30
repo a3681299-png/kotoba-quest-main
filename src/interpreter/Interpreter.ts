@@ -69,7 +69,7 @@ export class Interpreter {
                     }
                 }
                 break;
-            case "Loop":
+            case "Loop": {
                 const count = Math.min(node.count, 10); // 最大10回に制限
                 this.logs.push(`${count}回 繰り返し開始`);
                 for (let i = 0; i < count; i++) {
@@ -78,6 +78,7 @@ export class Interpreter {
                     }
                 }
                 break;
+            }
         }
     }
 

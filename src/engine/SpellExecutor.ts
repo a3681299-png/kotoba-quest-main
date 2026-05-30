@@ -215,7 +215,7 @@ export class SpellExecutor {
           }
         }
         break;
-      case "Loop":
+      case "Loop": {
         const count = Math.min(node.count, 10); // 最大10回に制限
         this.logs.push(`${count}回 繰り返し開始`);
         for (let i = 0; i < count; i++) {
@@ -224,6 +224,7 @@ export class SpellExecutor {
           }
         }
         break;
+      }
     }
 
     // 実行完了をemit
@@ -249,7 +250,7 @@ export class SpellExecutor {
       case "回復":
         await this.executeHeal(args);
         break;
-      case "防御":
+      case "防御": {
         const defendAction: GameAction = { type: "defend" };
         this.actions.push(defendAction);
         this.logs.push("🛡️ 防御の構え！ダメージを半減！");
@@ -262,6 +263,7 @@ export class SpellExecutor {
 
         this.emit({ type: "action-emit", action: defendAction });
         break;
+      }
       default:
         this.logs.push(`不明な関数: ${name}`);
     }
