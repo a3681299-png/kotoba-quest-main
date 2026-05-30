@@ -260,7 +260,12 @@ function applyComboAoE(elements: Element[], count: number, state: MultiState): v
       })
     );
 
-    let damage = Math.max(1, Math.floor(atk * count * maxMult) - enemy.data.defense);
+    let damage: number;
+    if (count === 5) {
+      damage = 200;
+    } else {
+      damage = Math.max(1, Math.floor(atk * count * maxMult) - enemy.data.defense);
+    }
 
     // 文字数制限補正（ボスのみ）
     if (enemy.data.charLimit) {
