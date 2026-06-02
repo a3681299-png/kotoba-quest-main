@@ -1,5 +1,5 @@
 import type { Element } from "../parser/ast";
-import type { EnemyData, StageConfig } from "../engine/types";
+import type { EnemyData, StageConfig, SummonableEnemy } from "../engine/types";
 
 // ─── Wave・ステージ型定義 ─────────────────────────────
 
@@ -14,6 +14,8 @@ export interface WaveData {
   stateGimmickOverride?: import("../engine/types").StateGimmick | null;
   // true の場合、Wave 内の敵が同時に出現する（Stage4 Wave3 専用）
   simultaneous?: boolean;
+  // Stage 5 Wave 3 以降: 召喚可能な敵テンプレート（ボスがランタイムで召喚する）
+  summonableEnemies?: SummonableEnemy[];
   // Stage3 以降: NPC コード領域
   npc?: {
     name: string;              // NPC の名前（例: "マリア"）
@@ -398,8 +400,129 @@ export const STAGE5: StageData = {
   title: "総合課題",
   theme: "これまで学んだすべてを使いこなす",
   config: { stageNumber: 5, initialMaxMp: 90, playerAttack: 40, stateGimmick: null },
-  clearReward: { unlocksAttribute: null, message: "ステージ5クリア！" },
-  waves: [], // TODO
+  clearReward: { unlocksAttribute: null, message: "ステージ5クリア！総合力を身につけた！" },
+  waves: [
+    {
+      waveNumber: 1,
+      title: "Wave 1 — 性質の違う2体",
+      description: "ゴブリンは高火力・低耐久、トロルは低火力・高耐久。どちらを先に倒すべきか判断しよう。",
+      hint: "ゴブリンを早く倒さないと連続でダメージを受ける。トロルは水属性、弱点は雷。「敵[1番目]へ」「敵[2番目]へ」でターゲット指定できるよ。",
+      simultaneous: true,
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 10 以上 ならば:",
+        "    敵[1番目]へ 魔法(アクア)",
+        "  そうでなければ:",
+        "    防御()",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s5_goblin",
+          name: "ゴブリンアタッカー",
+          maxHp: 60,
+          defense: 3,
+          element: "火",
+          attackPatterns: [{ minDamage: 25, maxDamage: 30 }],
+        },
+        {
+          id: "s5_troll",
+          name: "トロルガード",
+          maxHp: 180,
+          defense: 12,
+          element: "水",
+          attackPatterns: [{ minDamage: 8, maxDamage: 12 }],
+        },
+      ],
+    },
+    {
+      waveNumber: 2,
+      title: "Wave 2 — 回復役を見抜け",
+      description: "状態変化スライムをいくら倒してもヒーラーが回復してしまう。先に倒すべきは…？",
+      hint: "ヒーラーは毎ラウンド味方を +20HP 回復させる。先にヒーラーを倒そう！ヒーラーは火属性タイプ（弱点はアクア=水）で属性は変わらない。状態変化スライム（1番目）は毎ラウンド状態が変わるよ。",
+      simultaneous: true,
+      stateGimmickOverride: { type: "wave2" },
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 10 以上 ならば:",
+        "    敵[2番目]へ 魔法(アクア)",
+        "  そうでなければ:",
+        "    防御()",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s5_state_slime",
+          name: "状態変化スライム",
+          maxHp: 120,
+          defense: 8,
+          element: null,
+          attackPatterns: [{ minDamage: 12, maxDamage: 18 }],
+        },
+        {
+          id: "s5_healer",
+          name: "ヒーラー",
+          maxHp: 80,
+          defense: 8,
+          element: "火",  // 火属性タイプ → 通常相性で アクア が 2x 弱点
+          attackPatterns: [{ minDamage: 8, maxDamage: 10 }],
+          healAllies: { amount: 20 },
+          // 状態変化ギミックの影響を受けず、通常の属性相性のみで判定する
+          fixedState: null,
+        },
+      ],
+    },
+    {
+      waveNumber: 3,
+      title: "Wave 3 — 総合ボス",
+      description: "総合ボスはチャージして大攻撃を撃ってくる。HP が減ると雑魚を呼ぶ！合体魔法を撃つタイミングを見極めよう。",
+      hint: "ボスは3ラウンドごとにチャージ→次ラウンドで60ダメージ！防御()で軽減できるよ。HP70%と30%で雑魚を3体ずつ召喚。合体魔法（全体攻撃）の出しどころに注意。",
+      simultaneous: true,
+      summonableEnemies: [
+        {
+          templateId: "s5_kobold",
+          enemy: {
+            id: "s5_kobold",
+            name: "コボルト",
+            maxHp: 30,
+            defense: 3,
+            element: null,
+            attackPatterns: [{ minDamage: 8, maxDamage: 12 }],
+          },
+        },
+      ],
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 120 以上 ならば:",
+        "    魔法(フレイム)",
+        "    魔法(アクア)",
+        "    魔法(スパーク)",
+        "    魔法(フロスト)",
+        "    魔法(ゲイル)",
+        "  そうでなければ もし 自分のHP が 50 以下 ならば:",
+        "    防御()",
+        "  そうでなければ:",
+        "    魔法(フレイム)",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s5_boss",
+          name: "総合ボス",
+          maxHp: 400,
+          defense: 8,
+          element: null,
+          attackPatterns: [{ minDamage: 22, maxDamage: 28 }],
+          chargeAttack: {
+            interval: 3,
+            damage: 60,
+            chargeMessage: "総合ボスが力を溜めている…！次のラウンドに大攻撃が来る！",
+          },
+          summonOnHpThreshold: [
+            { hpRatio: 0.7, summonEnemyId: "s5_kobold", count: 3 },
+            { hpRatio: 0.3, summonEnemyId: "s5_kobold", count: 3 },
+          ],
+        },
+      ],
+    },
+  ],
 };
 
 export const STAGE6: StageData = {

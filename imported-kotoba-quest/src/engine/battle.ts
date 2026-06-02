@@ -66,6 +66,8 @@ export function runBattle(
       rounds: 0,
       log: [{ round: 0, category: "result", message: "繰り返す(敵が生きている あいだ): が見つかりません" }],
       finalPlayerHp: state.playerHp,
+      finalPlayerMp: state.playerMp,
+      finalMaxPlayerMp: state.maxPlayerMp,
       finalEnemyHp: state.enemyHp,
     };
   }

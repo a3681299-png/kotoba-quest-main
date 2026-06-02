@@ -51,6 +51,8 @@ export interface ActionHistory {
   comboCount: number;
   defendCount: number;
   healCount: number;
+  totalRounds: number;                  // 総バトルラウンド数（学習型ラスボス用）
+  totalBattles: number;                 // 総バトル数（学習型ラスボス用）
 }
 
 // ─── アクション型定義 ─────────────────────────────────
@@ -81,6 +83,8 @@ const INITIAL_ACTION_HISTORY: ActionHistory = {
   comboCount: 0,
   defendCount: 0,
   healCount: 0,
+  totalRounds: 0,
+  totalBattles: 0,
 };
 
 export const useGameStore = create<GameState & GameActions>()(
@@ -124,6 +128,24 @@ export const useGameStore = create<GameState & GameActions>()(
       },
 
       finishWave: (result) => {
+        // 行動履歴の集計（Stage 6 学習型ラスボス用）
+        if (result.stats) {
+          const h = get().actionHistory;
+          const newMagicUsage = { ...h.magicUsage };
+          for (const [magic, count] of Object.entries(result.stats.magicUsage)) {
+            newMagicUsage[magic] = (newMagicUsage[magic] ?? 0) + count;
+          }
+          set({
+            actionHistory: {
+              magicUsage: newMagicUsage,
+              comboCount: h.comboCount + result.stats.comboCount,
+              defendCount: h.defendCount + result.stats.defendCount,
+              healCount: h.healCount + result.stats.healCount,
+              totalRounds: h.totalRounds + result.stats.rounds,
+              totalBattles: h.totalBattles + 1,
+            },
+          });
+        }
         set({ lastWaveResult: result, screen: "waveResult" });
       },
 

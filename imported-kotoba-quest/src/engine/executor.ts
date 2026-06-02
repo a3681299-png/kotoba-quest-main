@@ -132,13 +132,12 @@ function execNode(node: ASTNode, ctx: ExecContext): void {
     }
 
     case "TargetedMagic": {
-      // ターゲット指定魔法（現在はターゲット情報を無視してアクションに追加）
       const magic = resolveMagicArg(node.magic.arg, ctx.variables);
       if (magic === null) {
         ctx.error = `変数 "${node.magic.arg}" は魔法名ではありません`;
         return;
       }
-      ctx.actions.push({ type: "MagicUse", magic });
+      ctx.actions.push({ type: "MagicUse", magic, targetIndex: node.targetIndex });
       break;
     }
   }

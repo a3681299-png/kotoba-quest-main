@@ -3,6 +3,7 @@ import type { BattleResult, EnemyData, StageConfig } from "./types";
 import type { WaveData } from "../data/stageData";
 import { runBattle } from "./battle";
 import { runSimultaneousBattle } from "./multiBattle";
+import type { LogEntry } from "./types";
 
 // ─── Wave実行結果 ─────────────────────────────────────
 
@@ -17,6 +18,16 @@ export interface WaveResult {
   // 多体同時バトル用（simultaneous=true のWaveのみ）
   allLogs?: import("./types").LogEntry[];
   multiEnemyHps?: number[]; // 各敵の最終HP（表示用）
+  // 行動履歴集計用（Stage 6 学習型ラスボス向け）
+  stats?: WaveStats;
+}
+
+export interface WaveStats {
+  magicUsage: Record<string, number>; // 単属性魔法の使用回数（属性名 → 回数）
+  comboCount: number;                  // 合体魔法発動回数
+  defendCount: number;                 // 防御()使用回数
+  healCount: number;                   // 回復()使用回数
+  rounds: number;                      // このバトルでのラウンド数
 }
 
 export interface EnemyBattleResult {
@@ -69,6 +80,8 @@ export function runWave(
           rounds: 0,
           log: [],
           finalPlayerHp: 0,
+          finalPlayerMp: 0,
+          finalMaxPlayerMp: config.initialMaxMp,
           finalEnemyHp: enemy.maxHp,
         },
       });
@@ -111,6 +124,8 @@ export function runWave(
             rounds: 0,
             log: [],
             finalPlayerHp: 0,
+            finalPlayerMp: 0,
+            finalMaxPlayerMp: config.initialMaxMp,
             finalEnemyHp: skipped.maxHp,
           },
         });
@@ -121,6 +136,7 @@ export function runWave(
         totalRounds,
         finalPlayerHp: currentPlayerHp,
         finalPlayerMp: currentPlayerMp,
+        stats: aggregateWaveStats(enemyResults, totalRounds),
       };
     }
   }
@@ -131,7 +147,53 @@ export function runWave(
     totalRounds,
     finalPlayerHp: currentPlayerHp,
     finalPlayerMp: currentPlayerMp,
+    stats: aggregateWaveStats(enemyResults, totalRounds),
   };
+}
+
+// ─── 行動履歴の集計 ────────────────────────────────────
+// 全バトルのログを走査し、プレイヤーの行動回数を集計する
+
+export function aggregateWaveStats(
+  enemyResults: EnemyBattleResult[],
+  totalRounds: number,
+  extraLogs: LogEntry[] = [],
+): WaveStats {
+  const stats: WaveStats = {
+    magicUsage: {},
+    comboCount: 0,
+    defendCount: 0,
+    healCount: 0,
+    rounds: totalRounds,
+  };
+  const allLogs = [
+    ...enemyResults.flatMap((r) => r.battleResult.log),
+    ...extraLogs,
+  ];
+  for (const log of allLogs) {
+    if (log.category === "playerAction") {
+      // 防御
+      if (log.message.includes("防御態勢")) {
+        stats.defendCount++;
+        continue;
+      }
+      // 回復
+      if (log.message.startsWith("回復した")) {
+        stats.healCount++;
+        continue;
+      }
+      // 単属性魔法（"ダメージ" を含む魔法ログ）
+      for (const magic of ["フレイム", "アクア", "スパーク", "フロスト", "ゲイル"]) {
+        if (log.message.includes(magic) && log.message.includes("ダメージ")) {
+          stats.magicUsage[magic] = (stats.magicUsage[magic] ?? 0) + 1;
+          break;
+        }
+      }
+    } else if (log.category === "comboMagic" && log.message.includes("合体魔法")) {
+      stats.comboCount++;
+    }
+  }
+  return stats;
 }
 
 // ─── Wave間のHP/MPリセットルール ─────────────────────
@@ -144,7 +206,7 @@ export interface WaveTransition {
 // Wave完了後に次Wave開始時のHP/MPを決定する
 // 1WaveごとにHPは100、MPはステージの initialMaxMp へリセットする
 export function calcWaveTransition(
-  waveResult: WaveResult,
+  _waveResult: WaveResult,
   config: StageConfig,
 ): WaveTransition {
   return {
