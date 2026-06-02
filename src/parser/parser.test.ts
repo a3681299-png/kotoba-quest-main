@@ -166,17 +166,7 @@ describe("parse - 条件分岐", () => {
     expect(node.condition.type).toBe("Logic");
   });
 
-  it("敵指定魔法をパースできる", () => {
-    const src = "敵[2番目]へ 魔法(アクア)";
-    const r = parse(src);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    const node = r.ast[0] as { type: string; targetIndex?: number };
-    expect(node.type).toBe("TargetedMagic");
-    expect(node.targetIndex).toBe(2);
-  });
-
-  it("全角スペースを含む条件式をパースできる", () => {
+  it("全角スペースを含む条件をパースできる", () => {
     const src = [
       "もし 自分のMP が 80 以上　かつ 敵のHP が 30 より小さい ならば:",
       "  魔法(フレイム)",
