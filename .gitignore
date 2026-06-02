@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.next
+
+andrej-karpathy-skills/
+.codegraph/
+.agents/
+CLAUDE.md

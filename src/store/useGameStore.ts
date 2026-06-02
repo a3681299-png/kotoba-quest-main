@@ -1,346 +1,219 @@
 import { create } from "zustand";
-import type { SourceLocation } from "../parser/types";
-import type { GameAction } from "../engine/SpellExecutor";
-import type { EnemyIntent } from "../engine/EnemyAI";
+import { persist } from "zustand/middleware";
+import type { Element } from "../parser/ast";
+import type { WaveResult } from "../engine/waveRunner";
+import { getStage } from "../data/stageData";
+import { calcWaveTransition } from "../engine/waveRunner";
 
-// バトルフェーズ
-export type BattlePhase =
-  | "player_turn" // プレイヤーのターン（コード入力中）
-  | "executing" // コード実行中
-  | "show_intent" // 敵の予兆を表示
-  | "enemy_turn" // 敵のターン（攻撃アニメーション）
-  | "victory" // 勝利
-  | "defeat"; // 敗北
+// ─── 型定義 ───────────────────────────────────────────
 
-// 実行状態
-export type ExecutionStatus =
-  | "idle" // 待機中
-  | "running" // 実行中（通常モード）
-  | "stepping" // ステップ実行中
-  | "paused" // 一時停止（次のステップ待ち）
-  | "completed" // 完了
-  | "error"; // エラー
+export type GameScreen =
+  | "title"
+  | "stageSelect"
+  | "battle"
+  | "waveResult"
+  | "stageResult";
 
-// 実行中の行情報
-export interface ExecutingLine {
-  lineNumber: number;
-  location: SourceLocation;
-  status: "executing" | "complete";
+export interface WaveProgress {
+  stageNumber: number;
+  waveIndex: number;        // 0-based
+  playerHp: number;         // Wave開始時のHP
+  playerMp: number;         // Wave開始時のMP（ステージ設定値）
 }
 
-// リトライ用のスナップショット
-export interface TurnSnapshot {
-  playerHp: number;
-  enemyHp: number;
-  turnCount: number;
-  variables: Map<string, number | string>;
+// ─── ストア型定義 ─────────────────────────────────────
+
+interface GameState {
+  // 画面制御
+  screen: GameScreen;
+
+  // 進行中のWave情報
+  currentWave: WaveProgress | null;
+
+  // 最後のWave実行結果
+  lastWaveResult: WaveResult | null;
+
+  // 現在エディタに入力されているコード
+  currentCode: string;
+
+  // 永続化: クリア済みステージ
+  clearedStages: number[];
+
+  // 永続化: 解放済み属性
+  unlockedAttributes: Element[];
+
+  // 永続化: Stage6用の行動履歴（属性ごとの使用回数）
+  actionHistory: ActionHistory;
 }
 
-// ゲームストアの状態
-export interface GameState {
-  // ゲーム状態
-  playerHp: number;
-  maxPlayerHp: number;
-  enemyHp: number;
-  maxEnemyHp: number;
-
-  // ターン管理
-  battlePhase: BattlePhase;
-  turnCount: number;
-  currentStage: number;
-
-  // プレイヤー状態
-  isDefending: boolean;
-  defenseMultiplier: number;
-
-  // Intent（予兆）システム
-  currentIntent: EnemyIntent | null;
-  lastDamageReceived: number;
-  lastDamageBlocked: number;
-
-  // リトライ用スナップショット
-  turnSnapshot: TurnSnapshot | null;
-
-  // 変数ウォッチ
-  variables: Map<string, number | string>;
-
-  // 実行状態
-  executionStatus: ExecutionStatus;
-  isStepMode: boolean;
-  currentLine: number | null;
-  executedLines: ExecutingLine[];
-  pendingActions: GameAction[];
-  logs: string[];
-  errorMessage: string | null;
-
-  // ステップ実行用のPromise resolver
-  stepResolver: (() => void) | null;
+export interface ActionHistory {
+  magicUsage: Record<string, number>;   // { フレイム: 42, アクア: 30, ... }
+  comboCount: number;
+  defendCount: number;
+  healCount: number;
 }
 
-// ゲームストアのアクション
-export interface GameActions {
-  // HP操作
-  setPlayerHp: (hp: number) => void;
-  setEnemyHp: (hp: number) => void;
-  damageEnemy: (amount: number) => void;
-  damagePlayer: (amount: number) => void;
-  healPlayer: (amount: number) => void;
+// ─── アクション型定義 ─────────────────────────────────
 
-  // ターン管理
-  setBattlePhase: (phase: BattlePhase) => void;
-  nextTurn: () => void;
-  setCurrentStage: (stage: number) => void;
+interface GameActions {
+  // 画面遷移
+  goToTitle: () => void;
+  goToStageSelect: () => void;
+  startStage: (stageNumber: number) => void;
+  startWave: (stageNumber: number, waveIndex: number, hp: number, mp: number) => void;
+  finishWave: (result: WaveResult) => void;
+  retryWave: () => void;
+  proceedToNextWave: () => void;
+  completeStage: (stageNumber: number, unlockedAttr: Element | null) => void;
 
-  // 防御状態
-  setDefending: (defending: boolean) => void;
+  // コード編集
+  setCode: (code: string) => void;
 
-  // Intent管理
-  setIntent: (intent: EnemyIntent | null) => void;
-  setLastDamage: (received: number, blocked: number) => void;
-
-  // リトライ
-  saveTurnSnapshot: () => void;
-  restoreFromSnapshot: () => void;
-
-  // 変数操作
-  setVariable: (name: string, value: number | string) => void;
-  clearVariables: () => void;
-
-  // 実行制御
-  setStepMode: (enabled: boolean) => void;
-  startExecution: () => void;
-  pauseExecution: (lineNumber: number, location: SourceLocation) => void;
-  resumeExecution: () => void;
-  nextStep: () => void;
-  completeExecution: () => void;
-  setError: (message: string) => void;
-  resetExecution: () => void;
-
-  // 行ハイライト
-  markLineExecuting: (lineNumber: number, location: SourceLocation) => void;
-  markLineComplete: (lineNumber: number) => void;
-
-  // アクション・ログ
-  addAction: (action: GameAction) => void;
-  addLog: (message: string) => void;
-  clearLogs: () => void;
-
-  // ステージリセット
-  resetStage: (enemyHp: number) => void;
-
-  // Promise resolver設定
-  setStepResolver: (resolver: (() => void) | null) => void;
+  // 行動履歴の更新（Stage6用）
+  recordAction: (type: keyof Omit<ActionHistory, "magicUsage">) => void;
+  recordMagicUse: (magic: string) => void;
 }
 
-// 初期状態
-const initialState: GameState = {
-  playerHp: 100,
-  maxPlayerHp: 100,
-  enemyHp: 30,
-  maxEnemyHp: 30,
-  battlePhase: "player_turn",
-  turnCount: 1,
-  currentStage: 1,
-  isDefending: false,
-  defenseMultiplier: 0.5,
-  currentIntent: null,
-  lastDamageReceived: 0,
-  lastDamageBlocked: 0,
-  turnSnapshot: null,
-  variables: new Map(),
-  executionStatus: "idle",
-  isStepMode: false,
-  currentLine: null,
-  executedLines: [],
-  pendingActions: [],
-  logs: [],
-  errorMessage: null,
-  stepResolver: null,
+// ─── ストア実装 ───────────────────────────────────────
+
+const INITIAL_ACTION_HISTORY: ActionHistory = {
+  magicUsage: {},
+  comboCount: 0,
+  defendCount: 0,
+  healCount: 0,
 };
 
-// Zustand ストア
-export const useGameStore = create<GameState & GameActions>((set, get) => ({
-  ...initialState,
+export const useGameStore = create<GameState & GameActions>()(
+  persist(
+    (set, get) => ({
+      // ─── 初期状態 ─────────────────────────────────────
+      screen: "title",
+      currentWave: null,
+      lastWaveResult: null,
+      currentCode: "",
+      clearedStages: [],
+      unlockedAttributes: ["火", "水", "雷"], // 初期解放済み
+      actionHistory: INITIAL_ACTION_HISTORY,
 
-  // HP操作
-  setPlayerHp: (hp) =>
-    set({ playerHp: Math.max(0, Math.min(hp, get().maxPlayerHp)) }),
-  setEnemyHp: (hp) =>
-    set({ enemyHp: Math.max(0, Math.min(hp, get().maxEnemyHp)) }),
-  damageEnemy: (amount) =>
-    set((state) => ({
-      enemyHp: Math.max(0, state.enemyHp - amount),
-    })),
-  damagePlayer: (amount) =>
-    set((state) => {
-      const actualDamage = state.isDefending
-        ? Math.floor(amount * state.defenseMultiplier)
-        : amount;
-      const blocked = amount - actualDamage;
-      return {
-        playerHp: Math.max(0, state.playerHp - actualDamage),
-        lastDamageReceived: actualDamage,
-        lastDamageBlocked: blocked,
-      };
-    }),
-  healPlayer: (amount) =>
-    set((state) => ({
-      playerHp: Math.min(state.maxPlayerHp, state.playerHp + amount),
-    })),
+      // ─── 画面遷移アクション ───────────────────────────
+      goToTitle: () => set({ screen: "title", currentWave: null, lastWaveResult: null }),
 
-  // ターン管理
-  setBattlePhase: (phase) => set({ battlePhase: phase }),
-  nextTurn: () =>
-    set((state) => ({
-      turnCount: state.turnCount + 1,
-      battlePhase: "player_turn",
-      isDefending: false, // 防御はターン終了でリセット
-    })),
-  setCurrentStage: (stage) => set({ currentStage: stage }),
+      goToStageSelect: () => set({ screen: "stageSelect", currentWave: null }),
 
-  // 防御状態
-  setDefending: (defending) => set({ isDefending: defending }),
-
-  // Intent管理
-  setIntent: (intent) => set({ currentIntent: intent }),
-  setLastDamage: (received, blocked) =>
-    set({ lastDamageReceived: received, lastDamageBlocked: blocked }),
-
-  // リトライ
-  saveTurnSnapshot: () =>
-    set((state) => ({
-      turnSnapshot: {
-        playerHp: state.playerHp,
-        enemyHp: state.enemyHp,
-        turnCount: state.turnCount,
-        variables: new Map(state.variables),
+      startStage: (stageNumber) => {
+        const stage = getStage(stageNumber);
+        set({
+          screen: "battle",
+          currentWave: {
+            stageNumber,
+            waveIndex: 0,
+            playerHp: 100,
+            playerMp: stage.config.initialMaxMp,
+          },
+          lastWaveResult: null,
+          currentCode: stage.waves[0]?.codeExample ?? "",
+        });
       },
-    })),
-  restoreFromSnapshot: () => {
-    const snapshot = get().turnSnapshot;
-    if (snapshot) {
-      set({
-        playerHp: snapshot.playerHp,
-        enemyHp: snapshot.enemyHp,
-        turnCount: snapshot.turnCount,
-        variables: new Map(snapshot.variables),
-        battlePhase: "player_turn",
-        isDefending: false,
-        lastDamageReceived: 0,
-        lastDamageBlocked: 0,
-      });
+
+      startWave: (stageNumber, waveIndex, hp, mp) => {
+        set({
+          screen: "battle",
+          currentWave: { stageNumber, waveIndex, playerHp: hp, playerMp: mp },
+          lastWaveResult: null,
+        });
+      },
+
+      finishWave: (result) => {
+        set({ lastWaveResult: result, screen: "waveResult" });
+      },
+
+      retryWave: () => {
+        // 同じWaveを同じHPでリトライ（コードはそのまま）
+        const wave = get().currentWave;
+        if (!wave) return;
+        set({ screen: "battle", lastWaveResult: null });
+      },
+
+      proceedToNextWave: () => {
+        const { currentWave, lastWaveResult } = get();
+        if (!currentWave || !lastWaveResult) return;
+        const stage = getStage(currentWave.stageNumber);
+        const { nextPlayerHp, nextPlayerMp } = calcWaveTransition(lastWaveResult, stage.config);
+        const nextWaveIndex = currentWave.waveIndex + 1;
+        set({
+          currentWave: {
+            ...currentWave,
+            waveIndex: nextWaveIndex,
+            playerHp: nextPlayerHp,
+            playerMp: nextPlayerMp,
+          },
+          screen: "battle",
+          lastWaveResult: null,
+          currentCode: stage.waves[nextWaveIndex]?.codeExample ?? get().currentCode,
+        });
+      },
+
+      completeStage: (stageNumber, unlockedAttr) => {
+        const { clearedStages, unlockedAttributes } = get();
+        const newCleared = clearedStages.includes(stageNumber)
+          ? clearedStages
+          : [...clearedStages, stageNumber];
+        const newUnlocked =
+          unlockedAttr && !unlockedAttributes.includes(unlockedAttr)
+            ? [...unlockedAttributes, unlockedAttr]
+            : unlockedAttributes;
+
+        set({
+          clearedStages: newCleared,
+          unlockedAttributes: newUnlocked,
+          screen: "stageResult",
+        });
+      },
+
+      // ─── コード編集 ───────────────────────────────────
+      setCode: (code) => set({ currentCode: code }),
+
+      // ─── 行動履歴 ─────────────────────────────────────
+      recordAction: (type) => {
+        const h = get().actionHistory;
+        set({
+          actionHistory: {
+            ...h,
+            [type]: (h[type] as number) + 1,
+          },
+        });
+      },
+
+      recordMagicUse: (magic) => {
+        const h = get().actionHistory;
+        set({
+          actionHistory: {
+            ...h,
+            magicUsage: {
+              ...h.magicUsage,
+              [magic]: (h.magicUsage[magic] ?? 0) + 1,
+            },
+          },
+        });
+      },
+    }),
+    {
+      name: "kotoba-quest-save",
+      // 永続化する項目だけ選択
+      partialize: (state) => ({
+        clearedStages: state.clearedStages,
+        unlockedAttributes: state.unlockedAttributes,
+        actionHistory: state.actionHistory,
+      }),
     }
-  },
+  )
+);
 
-  // 変数操作
-  setVariable: (name, value) =>
-    set((state) => {
-      const newVars = new Map(state.variables);
-      newVars.set(name, value);
-      return { variables: newVars };
-    }),
-  clearVariables: () => set({ variables: new Map() }),
+// ─── セレクタ ─────────────────────────────────────────
 
-  // 実行制御
-  setStepMode: (enabled) => set({ isStepMode: enabled }),
+export const selectIsStageCleared = (stageNumber: number) =>
+  (state: GameState) => state.clearedStages.includes(stageNumber);
 
-  startExecution: () =>
-    set({
-      executionStatus: get().isStepMode ? "stepping" : "running",
-      battlePhase: "executing",
-      executedLines: [],
-      pendingActions: [],
-      errorMessage: null,
-    }),
-
-  pauseExecution: (lineNumber, _location) =>
-    set({
-      executionStatus: "paused",
-      currentLine: lineNumber,
-    }),
-
-  resumeExecution: () =>
-    set({
-      executionStatus: "stepping",
-    }),
-
-  nextStep: () => {
-    const resolver = get().stepResolver;
-    if (resolver) {
-      set({ stepResolver: null, executionStatus: "stepping" });
-      resolver();
-    }
-  },
-
-  completeExecution: () =>
-    set({
-      executionStatus: "completed",
-      currentLine: null,
-      stepResolver: null,
-    }),
-
-  setError: (message) =>
-    set({
-      executionStatus: "error",
-      errorMessage: message,
-      stepResolver: null,
-    }),
-
-  resetExecution: () =>
-    set({
-      executionStatus: "idle",
-      currentLine: null,
-      executedLines: [],
-      pendingActions: [],
-      errorMessage: null,
-      stepResolver: null,
-    }),
-
-  // 行ハイライト
-  markLineExecuting: (lineNumber, location) =>
-    set((state) => ({
-      currentLine: lineNumber,
-      executedLines: [
-        ...state.executedLines.filter((l) => l.lineNumber !== lineNumber),
-        { lineNumber, location, status: "executing" as const },
-      ],
-    })),
-
-  markLineComplete: (lineNumber) =>
-    set((state) => ({
-      executedLines: state.executedLines.map((l) =>
-        l.lineNumber === lineNumber ? { ...l, status: "complete" as const } : l,
-      ),
-    })),
-
-  // アクション・ログ
-  addAction: (action) =>
-    set((state) => ({
-      pendingActions: [...state.pendingActions, action],
-    })),
-
-  addLog: (message) =>
-    set((state) => ({
-      logs: [...state.logs.slice(-10), message],
-    })),
-
-  clearLogs: () => set({ logs: [] }),
-
-  // ステージリセット
-  resetStage: (enemyHp) =>
-    set({
-      ...initialState,
-      enemyHp,
-      maxEnemyHp: enemyHp,
-    }),
-
-  // Promise resolver設定
-  setStepResolver: (resolver) => set({ stepResolver: resolver }),
-}));
-
-// React外からストアにアクセスするためのヘルパー
-export const gameStore = {
-  getState: useGameStore.getState,
-  setState: useGameStore.setState,
-  subscribe: useGameStore.subscribe,
-};
+export const selectIsStageUnlocked = (stageNumber: number) =>
+  (state: GameState) =>
+    stageNumber === 1 || state.clearedStages.includes(stageNumber - 1);

@@ -1,0 +1,104 @@
+KotobaQuest {
+
+  // ─── プログラム全体 ─────────────────────────────────
+  Program = Statement*
+
+  Statement
+    = LoopWhile
+    | LoopN
+    | IfStatement
+    | Assign
+    | TargetedMagic
+    | MagicCmd
+    | DefendCmd
+    | HealCmd
+    | WaitCmd
+
+  // プリプロセッサが { } に変換したブロック
+  Block = "{" Statement* "}"
+
+  // ─── ループ ─────────────────────────────────────────
+  // 条件付きループ: 繰り返す(条件 あいだ):
+  LoopWhile = "繰り返す" "(" WhileCond "あいだ" ")" ":" Block
+
+  // 回数指定ループ: 繰り返す(N):
+  LoopN = "繰り返す" "(" intLit ")" ":" Block
+
+  // ─── 条件分岐 ────────────────────────────────────────
+  IfStatement = "もし" Cond "ならば" ":" Block ElseIf* ElsePart?
+  ElseIf      = "そうでなければ" "もし" Cond "ならば" ":" Block
+  ElsePart    = "そうでなければ" ":" Block
+
+  // ─── 代入 ────────────────────────────────────────────
+  Assign = ident "=" RVal
+
+  // ─── コマンド ────────────────────────────────────────
+  TargetedMagic = "敵" "[" intLit "番目" "]" "へ" MagicCmd
+  MagicCmd      = "魔法" "(" MagicArg ")"
+  DefendCmd     = "防御" "(" ")"
+  HealCmd       = "回復" "(" ")"
+  WaitCmd       = "待機" "(" ")"
+
+  MagicArg = MagicName | ident
+
+  MagicName (魔法名)
+    = "フレイム" | "アクア" | "スパーク" | "フロスト" | "ゲイル"
+
+  // ─── 条件式 ──────────────────────────────────────────
+  WhileCond = EnemyAlive | Cond
+
+  // 複合条件（かつ/または で連結）
+  Cond = SimpleCond (LogicOp SimpleCond)*
+
+  SimpleCond
+    = EnemyState
+    | EnemyAlive
+    | CompCond
+
+  EnemyAlive = "敵が生きている"
+
+  EnemyState = "敵が" Element "状態"
+
+  Element (属性) = "火" | "水" | "雷" | "氷" | "風"
+
+  // 比較条件: LeftVal が RightVal 比較演算子
+  CompCond = LVal particle? RVal CompOp
+
+  LVal (左辺)
+    = "敵のHP"
+    | "自分のHP"
+    | "自分のMP"
+    | ident
+
+  RVal (右辺) = intLit | MagicName | ident
+
+  particle (助詞) = "が" | "を" | "は"
+
+  CompOp (比較演算子)
+    = "より小さい"
+    | "より大きい"
+    | "以上"
+    | "以下"
+    | "と等しい"
+    | "と等しくない"
+
+  LogicOp (論理演算子) = "かつ" | "または"
+
+  // ─── 基本要素 ─────────────────────────────────────────
+  intLit (整数) = digit+
+
+  // 識別子: ひらがな・カタカナ・漢字・ASCII英数字・アンダースコア
+  ident (識別子) = identChar+
+
+  identChar
+    = "぀".."ゟ"  // ひらがな
+    | "゠".."ヿ"  // カタカナ（長音符含む）
+    | "一".."鿿"  // CJK統合漢字
+    | letter
+    | digit
+    | "_"
+
+  // 改行もスペースとして扱う
+  // ブロック境界・命令間の改行はすべてここで吸収する
+  space := " " | "\t" | "\n" | "\r" | "　" | "\u00A0"
+}
