@@ -51,6 +51,7 @@ interface ExecContext {
   selfId?: "プレイヤー" | "なかま";
   actions: PlayerAction[];
   error: string | null;
+  // 回復は1ラウンド1回まで（繰り返し内でも複数発動しないようにする）
   healUsed: boolean;
 }
 
@@ -77,7 +78,7 @@ function execNode(node: ASTNode, ctx: ExecContext): void {
       break;
 
     case "HealCmd":
-      // 回復は1ラウンド1回まで。繰り返しで回復量が増殖しないようにする。
+      // 回復は1ラウンド1回まで。繰り返し内で増殖しないようにする。
       if (!ctx.healUsed) {
         ctx.actions.push({ type: "Heal" });
         ctx.healUsed = true;

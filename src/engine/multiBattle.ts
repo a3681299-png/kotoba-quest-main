@@ -2,6 +2,7 @@ import type { ASTNode, Element, MagicName } from "../parser/ast";
 import type { EnemyData, LogEntry, StageConfig, StateGimmick } from "./types";
 import type { WaveData } from "../data/stageData";
 import type { WaveResult, EnemyBattleResult } from "./waveRunner";
+import { aggregateWaveStats } from "./waveRunner";
 import { executeRoundBody } from "./executor";
 import { getAffinityMultiplier, getGimmickResult, MAGIC_TO_ELEMENT, COMBO_MP_COST } from "./affinity";
 import { countEffectiveChars, applyCharLimit } from "./charCounter";
@@ -12,6 +13,10 @@ interface MultiEnemy {
   data: EnemyData;
   hp: number;
   state: Element | null;
+  // Stage 5 Wave 3 ボス: チャージ状態（次ラウンドで強攻撃が来る）
+  charging?: boolean;
+  // 各 hpRatio 閾値が既に発動済みかどうか
+  triggeredSummons?: Set<number>;
 }
 
 interface MultiState {
@@ -21,6 +26,8 @@ interface MultiState {
   maxPlayerMp: number;
   playerAttack: number;
   enemies: MultiEnemy[];
+  // 召喚可能な敵テンプレート（templateId → EnemyData）
+  summonTemplates: Map<string, EnemyData>;
   gimmick: StateGimmick | null;
   round: number;
   playerDefending: boolean;
@@ -43,6 +50,12 @@ export function runSimultaneousBattle(
   startPlayerMp: number,
   code: string,
 ): WaveResult {
+  // 召喚テンプレートを Map に変換
+  const summonTemplates = new Map<string, EnemyData>();
+  for (const s of wave.summonableEnemies ?? []) {
+    summonTemplates.set(s.templateId, s.enemy);
+  }
+
   const state: MultiState = {
     playerHp: startPlayerHp,
     maxPlayerHp: 100,
@@ -52,8 +65,11 @@ export function runSimultaneousBattle(
     enemies: wave.enemies.map((e) => ({
       data: e,
       hp: e.maxHp,
-      state: rollState(config.stateGimmick),
+      // fixedState が定義されていれば常にその値、そうでなければギミックでランダム
+      state: e.fixedState !== undefined ? e.fixedState : rollState(config.stateGimmick),
+      triggeredSummons: e.summonOnHpThreshold ? new Set<number>() : undefined,
     })),
+    summonTemplates,
     gimmick: config.stateGimmick,
     round: 1,
     playerDefending: false,
@@ -110,9 +126,14 @@ function roundStart(state: MultiState): void {
       { playerMp: actual });
   }
 
-  // 敵ごとに状態をランダム再設定
+  // 敵ごとに状態をランダム再設定（fixedState を持つ敵はスキップ）
   for (const enemy of state.enemies) {
-    if (enemy.hp > 0) enemy.state = rollState(state.gimmick);
+    if (enemy.hp <= 0) continue;
+    if (enemy.data.fixedState !== undefined) {
+      enemy.state = enemy.data.fixedState; // 念のため固定値で上書き
+      continue;
+    }
+    enemy.state = rollState(state.gimmick);
   }
 
   const stateInfo = state.enemies
@@ -168,7 +189,8 @@ function playerTurn(body: ASTNode[], state: MultiState): void {
   }
 
   const magicActions = actions.filter(
-    (a): a is { type: "MagicUse"; magic: MagicName } => a.type === "MagicUse"
+    (a): a is { type: "MagicUse"; magic: MagicName; targetIndex?: number } =>
+      a.type === "MagicUse"
   );
   if (magicActions.length === 0) return;
 
@@ -187,30 +209,38 @@ function playerTurn(body: ASTNode[], state: MultiState): void {
     }
   }
 
-  // 単属性魔法を先頭の敵へ個別処理
+  // 単属性魔法を個別処理（targetIndex 指定があれば対象を選ぶ。なければ先頭の敵）
   for (const action of magicActions) {
     if (state.playerMp < 10) {
       addLog(state, "playerAction", `MPが足りず ${action.magic} は不発`);
       continue;
     }
-    state.playerMp -= 10;
-    let target: MultiEnemy | undefined;
+
+    // ターゲット選択
+    let targetIdx: number;
     if (action.targetIndex !== undefined) {
-      const idx = action.targetIndex - 1;
-      target = state.enemies[idx];
-      if (!target) {
-        addLog(state, "playerAction", `指定した敵が見つからないため ${action.magic} は不発`);
-        continue;
-      }
-      if (target.hp <= 0) {
-        addLog(state, "playerAction", `指定した敵は既に倒れているため ${action.magic} は不発`);
-        continue;
+      // 1-based の番号 → 0-based の index
+      const requestedIdx = action.targetIndex - 1;
+      const target = state.enemies[requestedIdx];
+      if (!target || target.hp <= 0) {
+        // 指定された敵が存在しないか倒れている → 先頭の生きている敵へ
+        const fallback = state.enemies.findIndex((e) => e.hp > 0);
+        if (fallback < 0) break;
+        targetIdx = fallback;
+        addLog(state, "playerAction",
+          `敵[${action.targetIndex}番目]は対象外のため ${state.enemies[fallback].data.name} を狙う`);
+      } else {
+        targetIdx = requestedIdx;
       }
     } else {
-      target = state.enemies.find((e) => e.hp > 0);
+      // 指定なし → 先頭の生きている敵
+      const idx = state.enemies.findIndex((e) => e.hp > 0);
+      if (idx < 0) break;
+      targetIdx = idx;
     }
-    if (!target) break;
-    applySingleMagicToEnemy(action.magic, target, state.enemies.indexOf(target), state);
+
+    state.playerMp -= 10;
+    applySingleMagicToEnemy(action.magic, state.enemies[targetIdx], targetIdx, state);
   }
 }
 
@@ -246,6 +276,48 @@ function applySingleMagicToEnemy(
 
   enemy.hp = Math.max(0, enemy.hp - damage);
   addLog(state, "playerAction", `${magic} → ${enemy.data.name} ${damage}ダメージ`, { enemyHp: -damage, enemyIndex: idx });
+
+  // HP 閾値による雑魚召喚チェック
+  checkSummonThreshold(enemy, state);
+}
+
+// ─── HP 閾値による雑魚召喚 ─────────────────────────────
+
+function checkSummonThreshold(enemy: MultiEnemy, state: MultiState): void {
+  if (!enemy.data.summonOnHpThreshold || !enemy.triggeredSummons) return;
+  if (enemy.hp <= 0) return; // 倒れた敵は召喚しない
+  const hpRatio = enemy.hp / enemy.data.maxHp;
+  for (const trigger of enemy.data.summonOnHpThreshold) {
+    if (enemy.triggeredSummons.has(trigger.hpRatio)) continue;
+    if (hpRatio <= trigger.hpRatio) {
+      enemy.triggeredSummons.add(trigger.hpRatio);
+      summonEnemies(trigger.summonEnemyId, trigger.count, enemy, state);
+    }
+  }
+}
+
+function summonEnemies(
+  templateId: string,
+  count: number,
+  summoner: MultiEnemy,
+  state: MultiState,
+): void {
+  const template = state.summonTemplates.get(templateId);
+  if (!template) {
+    addLog(state, "statusEffect", `（召喚テンプレート "${templateId}" が未定義）`);
+    return;
+  }
+  addLog(state, "statusEffect",
+    `${summoner.data.name} が ${template.name} を ${count} 体 召喚！`);
+  for (let i = 0; i < count; i++) {
+    // 名前に番号を付けて区別（同名複数体）
+    const name = count > 1 ? `${template.name}${i + 1}` : template.name;
+    state.enemies.push({
+      data: { ...template, id: `${template.id}_summon_${state.round}_${i}`, name },
+      hp: template.maxHp,
+      state: rollState(state.gimmick),
+    });
+  }
 }
 
 // ─── 合体魔法 AoE ─────────────────────────────────────
@@ -274,7 +346,12 @@ function applyComboAoE(elements: Element[], count: number, state: MultiState): v
       })
     );
 
-    let damage = Math.max(1, Math.floor(atk * count * maxMult) - enemy.data.defense);
+    let damage: number;
+    if (count === 5) {
+      damage = 200;
+    } else {
+      damage = Math.max(1, Math.floor(atk * count * maxMult) - enemy.data.defense);
+    }
 
     // 文字数制限補正（ボスのみ）
     if (enemy.data.charLimit) {
@@ -286,6 +363,9 @@ function applyComboAoE(elements: Element[], count: number, state: MultiState): v
 
     addLog(state, "comboMagic", `　${enemy.data.name} → ${damage}ダメージ！${enemy.hp <= 0 ? " 撃破！" : ""}`,
       { enemyHp: -damage, enemyIndex: i });
+
+    // HP 閾値による雑魚召喚チェック
+    checkSummonThreshold(enemy, state);
   }
 
   if (totalDefeated > 0) {
@@ -296,8 +376,58 @@ function applyComboAoE(elements: Element[], count: number, state: MultiState): v
 // ─── 敵ターン（ボスのみ攻撃） ─────────────────────────
 
 function enemyTurn(state: MultiState): void {
-  for (const enemy of state.enemies) {
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
     if (enemy.hp <= 0) continue;
+
+    // ── ヒーラー: 味方を回復する ─────────────────────
+    if (enemy.data.healAllies) {
+      const { amount, selfHeal = false } = enemy.data.healAllies;
+      let healedCount = 0;
+      for (let j = 0; j < state.enemies.length; j++) {
+        if (!selfHeal && j === i) continue;          // 自分は除外（デフォルト）
+        const ally = state.enemies[j];
+        if (ally.hp <= 0) continue;                  // 倒れた味方は対象外
+        if (ally.hp >= ally.data.maxHp) continue;    // すでに満タンなら回復しない
+        const before = ally.hp;
+        ally.hp = Math.min(ally.data.maxHp, ally.hp + amount);
+        const actual = ally.hp - before;
+        addLog(state, "statusEffect",
+          `${enemy.data.name} が ${ally.data.name} を ${actual}HP 回復`,
+          { enemyHp: actual, enemyIndex: j });
+        healedCount++;
+      }
+      if (healedCount === 0) {
+        addLog(state, "statusEffect", `${enemy.data.name} は回復のために構えたが、対象がいなかった`);
+      }
+      // ヒーラーは攻撃も併用する場合があるので continue しない（攻撃 0 のヒーラーは下で skip される）
+    }
+
+    // ── チャージ → 強攻撃 ──────────────────────────────
+    if (enemy.data.chargeAttack) {
+      if (enemy.charging) {
+        // 前ラウンドでチャージ済み → このラウンドで強攻撃を発動
+        const chargeDmg = enemy.data.chargeAttack.damage;
+        const dmg = state.playerDefending ? Math.max(1, chargeDmg - 10) : chargeDmg;
+        state.playerHp = Math.max(0, state.playerHp - dmg);
+        addLog(state, "enemyAction",
+          `💥 ${enemy.data.name} の強攻撃！ ${dmg}ダメージ！`,
+          { playerHp: -dmg });
+        enemy.charging = false;
+        continue; // このラウンドの行動は強攻撃のみ
+      }
+      // チャージ開始判定: chargeAttack.interval ラウンドごとに開始
+      // 例: interval=3 → R3, R6, R9... 開始 → R4, R7, R10... で発動
+      if (state.round > 0 && state.round % enemy.data.chargeAttack.interval === 0) {
+        enemy.charging = true;
+        const msg = enemy.data.chargeAttack.chargeMessage
+          ?? `${enemy.data.name} が力を溜めている…！次のラウンドに大攻撃が来る！`;
+        addLog(state, "statusEffect", `⚡ ${msg}`);
+        continue; // チャージ中は通常攻撃しない
+      }
+    }
+
+    // ── 通常攻撃 ────────────────────────────────────
     if (enemy.data.attackPatterns[0].maxDamage === 0) continue; // 攻撃なし（雑魚）
 
     const hpRatio = enemy.hp / enemy.data.maxHp;
@@ -371,5 +501,6 @@ function buildWaveResult(state: MultiState, outcome: "victory" | "defeat"): Wave
     finalPlayerMp: state.playerMp,
     allLogs: state.log,
     multiEnemyHps: state.enemies.map((e) => e.hp),
+    stats: aggregateWaveStats(enemyResults, state.round, state.log),
   };
 }

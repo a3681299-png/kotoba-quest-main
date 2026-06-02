@@ -66,6 +66,8 @@ export function runBattle(
       rounds: 0,
       log: [{ round: 0, category: "result", message: "繰り返す(敵が生きている あいだ): が見つかりません" }],
       finalPlayerHp: state.playerHp,
+      finalPlayerMp: state.playerMp,
+      finalMaxPlayerMp: state.maxPlayerMp,
       finalEnemyHp: state.enemyHp,
     };
   }
@@ -281,7 +283,12 @@ function applyComboMagic(elements: Element[], count: number, state: BattleState)
     })
   );
 
-  const damage = Math.max(1, Math.floor(attackPower * count * maxMult) - state.enemy.defense);
+  let damage: number;
+  if (count === 5) {
+    damage = 200;
+  } else {
+    damage = Math.max(1, Math.floor(attackPower * count * maxMult) - state.enemy.defense);
+  }
   state.enemyHp = Math.max(0, state.enemyHp - damage);
 
   const attrNames = elements.join("・");

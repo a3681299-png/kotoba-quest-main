@@ -7,9 +7,22 @@
 
 ## ドキュメント一覧
 
+### ステージ設計書（各ステージのギミック・API・実装詳細）
+
 | ファイル | 内容 |
 |---------|------|
-| [stage5-6-spec.md](./stage5-6-spec.md) | Stage 5（総合課題）と Stage 6（ボスラッシュ・学習型ラスボス）の確定仕様 |
+| [stage1-design.md](./stage1-design.md) | Stage 1：はじめての魔法（順次実行・MP管理・防御） |
+| [stage2-design.md](./stage2-design.md) | Stage 2：繰り返しの力（有効文字数制限ギミック） |
+| [stage3-design.md](./stage3-design.md) | Stage 3：なかまとの連携（NPC・変数共有・合体魔法） |
+| [stage4-design.md](./stage4-design.md) | Stage 4：条件分岐と合体魔法（状態変化ギミック・wave1/wave2） |
+| [stage5-design.md](./stage5-design.md) | Stage 5：総合課題（新規エンジン機能・healAllies・chargeAttack・summonOnHpThreshold） |
+| [stage6-design.md](./stage6-design.md) | Stage 6：最終決戦（学習型ラスボス・adaptation.ts 設計） |
+
+### 仕様書・要件定義
+
+| ファイル | 内容 |
+|---------|------|
+| [stage5-6-spec.md](./stage5-6-spec.md) | Stage 5・6 の確定仕様（Wave 構成・ラスボス適応ロジック） |
 | `../prototype-5173/docs/requirements.md` | ゲーム全体の要件定義書（正本） |
 | `../prototype-5173/docs/language-spec.md` | 独自言語の仕様書（正本） |
 

@@ -19,6 +19,33 @@ export interface EnemyData {
   element: EnemyElement;
   attackPatterns: EnemyAttackPattern[];
   charLimit?: number; // このボスが生きている間、有効文字数がこの値を超えるとダメージが減る
+  // Stage 5 Wave 2 ヒーラー: 毎ラウンド他の生きている味方を回復する
+  healAllies?: {
+    amount: number;     // 1体あたりの回復量
+    selfHeal?: boolean; // 自分自身も回復対象にするか（デフォルト false）
+  };
+  // 状態変化ギミックを無視して固定の状態を持つ（指定しない場合は通常通り stateGimmick に従う）
+  // 例: ヒーラーの弱点属性を固定にしたい場合
+  fixedState?: Element | null;
+  // Stage 5 Wave 3 ボス: HP 閾値で雑魚を召喚する
+  summonOnHpThreshold?: Array<{
+    hpRatio: number;        // 0.7 = HP 70% 以下に達したら発動
+    summonEnemyId: string;  // 召喚する敵の id（後述 summonableEnemies で解決）
+    count: number;          // 召喚体数
+  }>;
+  // Stage 5 Wave 3 ボス: N ラウンドごとにチャージ → 次ラウンドに強攻撃
+  chargeAttack?: {
+    interval: number;       // 何ラウンドごとにチャージ開始（3 = 3,6,9... 開始）
+    damage: number;         // チャージ後の強攻撃ダメージ
+    chargeMessage?: string; // チャージ中のセリフ（任意）
+  };
+}
+
+// Wave 内で「召喚専用」として登録される敵テンプレート
+// Wave 3 のような simultaneous バトルで、ボスが召喚する雑魚を予め定義する
+export interface SummonableEnemy {
+  templateId: string;       // EnemyData.summonOnHpThreshold.summonEnemyId と一致させる
+  enemy: EnemyData;         // 実際の敵データ
 }
 
 // Stage4 専用: 状態ギミック
@@ -80,7 +107,7 @@ export interface BattleState {
 // ─── プレイヤー行動 ─────────────────────────────────────
 
 export type PlayerAction =
-  | { type: "MagicUse"; magic: MagicName; targetIndex?: number }
+  | { type: "MagicUse"; magic: MagicName; targetIndex?: number }  // targetIndex: 1-based、未指定なら先頭
   | { type: "Defend" }
   | { type: "Heal" }
   | { type: "Wait" };
