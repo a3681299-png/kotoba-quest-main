@@ -10,12 +10,11 @@ import {
 } from "../game/BattleScene";
 import { parse } from "../parser/parser";
 import { SpellExecutor, type GameAction } from "../engine/SpellExecutor";
+import { CardCommandBuilder } from "./CardCommandBuilder";
 import { CodeEditor, type CodeEditorRef } from "./CodeEditor";
-import { DebugPanel } from "./DebugPanel";
-import { IntentDisplay } from "./IntentDisplay";
+import { IntroDialogue } from "./IntroDialogue";
 import { getBattleFieldPresentation } from "./battlePresentation";
 import { parseCombatLogEntry } from "./combatText";
-import { getEnemyTelegraph } from "./enemyTelegraph";
 import {
   editorCardVariants,
   getEditorCardClassName,
@@ -35,12 +34,13 @@ export function BattleScreen() {
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [code, setCode] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(true);
-  const [tutorialStep, setTutorialStep] = useState(0);
+  const [introDialogueState, setIntroDialogueState] = useState({
+    stageIndex: 0,
+    index: 0,
+  });
+  const [cardBuilderResetKey, setCardBuilderResetKey] = useState(0);
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [editorCardMotionState, setEditorCardMotionState] =
     useState<EditorCardMotionState>("entering");
@@ -51,7 +51,6 @@ export function BattleScreen() {
   // Zustand ストアから状態を取得
   const {
     playerHp,
-    enemyHp,
     isStepMode,
     battlePhase,
     turnCount,
@@ -72,33 +71,44 @@ export function BattleScreen() {
 
   const stage = STAGES[currentStageIndex];
   const enemyData = ENEMY_DATA[stage.id];
-  const enemyHpPercent = Math.max(0, (enemyHp / stage.enemyHp) * 100);
+  const introDialogueIndex =
+    introDialogueState.stageIndex === currentStageIndex
+      ? introDialogueState.index
+      : 0;
+  const activeIntroLine =
+    introDialogueIndex >= 0 ? stage.introDialogue[introDialogueIndex] : null;
+  const isIntroDialogueOpen = Boolean(activeIntroLine);
   const battleFieldPresentation = getBattleFieldPresentation(battlePhase);
-  const enemyTelegraph = getEnemyTelegraph(currentIntent);
   const floatingCombatText = battleLog.slice(-3).map((log) => ({
     raw: log,
     ...parseCombatLogEntry(log),
   }));
-  const phaseTitle =
-    battlePhase === "player_turn"
-      ? "準備フェーズ"
-      : battlePhase === "executing"
-        ? "詠唱中"
-        : battlePhase === "show_intent"
-          ? "敵の予兆"
-          : battlePhase === "enemy_turn"
-            ? "戦闘フェーズ"
-            : battlePhase === "victory"
-              ? "勝利"
-              : "敗北";
-  const phaseSubText =
-    battlePhase === "player_turn"
-      ? "コードを編集中"
-      : battlePhase === "executing"
-        ? "コードを実行中"
-        : battlePhase === "enemy_turn"
-          ? "敵が行動中"
-          : "戦況を確認中";
+  const phaseIconSteps = [
+    {
+      id: "player_turn",
+      phases: ["player_turn"],
+      icon: "I",
+      label: "作戦",
+    },
+    {
+      id: "executing",
+      phases: ["executing"],
+      icon: "C",
+      label: "実行",
+    },
+    {
+      id: "show_intent",
+      phases: ["show_intent"],
+      icon: "!",
+      label: "予兆",
+    },
+    {
+      id: "enemy_turn",
+      phases: ["enemy_turn"],
+      icon: "X",
+      label: "敵行動",
+    },
+  ];
 
   const playEditorCardEnterAnimation = useCallback(() => {
     pendingCodeRunRef.current = false;
@@ -159,18 +169,6 @@ export function BattleScreen() {
       const intent = decideEnemyIntent(enemyData, enemyData.maxHp, 0, false);
       setIntent(intent);
     }
-    const tutorialAnimationFrame = requestAnimationFrame(() => {
-      if (stage.tutorialSteps && stage.tutorialSteps.length > 0) {
-        setShowTutorial(true);
-        setTutorialStep(0);
-      } else {
-        setShowTutorial(false);
-      }
-    });
-
-    return () => {
-      cancelAnimationFrame(tutorialAnimationFrame);
-    };
   }, [
     currentStageIndex,
     stage,
@@ -199,6 +197,11 @@ export function BattleScreen() {
     if (action.type === "attack") {
       await playAttackAnimation(action.attackType);
       const newHp = Math.max(0, currentEnemyHp - action.damage);
+      return newHp;
+    }
+    if (action.type === "meaning") {
+      await playAttackAnimation("normal");
+      const newHp = Math.max(0, currentEnemyHp - action.amount);
       return newHp;
     }
     return currentEnemyHp;
@@ -258,26 +261,25 @@ export function BattleScreen() {
     }
   };
 
-  // チュートリアルを次へ進める
-  const advanceTutorial = () => {
-    if (stage.tutorialSteps && tutorialStep < stage.tutorialSteps.length - 1) {
-      setTutorialStep(tutorialStep + 1);
-    } else {
-      setShowTutorial(false);
+  const closeIntroDialogue = () => {
+    setIntroDialogueState({ stageIndex: currentStageIndex, index: -1 });
+  };
+
+  const advanceIntroDialogue = () => {
+    if (introDialogueIndex < stage.introDialogue.length - 1) {
+      setIntroDialogueState({
+        stageIndex: currentStageIndex,
+        index: introDialogueIndex + 1,
+      });
+      return;
     }
+
+    closeIntroDialogue();
   };
 
   // コードを実行する関数
   const executeCode = async () => {
     if (isExecuting || !code.trim()) return;
-
-    // チュートリアル進行
-    if (showTutorial && stage.tutorialSteps) {
-      const currentTutorial = stage.tutorialSteps[tutorialStep];
-      if (currentTutorial?.waitForAction === "execute") {
-        advanceTutorial();
-      }
-    }
 
     setIsExecuting(true);
     setBattlePhase("executing");
@@ -349,13 +351,19 @@ export function BattleScreen() {
 
     // アクションを実行
     let currentEnemyHp = useGameStore.getState().enemyHp;
-    let totalDamage = 0;
+    let totalImpact = 0;
+    let usedMeaningAction = false;
 
     for (const action of result.actions) {
       if (action.type === "attack") {
-        totalDamage += action.damage;
+        totalImpact += action.damage;
         currentEnemyHp = await executeAction(action, currentEnemyHp);
         useGameStore.getState().damageEnemy(action.damage);
+      } else if (action.type === "meaning") {
+        totalImpact += action.amount;
+        usedMeaningAction = true;
+        currentEnemyHp = await executeAction(action, currentEnemyHp);
+        useGameStore.getState().damageEnemy(action.amount);
       } else if (action.type === "heal") {
         useGameStore.getState().healPlayer(action.amount);
       }
@@ -365,8 +373,13 @@ export function BattleScreen() {
     const finalEnemyHp = useGameStore.getState().enemyHp;
     updateEnemyAppearance(finalEnemyHp / stage.enemyHp);
 
-    if (totalDamage > 0) {
-      addLog(`${stage.enemyName}に合計${totalDamage}ダメージ！`, "damage");
+    if (totalImpact > 0) {
+      addLog(
+        usedMeaningAction
+          ? `${stage.enemyName}の意味がほどけた！`
+          : `${stage.enemyName}に合計${totalImpact}ダメージ！`,
+        usedMeaningAction ? "success" : "damage",
+      );
 
       // 敵を倒したか
       if (finalEnemyHp <= 0) {
@@ -431,6 +444,7 @@ export function BattleScreen() {
       setBattleLog([]);
       setShowVictory(false);
       codeEditorRef.current?.clearHighlights();
+      setCardBuilderResetKey((current) => current + 1);
     } else {
       alert("🎉 おめでとう！全ステージクリア！君は立派なプログラマーだ！");
     }
@@ -439,45 +453,11 @@ export function BattleScreen() {
   // コード入力時のチュートリアル進行
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
-    if (showTutorial && stage.tutorialSteps) {
-      const currentTutorial = stage.tutorialSteps[tutorialStep];
-      if (
-        currentTutorial?.waitForAction === "code_input" &&
-        newCode.trim().length > 0
-      ) {
-        advanceTutorial();
-      }
-    }
   };
 
   return (
     <div className="battle-screen-container">
       <div className="battle-screen">
-        <header className="battle-header">
-          <div className="game-brand">
-            <span className="brand-mark">◆</span>
-            <span className="brand-title">KotobaQuest</span>
-          </div>
-          <div className="stage-info">
-            <span className="stage-number">フロア {stage.id}</span>
-            <span className="stage-name">{stage.name}</span>
-          </div>
-          <div className="resource-strip" aria-label="プレイヤーステータス">
-            <span className="resource-item hp-resource">♥ {playerHp}/100</span>
-            <span className="resource-item">✦ {turnCount}</span>
-            <span className="resource-item">目標: {stage.learningGoal}</span>
-          </div>
-          <div className="header-controls">
-            <button
-              className="debug-toggle-button"
-              onClick={() => setShowDebugPanel(!showDebugPanel)}
-            >
-              {showDebugPanel ? "🔍 パネル非表示" : "🔍 デバッグ"}
-            </button>
-            {isDefending && <span className="defending-icon">防御中</span>}
-          </div>
-        </header>
-
         <div
           className={battleFieldPresentation.className}
           aria-label={battleFieldPresentation.overlayLabel}
@@ -495,87 +475,35 @@ export function BattleScreen() {
               </div>
             ))}
           </div>
-          {enemyTelegraph && (
-            <div className={enemyTelegraph.className} aria-label="敵の意図">
-              <span className="enemy-telegraph-icon">{enemyTelegraph.icon}</span>
-              <span className="enemy-telegraph-label">{enemyTelegraph.label}</span>
-              {enemyTelegraph.damageLabel && (
-                <span className="enemy-telegraph-damage">
-                  {enemyTelegraph.damageLabel}
-                </span>
-              )}
-            </div>
-          )}
-
-          <div className="phase-banner" aria-label="現在のフェーズ">
-            <div className="phase-chip active">
-              <span className="phase-title">{phaseTitle}</span>
-              <span className="phase-subtext">{phaseSubText}</span>
-            </div>
-            <div className="phase-arrow">›</div>
-            <div className="phase-chip muted">
-              <span className="phase-title">戦闘フェーズ</span>
-              <span className="phase-subtext">自動で戦闘が進行</span>
-            </div>
+          <div className="phase-icon-strip" aria-label="現在のフェーズ">
+            {phaseIconSteps.map((step) => (
+              <span
+                key={step.id}
+                className={`phase-icon ${
+                  step.phases.includes(battlePhase) ? "active" : ""
+                }`}
+                aria-label={step.label}
+                title={step.label}
+              >
+                {step.icon}
+              </span>
+            ))}
           </div>
-
-          <div className="character-info player">
-            <div className="character-name">コードナイト</div>
-            <div className="hp-bar-container">
-              <div
-                className="hp-bar player"
-                style={{ width: `${playerHp}%` }}
-              />
-            </div>
-            <div className="combat-stats">
-              <span>剣 7</span>
-              <span>盾 {isDefending ? 8 : 5}</span>
-            </div>
-          </div>
-
-          <div className="character-info enemy">
-            <div className="character-name">{stage.enemyName}</div>
-            <div className="hp-bar-container">
-              <div
-                className="hp-bar enemy"
-                style={{ width: `${enemyHpPercent}%` }}
-              />
-            </div>
-            <div className="combat-stats">
-              <span>牙 10</span>
-              <span>盾 5</span>
-            </div>
-          </div>
-
-          {battlePhase === "player_turn" && (
-            <aside className="enemy-intel-panel">
-              <IntentDisplay />
-            </aside>
-          )}
         </div>
 
         {/* コードエディタエリア */}
-        <motion.div
-          className={getEditorCardClassName(editorCardMotionState)}
-          variants={editorCardVariants}
-          initial="entering"
-          animate={editorCardMotionState}
-          onAnimationComplete={handleEditorCardAnimationComplete}
-          style={{
-            pointerEvents:
-              editorCardMotionState === "ready" ? "auto" : "none",
-          }}
-        >
-          <div className="code-workbench-tabs" aria-label="コードエディター">
-            <div className="code-tab command-tab">コマンド一覧</div>
-            <div className="code-tab active-tab">戦闘ロジック</div>
-            <div className="code-tab file-tab">main.logic</div>
-            <div className="code-tab add-tab" aria-hidden="true">
-              +
-            </div>
-          </div>
-
-          <div className="code-workbench-body">
+        {!isIntroDialogueOpen && (
+          <motion.div
+            className={getEditorCardClassName(editorCardMotionState)}
+            variants={editorCardVariants}
+            initial="entering"
+            animate={editorCardMotionState}
+            onAnimationComplete={handleEditorCardAnimationComplete}
+            style={{
+              pointerEvents:
+                editorCardMotionState === "ready" ? "auto" : "none",
+            }}
+          >
             <section className="code-editor-panel" aria-label="戦闘ロジック">
               <CodeEditor
                 ref={codeEditorRef}
@@ -586,56 +514,13 @@ export function BattleScreen() {
               />
             </section>
 
-            <aside className="execution-preview" aria-label="実行プレビュー">
-              <div className="execution-preview-header">実行プレビュー</div>
-              <div className="execution-preview-list">
-                {battleLog.length > 0 ? (
-                  battleLog.slice(-4).map((log, index) => (
-                    <div
-                      key={`${index}-${log}`}
-                      className={`preview-step ${
-                        log.includes("[damage]")
-                          ? "damage"
-                          : log.includes("[success]")
-                            ? "success"
-                            : log.includes("[block]")
-                              ? "block"
-                              : ""
-                      }`}
-                    >
-                      <span className="preview-step-index">{index + 1}</span>
-                      <span>
-                        {log.replace(/\[(normal|damage|success|block)\]\s*/, "")}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="preview-step empty">
-                    <span className="preview-step-index">1</span>
-                    <span>コード待機中</span>
-                  </div>
-                )}
-              </div>
-            </aside>
-          </div>
+            <CardCommandBuilder
+              key={`${stage.id}-${cardBuilderResetKey}`}
+              stageId={stage.id}
+              onCodeChange={handleCodeChange}
+              disabled={isExecuting}
+            />
 
-          <div className="code-workbench-footer">
-            <div className="utility-actions">
-              <button className="hint-button" onClick={() => setShowHint(true)}>
-                📖 ヒント
-              </button>
-              <button
-                className="hint-button"
-                onClick={() => {
-                  setCode("");
-                  codeEditorRef.current?.clearHighlights();
-                  codeEditorRef.current?.clearError();
-                }}
-                disabled={isExecuting || !code}
-              >
-                ↺ リセット
-              </button>
-            </div>
             <button
               className="execute-button"
               onClick={handleConfirmCode}
@@ -647,56 +532,16 @@ export function BattleScreen() {
                 ? "詠唱中..."
                 : "コード確定"}
             </button>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
-        {/* チュートリアルオーバーレイ */}
-        {showTutorial &&
-          stage.tutorialSteps &&
-          stage.tutorialSteps[tutorialStep] && (
-            <div
-              className={`tutorial-overlay ${
-                stage.tutorialSteps[tutorialStep].waitForAction !== "none"
-                  ? "non-blocking"
-                  : ""
-              }`}
-            >
-              <div className="tutorial-bubble">
-                <div className="tutorial-character">🧙‍♂️</div>
-                <div className="tutorial-message">
-                  {stage.tutorialSteps[tutorialStep].message}
-                </div>
-                {stage.tutorialSteps[tutorialStep].waitForAction === "none" && (
-                  <button className="tutorial-next" onClick={advanceTutorial}>
-                    次へ →
-                  </button>
-                )}
-                {stage.tutorialSteps[tutorialStep].waitForAction !== "none" && (
-                  <div className="tutorial-hint">
-                    👆 上の操作を行うと次に進むよ
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-        {/* ヒントモーダル */}
-        {showHint && (
-          <div className="hint-modal" onClick={() => setShowHint(false)}>
-            <div className="hint-content" onClick={(e) => e.stopPropagation()}>
-              <h2 className="hint-title">💡 ヒント</h2>
-              <p className="hint-text" style={{ whiteSpace: "pre-line" }}>
-                {stage.hint}
-              </p>
-              <div className="sample-code">
-                <h3>📝 お手本コード</h3>
-                <pre>{stage.sampleCode}</pre>
-              </div>
-              <button className="hint-close" onClick={() => setShowHint(false)}>
-                わかった！
-              </button>
-            </div>
-          </div>
+        {activeIntroLine && (
+          <IntroDialogue
+            line={activeIntroLine}
+            isLastLine={introDialogueIndex === stage.introDialogue.length - 1}
+            onNext={advanceIntroDialogue}
+            onSkip={closeIntroDialogue}
+          />
         )}
 
         {/* 勝利画面 */}
@@ -728,12 +573,6 @@ export function BattleScreen() {
         )}
       </div>
 
-      {/* デバッグパネル */}
-      {showDebugPanel && (
-        <aside className="debug-panel-sidebar">
-          <DebugPanel />
-        </aside>
-      )}
     </div>
   );
 }

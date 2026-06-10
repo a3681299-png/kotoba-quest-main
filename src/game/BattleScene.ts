@@ -1,9 +1,14 @@
 import * as PIXI from "pixi.js";
 
-import bgFarUrl from "../assets/backgrounds/bg_far.png";
-import bgGroundUrl from "../assets/backgrounds/bg_ground.png";
-import bgMidUrl from "../assets/backgrounds/bg_mid.png";
-import bgRocksUrl from "../assets/backgrounds/bg_rocks.png";
+import tutorialGroundUrl from "../assets/backgrounds/チュートリアル/ground.png";
+import tutorialPillarUrl from "../assets/backgrounds/チュートリアル/pillar.png";
+import tutorialWallUrl from "../assets/backgrounds/チュートリアル/wall.png";
+import enemyAttackUrl from "../assets/characters/battle/チュートリアル/敵/攻撃/body_export_攻撃.png";
+import enemyDamageUrl from "../assets/characters/battle/チュートリアル/敵/ダメージ/body_export_ダメージ.png";
+import enemyIdleUrl from "../assets/characters/battle/チュートリアル/敵/待機/body_export_待機.png";
+import playerAttackUrl from "../assets/characters/battle/チュートリアル/攻撃/body_export_攻撃.png";
+import playerDamageUrl from "../assets/characters/battle/チュートリアル/ダメージ/body_export_ダメージ.png";
+import playerIdleUrl from "../assets/characters/battle/チュートリアル/待機/body_export_待機.png";
 import {
   calculateLayerLayout,
   type LayerVerticalAlign,
@@ -24,20 +29,55 @@ interface BackgroundLayer {
 }
 
 const BACKGROUND_LAYERS: BackgroundLayer[] = [
-  { src: bgFarUrl, verticalAlign: "center" },
-  { src: bgMidUrl, verticalAlign: "bottom" },
-  { src: bgRocksUrl, verticalAlign: "bottom" },
-  { src: bgGroundUrl, verticalAlign: "bottom" },
+  { src: tutorialWallUrl, verticalAlign: "center" },
+  { src: tutorialPillarUrl, verticalAlign: "center" },
+  { src: tutorialGroundUrl, verticalAlign: "bottom" },
 ];
+
+interface SpriteSheetDefinition {
+  src: string;
+  columns: number;
+  rows: number;
+}
+
+interface CharacterSheetDefinition {
+  idle: SpriteSheetDefinition;
+  attack: SpriteSheetDefinition;
+  damage: SpriteSheetDefinition;
+  targetHeight: number;
+}
+
+interface CharacterAnimations {
+  idle: PIXI.Texture[];
+  attack: PIXI.Texture[];
+  damage: PIXI.Texture[];
+}
+
+const PLAYER_SHEETS: CharacterSheetDefinition = {
+  idle: { src: playerIdleUrl, columns: 8, rows: 8 },
+  attack: { src: playerAttackUrl, columns: 7, rows: 7 },
+  damage: { src: playerDamageUrl, columns: 5, rows: 5 },
+  targetHeight: 235,
+};
+
+const ENEMY_SHEETS: CharacterSheetDefinition = {
+  idle: { src: enemyIdleUrl, columns: 8, rows: 8 },
+  attack: { src: enemyAttackUrl, columns: 6, rows: 5 },
+  damage: { src: enemyDamageUrl, columns: 6, rows: 5 },
+  targetHeight: 220,
+};
 
 // Pixi.jsアプリケーションインスタンス
 let app: PIXI.Application | null = null;
 
 // スプライトの参照
-let playerSprite: PIXI.Graphics | null = null;
-let enemySprite: PIXI.Graphics | null = null;
+let playerSprite: PIXI.AnimatedSprite | null = null;
+let enemySprite: PIXI.AnimatedSprite | null = null;
 let playerShadow: PIXI.Graphics | null = null;
 let enemyShadow: PIXI.Graphics | null = null;
+let playerAnimations: CharacterAnimations | null = null;
+let enemyAnimations: CharacterAnimations | null = null;
+let enemyBaseScale = 1;
 let idleTicker: ((ticker: PIXI.Ticker) => void) | null = null;
 let idleStartTime = 0;
 
@@ -67,6 +107,45 @@ function animateFor(
 
     requestAnimationFrame(animate);
   });
+}
+
+async function loadCharacterAnimations(
+  definition: CharacterSheetDefinition,
+): Promise<CharacterAnimations> {
+  const [idle, attack, damage] = await Promise.all([
+    loadAnimationFrames(definition.idle),
+    loadAnimationFrames(definition.attack),
+    loadAnimationFrames(definition.damage),
+  ]);
+
+  return { idle, attack, damage };
+}
+
+async function loadAnimationFrames(
+  definition: SpriteSheetDefinition,
+): Promise<PIXI.Texture[]> {
+  const texture = await PIXI.Assets.load<PIXI.Texture>(definition.src);
+  const frameWidth = Math.floor(texture.width / definition.columns);
+  const frameHeight = Math.floor(texture.height / definition.rows);
+  const frames: PIXI.Texture[] = [];
+
+  for (let row = 0; row < definition.rows; row += 1) {
+    for (let column = 0; column < definition.columns; column += 1) {
+      frames.push(
+        new PIXI.Texture({
+          source: texture.source,
+          frame: new PIXI.Rectangle(
+            column * frameWidth,
+            row * frameHeight,
+            frameWidth,
+            frameHeight,
+          ),
+        }),
+      );
+    }
+  }
+
+  return frames;
 }
 
 // バトルシーンの初期化
@@ -105,6 +184,12 @@ export async function initBattleScene(
 
     // 背景を描画
     await drawBackground();
+
+    // チュートリアル用キャラクターアニメーションを読み込み
+    [playerAnimations, enemyAnimations] = await Promise.all([
+      loadCharacterAnimations(PLAYER_SHEETS),
+      loadCharacterAnimations(ENEMY_SHEETS),
+    ]);
 
     // キャラクターを配置
     createPlayerSprite();
@@ -158,82 +243,99 @@ function createGroundShadow(x: number, y: number, width: number): PIXI.Graphics 
 
 // プレイヤースプライトの作成
 function createPlayerSprite() {
-  if (!app || !app.stage) return;
+  if (!app || !app.stage || !playerAnimations) return;
 
   const x = app.screen.width * 0.25;
-  const y = app.screen.height * 0.6;
-  playerShadow = createGroundShadow(x, y + 70, 52);
+  const y = app.screen.height * 0.72;
+  playerShadow = createGroundShadow(x, y + 6, 58);
   app.stage.addChild(playerShadow);
 
-  playerSprite = new PIXI.Graphics();
-
-  // ローブ
-  playerSprite.rect(-30, -20, 60, 80);
-  playerSprite.fill(0x3b82f6);
-
-  // 頭
-  playerSprite.circle(0, -40, 25);
-  playerSprite.fill(0xfbbf24);
-
-  // 帽子
-  playerSprite.poly([
-    { x: -30, y: -50 },
-    { x: 0, y: -90 },
-    { x: 30, y: -50 },
-  ]);
-  playerSprite.fill(0x6366f1);
-
-  // 杖
-  playerSprite.rect(35, -30, 8, 100);
-  playerSprite.fill(0x8b5cf6);
-
-  // 杖の先端
-  playerSprite.circle(39, -35, 10);
-  playerSprite.fill(0xfbbf24);
-
-  // 位置を設定
-  playerSprite.x = x;
-  playerSprite.y = y;
+  playerSprite = createCharacterSprite(
+    playerAnimations,
+    PLAYER_SHEETS.targetHeight,
+    x,
+    y,
+  );
 
   app.stage.addChild(playerSprite);
 }
 
-// 敵スプライトの作成（スライム風）
+// 敵スプライトの作成
 function createEnemySprite() {
-  if (!app || !app.stage) return;
+  if (!app || !app.stage || !enemyAnimations) return;
 
   const x = app.screen.width * 0.75;
-  const y = app.screen.height * 0.6;
-  enemyShadow = createGroundShadow(x, y + 44, 60);
+  const y = app.screen.height * 0.72;
+  enemyShadow = createGroundShadow(x, y + 5, 64);
   app.stage.addChild(enemyShadow);
 
-  enemySprite = new PIXI.Graphics();
-
-  // スライムの体
-  enemySprite.ellipse(0, 0, 50, 40);
-  enemySprite.fill(0x22c55e);
-
-  // 目（左）
-  enemySprite.circle(-15, -10, 8);
-  enemySprite.fill(0xffffff);
-  enemySprite.circle(-15, -10, 4);
-  enemySprite.fill(0x000000);
-
-  // 目（右）
-  enemySprite.circle(15, -10, 8);
-  enemySprite.fill(0xffffff);
-  enemySprite.circle(15, -10, 4);
-  enemySprite.fill(0x000000);
-
-  // 口
-  enemySprite.arc(0, 5, 15, 0, Math.PI);
-  enemySprite.stroke({ color: 0x000000, width: 3 });
-
-  // 位置を設定
-  enemySprite.x = x;
-  enemySprite.y = y;
+  enemySprite = createCharacterSprite(
+    enemyAnimations,
+    ENEMY_SHEETS.targetHeight,
+    x,
+    y,
+  );
+  enemyBaseScale = enemySprite.scale.x;
 
   app.stage.addChild(enemySprite);
+}
+
+function createCharacterSprite(
+  animations: CharacterAnimations,
+  targetHeight: number,
+  x: number,
+  y: number,
+): PIXI.AnimatedSprite {
+  const sprite = new PIXI.AnimatedSprite(animations.idle);
+  const scale = targetHeight / Math.max(1, sprite.texture.height);
+
+  sprite.anchor.set(0.5, 1);
+  sprite.x = x;
+  sprite.y = y;
+  sprite.scale.set(scale);
+  sprite.animationSpeed = 0.16;
+  sprite.loop = true;
+  sprite.play();
+
+  return sprite;
+}
+
+function setCharacterAnimation(
+  sprite: PIXI.AnimatedSprite | null,
+  animations: CharacterAnimations | null,
+  state: keyof CharacterAnimations,
+  options: { loop: boolean; speed: number },
+) {
+  if (!sprite || !animations) return;
+
+  sprite.textures = animations[state];
+  sprite.loop = options.loop;
+  sprite.animationSpeed = options.speed;
+  sprite.gotoAndPlay(0);
+}
+
+function restoreIdleAnimation(
+  sprite: PIXI.AnimatedSprite | null,
+  animations: CharacterAnimations | null,
+) {
+  setCharacterAnimation(sprite, animations, "idle", {
+    loop: true,
+    speed: 0.16,
+  });
+}
+
+async function playMomentaryCharacterAnimation(
+  sprite: PIXI.AnimatedSprite | null,
+  animations: CharacterAnimations | null,
+  state: "attack" | "damage",
+  durationMs: number,
+) {
+  setCharacterAnimation(sprite, animations, state, {
+    loop: false,
+    speed: 0.34,
+  });
+  await wait(durationMs);
+  restoreIdleAnimation(sprite, animations);
 }
 
 function startIdleMotion() {
@@ -249,9 +351,12 @@ function startIdleMotion() {
     const enemyBob = Math.sin(elapsed * 1.8 + 0.6) * 5;
     const enemyBreath = Math.sin(elapsed * 1.8 + 0.6) * 0.025;
 
-    playerSprite.y = activeApp.screen.height * 0.6 + playerBob;
-    enemySprite.y = activeApp.screen.height * 0.6 + enemyBob;
-    enemySprite.scale.set(1 - enemyBreath, 1 + enemyBreath);
+    playerSprite.y = activeApp.screen.height * 0.72 + playerBob;
+    enemySprite.y = activeApp.screen.height * 0.72 + enemyBob;
+    enemySprite.scale.set(
+      enemyBaseScale * (1 - enemyBreath),
+      enemyBaseScale * (1 + enemyBreath),
+    );
 
     if (playerShadow) {
       playerShadow.scale.set(1 + Math.abs(playerBob) * 0.008, 1);
@@ -291,6 +396,10 @@ async function playPlayerAttack(
   };
   const color = colors[attackType];
 
+  setCharacterAnimation(playerSprite, playerAnimations, "attack", {
+    loop: false,
+    speed: 0.34,
+  });
   await playCasterAnticipation(playerSprite, motion);
 
   if (app !== activeApp || !playerSprite || !enemySprite) {
@@ -316,6 +425,12 @@ async function playPlayerAttack(
 
   playImpactFlash(color, motion.impactFlashAlpha);
   playHitEffect(target.x, target.y, color, motion);
+  void playMomentaryCharacterAnimation(
+    enemySprite,
+    enemyAnimations,
+    "damage",
+    360,
+  );
   shakeStage(Math.max(4, motion.impactShake * 0.28), motion.stageShakeMs);
 
   if (enemySprite) {
@@ -323,6 +438,7 @@ async function playPlayerAttack(
   }
 
   await wait(motion.hitStopMs + motion.recoveryMs);
+  restoreIdleAnimation(playerSprite, playerAnimations);
 }
 
 function createProjectileEffect(
@@ -386,7 +502,7 @@ async function animateProjectile(
 }
 
 async function playCasterAnticipation(
-  sprite: PIXI.Graphics,
+  sprite: PIXI.AnimatedSprite,
   motion: CombatMotionProfile,
 ): Promise<void> {
   const originalX = sprite.x;
@@ -500,7 +616,7 @@ function shakeStage(amount: number, durationMs: number) {
 
 // スプライトを揺らす
 function shakeSprite(
-  sprite: PIXI.Graphics,
+  sprite: PIXI.AnimatedSprite,
   amount: number = 10,
   durationMs: number = 300,
 ) {
@@ -595,6 +711,10 @@ async function playEnemyAttack(
   };
   const color = colors[attackType];
 
+  setCharacterAnimation(enemySprite, enemyAnimations, "attack", {
+    loop: false,
+    speed: 0.34,
+  });
   await playCasterAnticipation(enemySprite, motion);
 
   if (app !== activeApp || !playerSprite || !enemySprite) {
@@ -621,6 +741,7 @@ async function playEnemyAttack(
   }
 
   await wait(motion.recoveryMs);
+  restoreIdleAnimation(enemySprite, enemyAnimations);
 }
 
 async function playEnemyProjectile(
@@ -655,6 +776,12 @@ async function playEnemyProjectile(
     playBlockEffect(target.x, target.y, motion);
   } else {
     playHitEffect(target.x, target.y, color, motion);
+    void playMomentaryCharacterAnimation(
+      playerSprite,
+      playerAnimations,
+      "damage",
+      360,
+    );
   }
 
   playImpactFlash(
@@ -725,5 +852,8 @@ export function destroyBattleScene() {
   enemySprite = null;
   playerShadow = null;
   enemyShadow = null;
+  playerAnimations = null;
+  enemyAnimations = null;
+  enemyBaseScale = 1;
   idleTicker = null;
 }

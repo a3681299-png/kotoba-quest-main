@@ -1,10 +1,10 @@
-// ステージデータ定義
-// 各ステージで1つのプログラミング概念に集中する設計
+// チュートリアル6ステージ定義
+// 仕様書の「言葉の意味を探すRPG」を5分程度で体験するための短い構成
 
-export interface TutorialStep {
-  message: string;
-  highlightElement?: string; // ハイライトするUI要素のセレクタ
-  waitForAction?: "code_input" | "execute" | "none";
+export interface StageDialogueLine {
+  speaker: "player" | "enemy";
+  name: string;
+  text: string;
 }
 
 export interface StageData {
@@ -13,173 +13,229 @@ export interface StageData {
   enemyId: string;
   enemyName: string;
   enemyHp: number;
-  learningGoal: string; // このステージで学ぶこと
-  hint: string; // ヒントテキスト
-  sampleCode: string; // お手本コード
-  successMessage: string; // クリア時のメッセージ
-  tutorialSteps?: TutorialStep[]; // チュートリアル（オプション）
+  learningGoal: string;
+  hint: string;
+  sampleCode: string;
+  successMessage: string;
+  concept: string;
+  mentorName: string;
+  mentorRole: string;
+  playerName: string;
+  enemyTrait: string;
+  introDialogue: StageDialogueLine[];
 }
 
 export const STAGES: StageData[] = [
-  // ステージ1: 攻撃の基本
   {
     id: 1,
-    name: "はじめての魔法",
-    enemyId: "slime",
-    enemyName: "スライム",
-    enemyHp: 10,
-    learningGoal: "攻撃() コマンドを覚える",
-    hint: `魔法を唱えて攻撃しよう！
-
-攻撃("ファイア")
-
-と入力して、▶️ボタンを押してね！`,
-    sampleCode: `攻撃("ファイア")`,
-    successMessage: "すごい！初めての魔法が成功したね！",
-    tutorialSteps: [
+    name: "命令の糸",
+    enemyId: "training_doll",
+    enemyName: "木偶の影",
+    enemyHp: 20,
+    concept: "順次実行",
+    mentorName: "人形師",
+    mentorRole: "言葉を命令として扱う",
+    playerName: "人形師",
+    enemyTrait: "攻撃がそのまま意味を持つ相手",
+    introDialogue: [
       {
-        message: "ようこそ！コードで魔法を唱えて敵を倒そう！",
-        waitForAction: "none",
+        speaker: "enemy",
+        name: "木偶の影",
+        text: "書かれた順にしか、私は動かない。先に来た言葉が、先に刃になる。",
       },
       {
-        message: '下のエディタに「攻撃("ファイア")」と入力してね',
-        highlightElement: ".code-editor",
-        waitForAction: "code_input",
-      },
-      {
-        message: "▶️ボタンを押して魔法を唱えよう！",
-        highlightElement: ".execute-button",
-        waitForAction: "execute",
+        speaker: "player",
+        name: "人形師",
+        text: "なら、命令を並べれば糸はつながる。まずは順番を確かめよう。",
       },
     ],
-  },
+    learningGoal: "命令を上から順番に実行する",
+    hint: `命令は上から順番に動く。
 
-  // ステージ2: ループで連続攻撃
+攻撃する
+回復する
+攻撃する
+
+まずは、書いた順番どおりに行動が進むことを見よう。`,
+    sampleCode: `攻撃する
+回復する
+攻撃する`,
+    successMessage: "命令の糸がつながった。書いた順番が、そのまま行動になった。",
+  },
   {
     id: 2,
-    name: "連続攻撃をマスター",
-    enemyId: "slime_group",
-    enemyName: "スライム軍団",
-    enemyHp: 20,
-    learningGoal: "繰り返す() で同じ処理を何度も実行",
-    hint: `1回の攻撃では倒せない！
-繰り返しを使おう！
+    name: "契約の一文",
+    enemyId: "contract_beast",
+    enemyName: "弱った契約獣",
+    enemyHp: 10,
+    concept: "条件分岐",
+    mentorName: "契約者",
+    mentorRole: "条件を満たした時だけ言葉を発動させる",
+    playerName: "契約者",
+    enemyTrait: "弱っている時だけ攻撃が通る",
+    introDialogue: [
+      {
+        speaker: "enemy",
+        name: "弱った契約獣",
+        text: "弱っている時だけ、契約の言葉を受け入れよう。",
+      },
+      {
+        speaker: "player",
+        name: "契約者",
+        text: "場面を見て選ぶ。条件に合う時だけ攻撃する。",
+      },
+    ],
+    learningGoal: "もし を使って状況に応じた行動を選ぶ",
+    hint: `契約は条件が合う時だけ動く。
 
-繰り返す(2) {
-  攻撃("ファイア")
-}
+もし 敵HP が 少ない なら 攻撃する
+そうでなければ 観察する
 
-これで2回攻撃できるよ！`,
-    sampleCode: `繰り返す(2) {
-  攻撃("ファイア")
-}`,
-    successMessage: "ループをマスター！同じコードを何度も書かなくていいね！",
+敵が弱っているなら攻撃、そうでなければ様子を見る。`,
+    sampleCode: `もし 敵HP が 少ない なら 攻撃する
+そうでなければ 観察する`,
+    successMessage: "条件が合った。言葉は、場面を選ぶことで力を持つ。",
   },
-
-  // ステージ3: 防御を覚える
   {
     id: 3,
-    name: "防御の重要性",
-    enemyId: "goblin",
-    enemyName: "ゴブリン",
+    name: "めぐる庭",
+    enemyId: "thorn_root",
+    enemyName: "からみ根",
     enemyHp: 30,
-    learningGoal: "防御() でダメージを軽減",
-    hint: `敵が攻撃してくる！
-防御() でダメージを半分にできるよ！
+    concept: "くりかえし",
+    mentorName: "植物の魔女",
+    mentorRole: "言葉を循環として扱う",
+    playerName: "植物の魔女",
+    enemyTrait: "一度ではほどけないが、同じ働きの反復に弱い",
+    introDialogue: [
+      {
+        speaker: "enemy",
+        name: "からみ根",
+        text: "一度の言葉では、この根はほどけない。",
+      },
+      {
+        speaker: "player",
+        name: "植物の魔女",
+        text: "同じ働きをまとめて巡らせる。回数で流れを作る。",
+      },
+    ],
+    learningGoal: "同じ命令を決まった回数くりかえす",
+    hint: `植物は一度で育たない。
 
-攻撃("ファイア")
-防御()
+3回 くりかえす 攻撃する
 
-攻撃と防御を組み合わせよう！`,
-    sampleCode: `攻撃("ファイア")
-防御()`,
-    successMessage: "防御バッチリ！敵の攻撃を読んで備えることが大切だね！",
+同じ命令を何度も書かず、回数でまとめよう。`,
+    sampleCode: `3回 くりかえす 攻撃する`,
+    successMessage: "めぐる言葉が根をほどいた。くりかえしは、少しずつ効いていく。",
   },
-
-  // ステージ4: 変数でパワーアップ
   {
     id: 4,
-    name: "変数でパワーアップ",
-    enemyId: "ogre",
-    enemyName: "オーガ",
-    enemyHp: 50,
-    learningGoal: "変数を使って攻撃力を上げる",
-    hint: `敵が硬い！変数で攻撃力を上げよう！
+    name: "忘れ名の書庫",
+    enemyId: "nameless",
+    enemyName: "名前を忘れた敵",
+    enemyHp: 15,
+    concept: "変数",
+    mentorName: "司書",
+    mentorRole: "言葉を記録として扱う",
+    playerName: "司書",
+    enemyTrait: "記録した言葉を使うと反応する",
+    introDialogue: [
+      {
+        speaker: "enemy",
+        name: "名前を忘れた敵",
+        text: "名は消えた。さっきの言葉も、もう思い出せない。",
+      },
+      {
+        speaker: "player",
+        name: "司書",
+        text: "なら記録する。残した言葉を、次の判断に使う。",
+      },
+    ],
+    learningGoal: "情報を記録して、後の判断に使う",
+    hint: `まず情報を残す。
 
-変数 威力 = 20
-攻撃("ファイア")
-防御()
+敵の言葉を 記録する
+もし 敵の言葉 が 前と同じ なら 話しかける
 
-「威力」という名前の箱に20を入れると、
-攻撃力が20になるよ！`,
-    sampleCode: `変数 威力 = 20
-攻撃("ファイア")
-防御()`,
-    successMessage: "変数を使いこなせるようになった！数を自由に変えられるよ！",
+記録した言葉を条件に使うと、敵の反応が変わる。`,
+    sampleCode: `敵の言葉を 記録する
+もし 敵の言葉 が 前と同じ なら 話しかける`,
+    successMessage: "書き残した言葉が道を開いた。変数は、あとで使うための記録だ。",
   },
-
-  // ステージ5: 条件分岐で戦略
   {
     id: 5,
-    name: "状況を見て判断",
-    enemyId: "orc",
-    enemyName: "オーク",
-    enemyHp: 80,
-    learningGoal: "もし() で条件によって行動を変える",
-    hint: `敵のHPが多い時と少ない時で
-攻撃を変えよう！
+    name: "塔からの作戦",
+    enemyId: "sealed_cage",
+    enemyName: "閉ざされた鳥籠",
+    enemyHp: 20,
+    concept: "関数",
+    mentorName: "幽閉の姫",
+    mentorRole: "言葉をまとまった命令として渡す",
+    playerName: "幽閉の姫",
+    enemyTrait: "まとまった作戦でだけ開く",
+    introDialogue: [
+      {
+        speaker: "enemy",
+        name: "閉ざされた鳥籠",
+        text: "ばらばらの命令では、この檻は開かない。",
+      },
+      {
+        speaker: "player",
+        name: "幽閉の姫",
+        text: "まとまりに名前をつける。作戦として呼び出せば届く。",
+      },
+    ],
+    learningGoal: "複数の命令を作戦としてまとめて呼び出す",
+    hint: `何度も使う流れには名前をつける。
 
-もし(敵の体力 > 50) {
-  攻撃("ファイア")
-} そうでなければ {
-  攻撃("サンダー")
-}
-防御()
+作戦A は { 観察する 話しかける }
+作戦A を 実行する
 
-条件によって違う魔法を使えるよ！`,
-    sampleCode: `もし(敵の体力 > 50) {
-  攻撃("ファイア")
-} そうでなければ {
-  攻撃("サンダー")
-}
-防御()`,
-    successMessage: "条件分岐をマスター！状況に合わせて行動を変えられるね！",
+命令のまとまりを呼び出せば、作戦として扱える。`,
+    sampleCode: `作戦A は { 観察する 話しかける }
+作戦A を 実行する`,
+    successMessage: "塔から届いた作戦が鳥籠を開いた。関数は、命令のまとまりだ。",
   },
-
-  // ステージ6: ボス戦
   {
     id: 6,
-    name: "ドラゴン討伐【ボス】",
-    enemyId: "dragon",
-    enemyName: "ドラゴン",
-    enemyHp: 150,
-    learningGoal: "全ての技術を組み合わせる",
-    hint: `最強の敵、ドラゴン！
-今まで学んだことを全て使おう！
+    name: "敵ではない影",
+    enemyId: "exception_shadow",
+    enemyName: "敵ではない影",
+    enemyHp: 20,
+    concept: "そうでなければ",
+    mentorName: "道化師",
+    mentorRole: "言葉を反転と例外として扱う",
+    playerName: "道化師",
+    enemyTrait: "敵ではない時だけ手を伸ばせる",
+    introDialogue: [
+      {
+        speaker: "enemy",
+        name: "敵ではない影",
+        text: "敵と呼ぶなら、私は敵になる。",
+      },
+      {
+        speaker: "player",
+        name: "道化師",
+        text: "呼び方を疑う。敵ではないなら、攻撃ではなく手を伸ばす。",
+      },
+    ],
+    learningGoal: "条件に当てはまらない場合や例外を読む",
+    hint: `正面から見た意味だけが答えではない。
 
-変数 威力 = 25
-繰り返す(3) {
-  攻撃("ファイア")
-}
-防御()
+もし 敵が敵ではない なら 手を伸ばす
+そうでなければ 観察する
 
-変数 + 繰り返し + 防御 の組み合わせだ！`,
-    sampleCode: `変数 威力 = 25
-繰り返す(3) {
-  攻撃("ファイア")
-}
-防御()`,
-    successMessage:
-      "🎉 ドラゴンを倒した！全クリおめでとう！君は立派なプログラマーだ！",
+条件の裏側を読むと、攻撃ではない突破口が見える。`,
+    sampleCode: `もし 敵が敵ではない なら 手を伸ばす
+そうでなければ 観察する`,
+    successMessage: "影は敵ではなかった。言葉の意味は、場面によって変わる。",
   },
 ];
 
-// ステージIDからステージデータを取得
 export function getStageById(id: number): StageData | undefined {
   return STAGES.find((stage) => stage.id === id);
 }
 
-// 次のステージを取得
 export function getNextStage(currentId: number): StageData | undefined {
   const currentIndex = STAGES.findIndex((stage) => stage.id === currentId);
   if (currentIndex >= 0 && currentIndex < STAGES.length - 1) {

@@ -19,7 +19,12 @@ export interface BaseNode {
   location: SourceLocation;
 }
 
-export type ASTNode = FunctionCallNode | VariableDeclNode | IfNode | LoopNode;
+export type ASTNode =
+  | FunctionCallNode
+  | VariableDeclNode
+  | IfNode
+  | LoopNode
+  | PlanDefinitionNode;
 
 export interface FunctionCallNode extends BaseNode {
   type: "FunctionCall";
@@ -36,7 +41,7 @@ export interface VariableDeclNode extends BaseNode {
 export interface ConditionNode extends BaseNode {
   type: "Condition";
   left: string | number;
-  op: "<" | ">" | "<=" | ">=" | "==" | "!=";
+  op: "<" | ">" | "<=" | ">=" | "==" | "!=" | "が";
   right: string | number;
 }
 
@@ -44,10 +49,17 @@ export interface IfNode extends BaseNode {
   type: "If";
   condition: ConditionNode;
   body: ASTNode[];
+  elseBody?: ASTNode[];
 }
 
 export interface LoopNode extends BaseNode {
   type: "Loop";
   count: number;
+  body: ASTNode[];
+}
+
+export interface PlanDefinitionNode extends BaseNode {
+  type: "PlanDefinition";
+  name: string;
   body: ASTNode[];
 }

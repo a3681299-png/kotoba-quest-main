@@ -22,20 +22,66 @@ const grammarSource = `
 Program = _ statements:Statement* !. { return statements; }
 
 Statement
-  = s:(LoopStatement / IfStatement / VariableDecl / FunctionCall) _ ";"? _
+  = s:(LoopStatement / IfStatement / PlanDefinition / InlineStatement) _ ";"? _
+    { return s; }
+
+InlineStatement
+  = s:(PlanCall / RecordStatement / NaturalCommand / VariableDecl / FunctionCall) _ ";"? _
     { return s; }
 
 LoopStatement
   = "繰り返す" _ "(" _ count:Number _ ")" _ "{" _ body:Statement* _ "}" _
     { return { type: "Loop", count: count, body: body, location: location() }; }
+  / count:Number _ "回" _ ("くりかえす" / "繰り返す") _ body:StatementBody
+    { return { type: "Loop", count: count, body: body, location: location() }; }
 
 IfStatement
   = "もし" _ "(" _ condition:Condition _ ")" _ "{" _ body:Statement* _ "}" _
-    { return { type: "If", condition: condition, body: body, location: location() }; }
+    elseBody:ElseClause?
+    { return { type: "If", condition: condition, body: body, elseBody: elseBody || undefined, location: location() }; }
+  / "もし" _ condition:Condition _ "なら" _ body:StatementBody elseBody:ElseClause?
+    { return { type: "If", condition: condition, body: body, elseBody: elseBody || undefined, location: location() }; }
+
+ElseClause
+  = _ "そうでなければ" _ body:StatementBody { return body; }
+
+StatementBody
+  = "{" _ body:Statement* _ "}" { return body; }
+  / s:InlineStatement { return [s]; }
+
+PlanDefinition
+  = name:Identifier _ "は" _ "{" _ body:Statement* _ "}" _
+    { return { type: "PlanDefinition", name: name, body: body, location: location() }; }
+
+PlanCall
+  = name:Identifier _ "を" _ "実行する"
+    { return { type: "FunctionCall", name: name, args: [], location: location() }; }
+
+RecordStatement
+  = "敵の言葉" _ "を" _ "記録する"
+    { return { type: "FunctionCall", name: "記録する", args: ["敵の言葉"], location: location() }; }
+
+NaturalCommand
+  = name:CommandName
+    { return { type: "FunctionCall", name: name, args: [], location: location() }; }
+
+CommandName
+  = "攻撃する"
+  / "回復する"
+  / "防御する"
+  / "観察する"
+  / "話しかける"
+  / "待つ"
+  / "手を伸ばす"
+  / "名前を呼ぶ"
 
 Condition
   = left:Expression _ op:ComparisonOp _ right:Expression
     { return { type: "Condition", left: left, op: op, right: right, location: location() }; }
+  / "敵が敵ではない"
+    { return { type: "Condition", left: "敵が敵ではない", op: "が", right: "真", location: location() }; }
+  / left:Identifier _ "が" _ right:Identifier
+    { return { type: "Condition", left: left, op: "が", right: right, location: location() }; }
 
 ComparisonOp = "<=" / ">=" / "<" / ">" / "==" / "!="
 

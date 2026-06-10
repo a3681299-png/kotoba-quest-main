@@ -1,25 +1,22 @@
 // 敵のIntent（予兆）システム型定義
 
-// Intent（予兆）タイプ
 export type IntentType =
-  | "attack_normal" // 通常攻撃
-  | "attack_heavy" // 強攻撃（防御推奨）
-  | "attack_multi" // 連続攻撃
-  | "charging" // 力を溜めている（次ターン強攻撃）
-  | "defending" // 防御中（攻撃が効きにくい）
-  | "idle"; // 何もしない（ステージ1-2用）
+  | "attack_normal"
+  | "attack_heavy"
+  | "attack_multi"
+  | "charging"
+  | "defending"
+  | "idle";
 
-// Intent情報
 export interface EnemyIntent {
   type: IntentType;
   damage: number;
-  description: string; // 「力を溜めている！」
-  hint: string; // 「防御()でダメージを半減できるよ」
-  icon: string; // 💥
-  turnsUntilAction: number; // 0 = このターンに実行
+  description: string;
+  hint: string;
+  icon: string;
+  turnsUntilAction: number;
 }
 
-// 敵の基本情報
 export interface EnemyData {
   id: string;
   name: string;
@@ -28,29 +25,25 @@ export interface EnemyData {
   attackPatterns: IntentPattern[];
 }
 
-// 攻撃パターン（条件付き）
 export interface IntentPattern {
   condition: IntentCondition;
   intent: Omit<EnemyIntent, "turnsUntilAction">;
-  weight: number; // 選択確率の重み
+  weight: number;
 }
 
-// 攻撃パターンの発動条件
 export type IntentCondition =
   | { type: "always" }
-  | { type: "hp_below"; threshold: number } // HP割合が閾値以下
-  | { type: "hp_above"; threshold: number } // HP割合が閾値以上
-  | { type: "turn_multiple"; multiple: number } // ターン数が倍数
-  | { type: "player_defending" } // プレイヤーが防御中
-  | { type: "random"; chance: number }; // 確率
+  | { type: "hp_below"; threshold: number }
+  | { type: "hp_above"; threshold: number }
+  | { type: "turn_multiple"; multiple: number }
+  | { type: "player_defending" }
+  | { type: "random"; chance: number };
 
-// ステージごとの敵データ（新6ステージ構成）
 export const ENEMY_DATA: Record<number, EnemyData> = {
-  // ステージ1: スライム - 攻撃してこない
   1: {
-    id: "slime",
-    name: "スライム",
-    maxHp: 10,
+    id: "training_doll",
+    name: "木偶の影",
+    maxHp: 20,
     stage: 1,
     attackPatterns: [
       {
@@ -58,20 +51,18 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
         intent: {
           type: "idle",
           damage: 0,
-          description: "こちらを見ている...",
-          hint: "今は攻撃してこないよ。攻撃のチャンス！",
-          icon: "👀",
+          description: "命令を待っている",
+          hint: "上から順番に命令を書こう。",
+          icon: "🧵",
         },
         weight: 1,
       },
     ],
   },
-
-  // ステージ2: スライム軍団 - 攻撃してこない（ループ練習）
   2: {
-    id: "slime_group",
-    name: "スライム軍団",
-    maxHp: 20,
+    id: "contract_beast",
+    name: "弱った契約獣",
+    maxHp: 10,
     stage: 2,
     attackPatterns: [
       {
@@ -79,159 +70,85 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
         intent: {
           type: "idle",
           damage: 0,
-          description: "たくさんのスライムがいる...",
-          hint: "繰り返し攻撃で一気に倒そう！",
-          icon: "👀",
+          description: "弱って契約を待っている",
+          hint: "敵HP が 少ない時だけ攻撃する契約を書こう。",
+          icon: "📜",
         },
         weight: 1,
       },
     ],
   },
-
-  // ステージ3: ゴブリン - 毎ターン通常攻撃（防御練習）
   3: {
-    id: "goblin",
-    name: "ゴブリン",
+    id: "thorn_root",
+    name: "からみ根",
     maxHp: 30,
     stage: 3,
     attackPatterns: [
       {
         condition: { type: "always" },
         intent: {
-          type: "attack_normal",
-          damage: 15,
-          description: "攻撃の構え！",
-          hint: "防御() でダメージを半減できるよ！",
-          icon: "⚔️",
+          type: "idle",
+          damage: 0,
+          description: "何度もほどく必要がある",
+          hint: "3回 くりかえす で同じ命令をまとめよう。",
+          icon: "🌿",
         },
         weight: 1,
       },
     ],
   },
-
-  // ステージ4: オーガ - 通常攻撃＋強攻撃（変数でパワーアップ必須）
   4: {
-    id: "ogre",
-    name: "オーガ",
-    maxHp: 50,
+    id: "nameless",
+    name: "名前を忘れた敵",
+    maxHp: 15,
     stage: 4,
     attackPatterns: [
       {
         condition: { type: "always" },
         intent: {
-          type: "attack_normal",
-          damage: 12,
-          description: "こん棒を振りかぶった！",
-          hint: "",
-          icon: "🪵",
+          type: "idle",
+          damage: 0,
+          description: "同じ言葉をくりかえしている",
+          hint: "敵の言葉を記録してから、その記録を条件に使おう。",
+          icon: "📖",
         },
-        weight: 3,
-      },
-      {
-        condition: { type: "hp_below", threshold: 0.5 },
-        intent: {
-          type: "attack_heavy",
-          damage: 25,
-          description: "力を溜めている！",
-          hint: "防御() でダメージを半分にしよう！",
-          icon: "💥",
-        },
-        weight: 2,
+        weight: 1,
       },
     ],
   },
-
-  // ステージ5: オーク - HP依存攻撃（条件分岐練習）
   5: {
-    id: "orc",
-    name: "オーク",
-    maxHp: 80,
+    id: "sealed_cage",
+    name: "閉ざされた鳥籠",
+    maxHp: 20,
     stage: 5,
     attackPatterns: [
       {
-        condition: { type: "hp_above", threshold: 0.5 },
+        condition: { type: "always" },
         intent: {
-          type: "attack_normal",
-          damage: 12,
-          description: "攻撃の構え！",
-          hint: "HPが高いうちは通常攻撃",
-          icon: "⚔️",
+          type: "idle",
+          damage: 0,
+          description: "ひとまとまりの作戦を待っている",
+          hint: "作戦A を定義してから実行しよう。",
+          icon: "🕊️",
         },
-        weight: 2,
-      },
-      {
-        condition: { type: "hp_below", threshold: 0.5 },
-        intent: {
-          type: "attack_heavy",
-          damage: 30,
-          description: "怒りの強攻撃！",
-          hint: "HPが減ると怒り出す！防御() しよう！",
-          icon: "💢",
-        },
-        weight: 3,
-      },
-      {
-        condition: { type: "turn_multiple", multiple: 3 },
-        intent: {
-          type: "attack_multi",
-          damage: 10,
-          description: "連続攻撃の準備！",
-          hint: "3ターンごとに連続攻撃！",
-          icon: "⚡",
-        },
-        weight: 2,
+        weight: 1,
       },
     ],
   },
-
-  // ステージ6: ドラゴン - 複雑パターン（総合戦）
   6: {
-    id: "dragon",
-    name: "ドラゴン",
-    maxHp: 150,
+    id: "exception_shadow",
+    name: "敵ではない影",
+    maxHp: 20,
     stage: 6,
     attackPatterns: [
       {
         condition: { type: "always" },
         intent: {
-          type: "attack_normal",
-          damage: 15,
-          description: "爪を振りかぶった！",
-          hint: "",
-          icon: "🐲",
-        },
-        weight: 3,
-      },
-      {
-        condition: { type: "turn_multiple", multiple: 2 },
-        intent: {
-          type: "attack_heavy",
-          damage: 35,
-          description: "炎を吐く準備！",
-          hint: "必ず防御() しよう！大ダメージ！",
-          icon: "🔥",
-        },
-        weight: 2,
-      },
-      {
-        condition: { type: "hp_below", threshold: 0.3 },
-        intent: {
-          type: "attack_multi",
-          damage: 20,
-          description: "激怒の連続攻撃！",
-          hint: "HPが減ると本気を出す！",
-          icon: "💥",
-        },
-        weight: 3,
-      },
-      {
-        condition: { type: "hp_below", threshold: 0.15 },
-        intent: {
-          type: "charging",
+          type: "idle",
           damage: 0,
-          description: "力を溜めている...",
-          hint: "次のターン、超強力な攻撃が来る！",
-          icon: "⚡",
+          description: "敵かどうか、まだ決まっていない",
+          hint: "敵ではないなら、攻撃ではなく手を伸ばそう。",
+          icon: "🎭",
         },
         weight: 1,
       },
@@ -239,7 +156,6 @@ export const ENEMY_DATA: Record<number, EnemyData> = {
   },
 };
 
-// 敵のIntentを決定する関数
 export function decideEnemyIntent(
   enemyData: EnemyData,
   enemyHp: number,
@@ -248,7 +164,6 @@ export function decideEnemyIntent(
 ): EnemyIntent {
   const hpRatio = enemyHp / enemyData.maxHp;
 
-  // 条件を満たすパターンを収集
   const validPatterns = enemyData.attackPatterns.filter((pattern) => {
     const cond = pattern.condition;
     switch (cond.type) {
@@ -269,15 +184,13 @@ export function decideEnemyIntent(
     }
   });
 
-  // 重み付きランダム選択
   if (validPatterns.length === 0) {
-    // フォールバック：通常攻撃
     return {
-      type: "attack_normal",
-      damage: 10,
-      description: "攻撃の構え",
-      hint: "",
-      icon: "⚔️",
+      type: "idle",
+      damage: 0,
+      description: "様子を見ている",
+      hint: "敵の状態を読もう。",
+      icon: "👁",
       turnsUntilAction: 0,
     };
   }
@@ -295,14 +208,12 @@ export function decideEnemyIntent(
     }
   }
 
-  // フォールバック
   return {
     ...validPatterns[0].intent,
     turnsUntilAction: 0,
   };
 }
 
-// ダメージ計算（防御中なら半減）
 export function calculateDamage(
   intent: EnemyIntent,
   isDefending: boolean,

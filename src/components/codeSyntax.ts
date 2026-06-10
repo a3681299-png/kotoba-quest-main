@@ -12,11 +12,34 @@ export interface SyntaxToken {
 }
 
 const TOKEN_PATTERN =
-  /(それ以外なら|もし|なら|終わり|強攻撃|攻撃|防御|バフ|敵HP|自分HP|HP|\d+|[<>=+\-*/(),（）])/g;
+  /(そうでなければ|それ以外なら|くりかえす|繰り返す|もし|なら|終わり|攻撃する|回復する|防御する|観察する|話しかける|記録する|手を伸ばす|待つ|強攻撃|攻撃|回復|防御|バフ|敵の言葉|敵HP|自分HP|HP|作戦A|\d+|[<>=+\-*/(){},（）])/g;
 
-const KEYWORDS = new Set(["それ以外なら", "もし", "なら", "終わり"]);
-const COMMANDS = new Set(["強攻撃", "攻撃", "防御", "バフ"]);
-const STATS = new Set(["敵HP", "自分HP", "HP"]);
+const KEYWORDS = new Set([
+  "そうでなければ",
+  "それ以外なら",
+  "くりかえす",
+  "繰り返す",
+  "もし",
+  "なら",
+  "終わり",
+]);
+const COMMANDS = new Set([
+  "攻撃する",
+  "回復する",
+  "防御する",
+  "観察する",
+  "話しかける",
+  "記録する",
+  "手を伸ばす",
+  "待つ",
+  "強攻撃",
+  "攻撃",
+  "回復",
+  "防御",
+  "バフ",
+  "作戦A",
+]);
+const STATS = new Set(["敵の言葉", "敵HP", "自分HP", "HP"]);
 
 function classifyToken(text: string): SyntaxTokenType {
   if (KEYWORDS.has(text)) return "keyword";

@@ -36,7 +36,12 @@ export type GameAction =
       damage: number;
     }
   | { type: "heal"; amount: number }
-  | { type: "defend" };
+  | { type: "defend" }
+  | {
+      type: "meaning";
+      method: "observe" | "talk" | "wait" | "reach" | "name";
+      amount: number;
+    };
 
 // イベントリスナー型
 type EventListener = (event: ExecutionEvent) => void;
@@ -56,6 +61,7 @@ export class SpellExecutor {
   private logs: string[] = [];
   private isStepMode: boolean = false;
   private useStore: boolean = false;
+  private plans: Map<string, ASTNode[]> = new Map();
 
   constructor(context: GameContext, options?: { useStore?: boolean }) {
     this.context = {
@@ -213,6 +219,10 @@ export class SpellExecutor {
           for (const child of node.body) {
             await this.executeNode(child);
           }
+        } else if (node.elseBody) {
+          for (const child of node.elseBody) {
+            await this.executeNode(child);
+          }
         }
         break;
       case "Loop": {
@@ -225,6 +235,10 @@ export class SpellExecutor {
         }
         break;
       }
+      case "PlanDefinition":
+        this.plans.set(node.name, node.body);
+        this.logs.push(`${node.name} を定義`);
+        break;
     }
 
     // 実行完了をemit
@@ -245,12 +259,15 @@ export class SpellExecutor {
   ): Promise<void> {
     switch (name) {
       case "攻撃":
+      case "攻撃する":
         await this.executeAttack(args);
         break;
       case "回復":
+      case "回復する":
         await this.executeHeal(args);
         break;
-      case "防御": {
+      case "防御":
+      case "防御する": {
         const defendAction: GameAction = { type: "defend" };
         this.actions.push(defendAction);
         this.logs.push("🛡️ 防御の構え！ダメージを半減！");
@@ -264,8 +281,33 @@ export class SpellExecutor {
         this.emit({ type: "action-emit", action: defendAction });
         break;
       }
+      case "観察する":
+        this.executeMeaningAction("observe", 5, "敵を観察した");
+        break;
+      case "話しかける":
+        this.executeMeaningAction("talk", 15, "敵に話しかけた");
+        break;
+      case "待つ":
+        this.executeMeaningAction("wait", 5, "あえて待った");
+        break;
+      case "手を伸ばす":
+        this.executeMeaningAction("reach", 20, "敵ではない影に手を伸ばした");
+        break;
+      case "名前を呼ぶ":
+        this.executeMeaningAction("name", 20, "記録した名前を呼んだ");
+        break;
+      case "記録する":
+        this.executeRecord(args);
+        break;
       default:
-        this.logs.push(`不明な関数: ${name}`);
+        if (this.plans.has(name)) {
+          this.logs.push(`${name} を実行`);
+          for (const child of this.plans.get(name) ?? []) {
+            await this.executeNode(child);
+          }
+        } else {
+          this.logs.push(`不明な関数: ${name}`);
+        }
     }
   }
 
@@ -325,7 +367,41 @@ export class SpellExecutor {
     this.emit({ type: "action-emit", action });
   }
 
+  private executeMeaningAction(
+    method: "observe" | "talk" | "wait" | "reach" | "name",
+    amount: number,
+    logMessage: string,
+  ): void {
+    const action: GameAction = { type: "meaning", method, amount };
+    this.actions.push(action);
+    this.logs.push(logMessage);
+
+    if (this.useStore) {
+      gameStore.getState().addAction(action);
+      gameStore.getState().addLog(logMessage);
+    }
+
+    this.emit({ type: "action-emit", action });
+  }
+
+  private executeRecord(args: (string | number)[]): void {
+    const target = args[0]?.toString() || "記録";
+    const value = target === "敵の言葉" ? "前と同じ" : "記録済み";
+
+    this.context.variables.set(target, value);
+    this.logs.push(`${target}を記録した`);
+
+    if (this.useStore) {
+      gameStore.getState().setVariable(target, value);
+      gameStore.getState().addLog(`${target}を記録した`);
+    }
+  }
+
   private evaluateCondition(condition: ConditionNode): boolean {
+    if (condition.op === "が") {
+      return this.evaluateNaturalCondition(condition);
+    }
+
     const left = this.resolveValue(condition.left);
     const right = this.resolveValue(condition.right);
 
@@ -345,6 +421,28 @@ export class SpellExecutor {
       default:
         return false;
     }
+  }
+
+  private evaluateNaturalCondition(condition: ConditionNode): boolean {
+    const left = String(condition.left);
+    const right = String(condition.right);
+
+    if (left === "敵が敵ではない") {
+      return true;
+    }
+
+    if (left === "敵HP" || left === "敵の体力" || left === "体力") {
+      const hpRatio = this.context.enemyHp / this.context.maxEnemyHp;
+      if (right === "少ない") return hpRatio <= 0.5;
+      if (right === "多い") return hpRatio > 0.5;
+    }
+
+    const variableValue = this.context.variables.get(left);
+    if (typeof variableValue === "string") {
+      return variableValue === right;
+    }
+
+    return false;
   }
 
   private resolveValue(value: string | number): number {

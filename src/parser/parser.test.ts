@@ -89,6 +89,98 @@ describe("Parser", () => {
         });
       }
     });
+
+    it("する形の基本命令をパースできる", () => {
+      const result = parse(`攻撃する
+回復する`);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.ast).toHaveLength(2);
+        expect(result.ast[0]).toMatchObject({
+          type: "FunctionCall",
+          name: "攻撃する",
+          args: [],
+        });
+        expect(result.ast[1]).toMatchObject({
+          type: "FunctionCall",
+          name: "回復する",
+          args: [],
+        });
+      }
+    });
+
+    it("日本語の回数指定くりかえしをパースできる", () => {
+      const result = parse("3回 くりかえす 攻撃する");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.ast).toHaveLength(1);
+        const loop = result.ast[0];
+        expect(loop).toMatchObject({
+          type: "Loop",
+          count: 3,
+        });
+        if (loop.type === "Loop") {
+          expect(loop.body[0]).toMatchObject({
+            type: "FunctionCall",
+            name: "攻撃する",
+          });
+        }
+      }
+    });
+
+    it("自然文のもし/そうでなければをパースできる", () => {
+      const result = parse(`もし 敵HP が 少ない なら 攻撃する
+そうでなければ 観察する`);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.ast).toHaveLength(1);
+        const ifStatement = result.ast[0];
+        expect(ifStatement).toMatchObject({
+          type: "If",
+          condition: {
+            left: "敵HP",
+            op: "が",
+            right: "少ない",
+          },
+        });
+        if (ifStatement.type === "If") {
+          expect(ifStatement.body[0]).toMatchObject({
+            type: "FunctionCall",
+            name: "攻撃する",
+          });
+          expect(ifStatement.elseBody?.[0]).toMatchObject({
+            type: "FunctionCall",
+            name: "観察する",
+          });
+        }
+      }
+    });
+
+    it("作戦定義と作戦呼び出しをパースできる", () => {
+      const result = parse(`作戦A は { 観察する 話しかける }
+作戦A を 実行する`);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.ast).toHaveLength(2);
+        const planDefinition = result.ast[0];
+        expect(planDefinition).toMatchObject({
+          type: "PlanDefinition",
+          name: "作戦A",
+        });
+        if (planDefinition.type === "PlanDefinition") {
+          expect(planDefinition.body).toHaveLength(2);
+        }
+        expect(result.ast[1]).toMatchObject({
+          type: "FunctionCall",
+          name: "作戦A",
+          args: [],
+        });
+      }
+    });
   });
 
   describe("エラーケース", () => {
