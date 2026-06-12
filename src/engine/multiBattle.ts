@@ -6,6 +6,7 @@ import { aggregateWaveStats } from "./waveRunner";
 import { executeRoundBody } from "./executor";
 import { getAffinityMultiplier, getGimmickResult, MAGIC_TO_ELEMENT, COMBO_MP_COST } from "./affinity";
 import { countEffectiveChars, applyCharLimit } from "./charCounter";
+import type { AdaptationConfig } from "./adaptation";
 
 // ─── 多体同時バトル状態 ───────────────────────────────
 
@@ -34,6 +35,8 @@ interface MultiState {
   log: LogEntry[];
   phase: "battle" | "victory" | "defeat";
   effectiveChars: number; // 毎ラウンド固定（コードは変わらない）
+  // Stage 6 Wave 5 学習型ラスボス適応設定（適用対象がいる場合のみ参照）
+  adaptation?: AdaptationConfig;
 }
 
 const MAX_ROUNDS = 50;
@@ -49,6 +52,7 @@ export function runSimultaneousBattle(
   startPlayerHp: number,
   startPlayerMp: number,
   code: string,
+  adaptation?: AdaptationConfig,  // Stage 6 Wave 5 学習型ラスボス用
 ): WaveResult {
   // 召喚テンプレートを Map に変換
   const summonTemplates = new Map<string, EnemyData>();
@@ -76,7 +80,17 @@ export function runSimultaneousBattle(
     log: [],
     phase: "battle",
     effectiveChars: countEffectiveChars(code),
+    adaptation,
   };
+
+  // 適応設定が有効なラスボス相手の場合、開始時にデバッグログを残す
+  if (adaptation && state.enemies.some((e) => e.data.adaptive)) {
+    addLog(state, "statusEffect",
+      `🧠 ラスボスが行動履歴に適応！`
+      + (adaptation.resistMagics.length > 0 ? `（耐性: ${adaptation.resistMagics.join("・")}）` : "")
+      + (adaptation.comboDamageMultiplier < 1 ? `（合体魔法ダメージ -${Math.round((1 - adaptation.comboDamageMultiplier) * 100)}%）` : "")
+      + (adaptation.chargeInterval < 3 ? `（チャージ間隔: ${adaptation.chargeInterval}R）` : ""));
+  }
 
   const loopBody = extractMainLoopBody(ast);
   if (!loopBody) {
@@ -274,8 +288,15 @@ function applySingleMagicToEnemy(
     damage = applyCharLimit(damage, state.effectiveChars, enemy.data.charLimit);
   }
 
+  // Stage 6 学習型ラスボス: 耐性属性は 0.5x ダメージ
+  let resistTag = "";
+  if (enemy.data.adaptive && state.adaptation?.resistMagics.includes(magic)) {
+    damage = Math.max(1, Math.floor(damage * 0.5));
+    resistTag = " 耐性！";
+  }
+
   enemy.hp = Math.max(0, enemy.hp - damage);
-  addLog(state, "playerAction", `${magic} → ${enemy.data.name} ${damage}ダメージ`, { enemyHp: -damage, enemyIndex: idx });
+  addLog(state, "playerAction", `${magic} → ${enemy.data.name} ${damage}ダメージ${resistTag}`, { enemyHp: -damage, enemyIndex: idx });
 
   // HP 閾値による雑魚召喚チェック
   checkSummonThreshold(enemy, state);
@@ -358,10 +379,17 @@ function applyComboAoE(elements: Element[], count: number, state: MultiState): v
       damage = applyCharLimit(damage, state.effectiveChars, enemy.data.charLimit);
     }
 
+    // Stage 6 学習型ラスボス: 合体魔法ダメージ減衰
+    let comboTag = "";
+    if (enemy.data.adaptive && state.adaptation && state.adaptation.comboDamageMultiplier < 1) {
+      damage = Math.max(1, Math.floor(damage * state.adaptation.comboDamageMultiplier));
+      comboTag = " 合体耐性！";
+    }
+
     enemy.hp = Math.max(0, enemy.hp - damage);
     if (enemy.hp <= 0) totalDefeated++;
 
-    addLog(state, "comboMagic", `　${enemy.data.name} → ${damage}ダメージ！${enemy.hp <= 0 ? " 撃破！" : ""}`,
+    addLog(state, "comboMagic", `　${enemy.data.name} → ${damage}ダメージ！${comboTag}${enemy.hp <= 0 ? " 撃破！" : ""}`,
       { enemyHp: -damage, enemyIndex: i });
 
     // HP 閾値による雑魚召喚チェック
@@ -418,7 +446,11 @@ function enemyTurn(state: MultiState): void {
       }
       // チャージ開始判定: chargeAttack.interval ラウンドごとに開始
       // 例: interval=3 → R3, R6, R9... 開始 → R4, R7, R10... で発動
-      if (state.round > 0 && state.round % enemy.data.chargeAttack.interval === 0) {
+      // Stage 6 学習型ラスボス: adaptive な敵は adaptation.chargeInterval を優先
+      const interval = enemy.data.adaptive && state.adaptation
+        ? state.adaptation.chargeInterval
+        : enemy.data.chargeAttack.interval;
+      if (state.round > 0 && state.round % interval === 0) {
         enemy.charging = true;
         const msg = enemy.data.chargeAttack.chargeMessage
           ?? `${enemy.data.name} が力を溜めている…！次のラウンドに大攻撃が来る！`;

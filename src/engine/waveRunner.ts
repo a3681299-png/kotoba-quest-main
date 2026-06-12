@@ -51,6 +51,7 @@ export function runWave(
   startPlayerMp: number,
   npcAst?: ASTNode[],
   code = "",  // プレイヤーのコード文字列（文字数制限チェック用）
+  adaptation?: import("./adaptation").AdaptationConfig,  // Stage 6 Wave 5 用
 ): WaveResult {
   // Wave 単位で stateGimmick を上書き
   const waveConfig: StageConfig =
@@ -60,7 +61,7 @@ export function runWave(
 
   // 同時多体バトル（Stage4 Wave3）
   if (wave.simultaneous) {
-    return runSimultaneousBattle(ast, wave, waveConfig, startPlayerHp, startPlayerMp, code);
+    return runSimultaneousBattle(ast, wave, waveConfig, startPlayerHp, startPlayerMp, code, adaptation);
   }
 
   const enemyResults: EnemyBattleResult[] = [];

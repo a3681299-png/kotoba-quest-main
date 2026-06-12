@@ -530,8 +530,187 @@ export const STAGE6: StageData = {
   title: "最終決戦",
   theme: "学習型ラスボスによる総合振り返り",
   config: { stageNumber: 6, initialMaxMp: 100, playerAttack: 45, stateGimmick: null },
-  clearReward: { unlocksAttribute: null, message: "エンディング！" },
-  waves: [], // TODO
+  clearReward: { unlocksAttribute: null, message: "エンディング！すべてを乗り越えた！" },
+  waves: [
+    // ─── Wave 1: Stage 1 ボス強化版 ─────────────────
+    {
+      waveNumber: 1,
+      title: "Wave 1 — スライムキング 再戦",
+      description: "ステージ1のスライムキングが強くなって帰ってきた。基本に立ち返り、確実に攻めよう。",
+      hint: "Stage 1 と同じく、MP 管理しながら魔法と防御を切り替えよう。",
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 10 以上 ならば:",
+        "    魔法(フレイム)",
+        "  そうでなければ:",
+        "    待機()",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s6_slime_king",
+          name: "スライムキング・強",
+          maxHp: 225,    // 150 × 1.5
+          defense: 15,   // 10 × 1.5
+          element: null,
+          attackPatterns: [
+            { minDamage: 22, maxDamage: 30 },  // 15-20 × 1.5
+            { minDamage: 37, maxDamage: 45, condition: "hp_below_half" },  // 25-30 × 1.5
+          ],
+        },
+      ],
+    },
+    // ─── Wave 2: Stage 2 ボス強化版 ─────────────────
+    {
+      waveNumber: 2,
+      title: "Wave 2 — コードウォール 再戦",
+      description: "コードウォールが帰還。短く整理したコードで突破しよう。",
+      hint: "繰り返し構文で短く書こう！文字数を抑えると有利になる。",
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  繰り返す(5):",
+        "    魔法(アクア)",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s6_code_wall",
+          name: "コードウォール・強",
+          maxHp: 300,   // 200 × 1.5
+          defense: 22,  // 15 × 1.5
+          element: null,
+          attackPatterns: [
+            { minDamage: 27, maxDamage: 33 },  // 18-22 × 1.5
+            { minDamage: 42, maxDamage: 52, condition: "hp_below_half" },  // 28-35 × 1.5
+          ],
+        },
+      ],
+    },
+    // ─── Wave 3: Stage 3 ボス強化版（NPC マリア再登場）─────
+    {
+      waveNumber: 3,
+      title: "Wave 3 — ゴーレムキング 再戦",
+      description: "再びマリアと共に戦う。正しいコードを書いて連携合体魔法で突破しよう。",
+      hint: "プレイヤーとなかまで3属性を揃えると連携合体魔法が発動！マリアは風魔法を使うよ。",
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 80 以上 ならば:",
+        "    魔法(フレイム)",
+        "    魔法(アクア)",
+        "  そうでなければ:",
+        "    待機()",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s6_golem_king",
+          name: "ゴーレムキング・強",
+          maxHp: 240,    // 160 × 1.5
+          defense: 12,   // 8 × 1.5
+          element: null,
+          attackPatterns: [
+            { minDamage: 18, maxDamage: 27 },  // 12-18 × 1.5
+            { minDamage: 30, maxDamage: 42, condition: "hp_below_half" },  // 20-28 × 1.5
+          ],
+        },
+      ],
+      npc: {
+        name: "マリア",
+        npcSpeech: "また一緒に戦えるね！合体魔法で決めよう！",
+        bugDescription: "今回はバグなし。マリアが風魔法を使うだけ。",
+        buggyCode: [
+          "繰り返す(敵が生きている あいだ):",
+          "  もし 自分のMP が 80 以上 ならば:",
+          "    魔法(ゲイル)",
+          "  そうでなければ:",
+          "    待機()",
+        ].join("\n"),
+        correctCode: [
+          "繰り返す(敵が生きている あいだ):",
+          "  もし 自分のMP が 80 以上 ならば:",
+          "    魔法(ゲイル)",
+          "  そうでなければ:",
+          "    待機()",
+        ].join("\n"),
+      },
+    },
+    // ─── Wave 4: Stage 4 ボス強化版 ─────────────────
+    {
+      waveNumber: 4,
+      title: "Wave 4 — 状態変化ボス 再戦",
+      description: "状態変化ボスが強化されて帰還。条件分岐で属性を切り替えよう。",
+      hint: "敵の状態に合わせて魔法を切り替えよう。MP が貯まれば五属性合体魔法で一掃！",
+      stateGimmickOverride: { type: "wave2" },
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のMP が 120 以上 ならば:",
+        "    魔法(フレイム)",
+        "    魔法(アクア)",
+        "    魔法(スパーク)",
+        "    魔法(フロスト)",
+        "    魔法(ゲイル)",
+        "  そうでなければ もし 敵が火状態 ならば:",
+        "    魔法(フレイム)",
+        "  そうでなければ もし 敵が水状態 ならば:",
+        "    魔法(アクア)",
+        "  そうでなければ もし 敵が雷状態 ならば:",
+        "    魔法(スパーク)",
+        "  そうでなければ もし 敵が氷状態 ならば:",
+        "    魔法(フロスト)",
+        "  そうでなければ:",
+        "    魔法(ゲイル)",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s6_state_boss",
+          name: "状態変化ボス・強",
+          maxHp: 300,    // 200 × 1.5
+          defense: 22,   // 15 × 1.5
+          element: null,
+          attackPatterns: [
+            { minDamage: 30, maxDamage: 45 },  // 20-30 × 1.5
+            { minDamage: 45, maxDamage: 67, condition: "hp_below_half" },  // 30-45 × 1.5
+          ],
+        },
+      ],
+    },
+    // ─── Wave 5: 学習型ラスボス ─────────────────────
+    {
+      waveNumber: 5,
+      title: "Wave 5 — 学習型ラスボス",
+      description: "お前の戦い方は全て見ていた。お前の癖に適応した最後の試練だ。",
+      hint: "ラスボスは過去の戦いから学習している。よく使う属性は通りにくい。合体魔法に頼り切ると威力が落ちる。守りが多いと強攻撃の間隔が短くなる。今までと違う戦い方を試そう！",
+      simultaneous: true,
+      codeExample: [
+        "繰り返す(敵が生きている あいだ):",
+        "  もし 自分のHP が 50 以下 ならば:",
+        "    防御()",
+        "  そうでなければ もし 自分のMP が 100 以上 ならば:",
+        "    魔法(フレイム)",
+        "    魔法(アクア)",
+        "    魔法(スパーク)",
+        "    魔法(フロスト)",
+        "  そうでなければ:",
+        "    魔法(ゲイル)",
+      ].join("\n"),
+      enemies: [
+        {
+          id: "s6_final_boss",
+          name: "学習型ラスボス",
+          maxHp: 500,
+          defense: 10,
+          element: null,
+          adaptive: true,
+          attackPatterns: [
+            { minDamage: 25, maxDamage: 35 },
+            { minDamage: 35, maxDamage: 50, condition: "hp_below_half" },
+          ],
+          chargeAttack: {
+            interval: 3,
+            damage: 70,
+            chargeMessage: "ラスボスが力を溜めている…！次のラウンドに大攻撃が来る！",
+          },
+        },
+      ],
+    },
+  ],
 };
 
 // ─── ステージ一覧 ─────────────────────────────────────

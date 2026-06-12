@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { runWave, calcWaveTransition } from "./waveRunner";
 import { parse } from "../parser/parser";
-import { STAGE1, STAGE2, STAGE5 } from "../data/stageData";
+import { STAGE1, STAGE2, STAGE5, STAGE6 } from "../data/stageData";
+import { calcAdaptation } from "./adaptation";
+import type { ActionHistory } from "../store/useGameStore";
 
 function code(src: string) {
   const r = parse(src);
@@ -263,5 +265,80 @@ describe("Stage 5 Wave 3 ボス", () => {
       (l) => l.message.includes("コボルト") && l.message.includes("召喚")
     );
     expect(summonLog).toBeDefined();
+  });
+});
+
+// ─── Stage 6 Wave 5 学習型ラスボス ─────────────────
+
+describe("Stage 6 Wave 5 学習型ラスボス", () => {
+  it("Stage 6 Wave 5 のボスは adaptive フラグを持つ", () => {
+    const boss = STAGE6.waves[4].enemies[0];
+    expect(boss.adaptive).toBe(true);
+  });
+
+  it("適応設定なしでもバトルできる（履歴空）", () => {
+    const ast = code([
+      "繰り返す(敵が生きている あいだ):",
+      "  魔法(フレイム)",
+    ].join("\n"));
+    const wave = STAGE6.waves[4];
+    const result = runWave(ast, wave, STAGE6.config, 100, 100, undefined, "", undefined);
+    expect(result.allLogs).toBeDefined();
+    expect(result.allLogs!.length).toBeGreaterThan(0);
+  });
+
+  it("耐性属性のダメージが半減される", () => {
+    // フレイムを耐性に設定（履歴を作る）
+    const history: ActionHistory = {
+      magicUsage: { フレイム: 100, アクア: 80 },
+      comboCount: 0,
+      defendCount: 0,
+      healCount: 0,
+      totalRounds: 100,
+      totalBattles: 20,
+    };
+    const adaptation = calcAdaptation(history);
+    expect(adaptation.resistMagics).toContain("フレイム");
+
+    const ast = code([
+      "繰り返す(敵が生きている あいだ):",
+      "  魔法(フレイム)",
+    ].join("\n"));
+    const wave = STAGE6.waves[4];
+    const result = runWave(ast, wave, STAGE6.config, 100, 100, undefined, "", adaptation);
+    // 「耐性！」タグつきのログがある
+    const resistLog = result.allLogs?.find(
+      (l) => l.category === "playerAction" && l.message.includes("耐性")
+    );
+    expect(resistLog).toBeDefined();
+  });
+
+  it("合体魔法ダメージが減衰される", () => {
+    const history: ActionHistory = {
+      magicUsage: {},
+      comboCount: 30,
+      defendCount: 0,
+      healCount: 0,
+      totalRounds: 100,
+      totalBattles: 20,
+    };
+    const adaptation = calcAdaptation(history);
+    expect(adaptation.comboDamageMultiplier).toBeLessThan(1);
+
+    const ast = code([
+      "繰り返す(敵が生きている あいだ):",
+      "  もし 自分のMP が 80 以上 ならば:",
+      "    魔法(フレイム)",
+      "    魔法(アクア)",
+      "    魔法(スパーク)",
+      "  そうでなければ:",
+      "    待機()",
+    ].join("\n"));
+    const wave = STAGE6.waves[4];
+    const result = runWave(ast, wave, STAGE6.config, 100, 100, undefined, "", adaptation);
+    const comboReductionLog = result.allLogs?.find(
+      (l) => l.category === "comboMagic" && l.message.includes("合体耐性")
+    );
+    expect(comboReductionLog).toBeDefined();
   });
 });

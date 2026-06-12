@@ -6,6 +6,7 @@ import { getStage } from "@/data/stageData";
 import { parse } from "@/parser/parser";
 import { runWave } from "@/engine/waveRunner";
 import { countEffectiveChars } from "@/engine/charCounter";
+import { calcAdaptation } from "@/engine/adaptation";
 import { BattleAnimator } from "./BattleAnimator";
 import type { WaveResult } from "@/engine/waveRunner";
 import type { EnemyData } from "@/engine/types";
@@ -74,11 +75,18 @@ export function BattleScreen() {
       npcAst = npcParsed.ast;
     }
 
+    // Stage 6 学習型ラスボス: 行動履歴から適応設定を計算
+    const hasAdaptiveEnemy = wave.enemies.some((e) => e.adaptive);
+    const adaptation = hasAdaptiveEnemy
+      ? calcAdaptation(useGameStore.getState().actionHistory)
+      : undefined;
+
     const result = runWave(
       parsed.ast, wave, stage.config,
       currentWave.playerHp, currentWave.playerMp,
       npcAst,
       currentCode,   // 有効文字数チェック用
+      adaptation,
     );
     setWaveResult(result);
     setPhase("animating");

@@ -39,6 +39,9 @@ export interface EnemyData {
     damage: number;         // チャージ後の強攻撃ダメージ
     chargeMessage?: string; // チャージ中のセリフ（任意）
   };
+  // Stage 6 Wave 5 学習型ラスボス: 行動履歴に応じた適応を受ける
+  // true の場合、バトル開始前に AdaptationConfig が適用される
+  adaptive?: boolean;
 }
 
 // Wave 内で「召喚専用」として登録される敵テンプレート
