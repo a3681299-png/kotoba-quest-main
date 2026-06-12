@@ -5,6 +5,7 @@ import {
   getTacticalCardsForStage,
   removeCardSelection,
   type TacticalCard,
+  type TacticalCardView,
 } from "./tacticalCards";
 
 interface CardCommandBuilderProps {
@@ -30,7 +31,7 @@ export function CardCommandBuilder({
 
   const selectedCards = selectedIds
     .map((id) => cards.find((card) => card.id === id))
-    .filter((card): card is TacticalCard => Boolean(card));
+    .filter((card): card is TacticalCardView => Boolean(card));
 
   const chooseCard = (card: TacticalCard) => {
     if (disabled) return;
@@ -76,12 +77,17 @@ export function CardCommandBuilder({
         {cards.map((card) => (
           <button
             key={card.id}
-            className={`tactical-card ${card.kind}`}
+            className={`tactical-card ${card.kind}${
+              card.isRecommended ? " recommended" : ""
+            }`}
             onClick={() => chooseCard(card)}
             disabled={disabled}
             type="button"
           >
             <span className="card-kind">{KIND_LABELS[card.kind]}</span>
+            {card.isRecommended && (
+              <span className="card-context">文脈</span>
+            )}
             <span className="card-cost">{card.cost}</span>
             <span className="card-title">{card.label}</span>
             <span className="card-code">{card.code}</span>

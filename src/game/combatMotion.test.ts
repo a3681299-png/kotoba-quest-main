@@ -12,14 +12,18 @@ describe("combat motion profiles", () => {
   it("stages player attacks with anticipation, smear trails, and hit-stop", () => {
     const motion = getPlayerAttackMotion("fire");
 
-    expect(motion.startupMs).toBeGreaterThanOrEqual(120);
-    expect(motion.travelMs).toBeGreaterThanOrEqual(500);
+    expect(motion.startupMs).toBeGreaterThanOrEqual(200);
+    expect(motion.travelMs).toBeGreaterThanOrEqual(680);
     expect(motion.trailCopies).toBeGreaterThanOrEqual(4);
-    expect(motion.hitStopMs).toBeGreaterThanOrEqual(80);
-    expect(motion.impactShake).toBeGreaterThanOrEqual(14);
+    expect(motion.hitStopMs).toBeGreaterThanOrEqual(130);
+    expect(motion.impactShake).toBeGreaterThanOrEqual(18);
     expect(motion.impactFlashAlpha).toBeGreaterThanOrEqual(0.18);
-    expect(motion.targetShakeMs).toBeGreaterThanOrEqual(300);
-    expect(motion.recoveryMs).toBeGreaterThanOrEqual(200);
+    expect(motion.targetShakeMs).toBeGreaterThanOrEqual(400);
+    expect(motion.recoveryMs).toBeGreaterThanOrEqual(340);
+    expect(motion.strikeFocusMs).toBeGreaterThanOrEqual(120);
+    expect(motion.animationSpeed).toBeLessThanOrEqual(0.26);
+    expect(motion.slowMotionMs).toBeGreaterThanOrEqual(180);
+    expect(motion.slowMotionAnimationSpeed).toBeLessThan(motion.animationSpeed);
   });
 
   it("makes heavy enemy attacks slower and more forceful than normal attacks", () => {

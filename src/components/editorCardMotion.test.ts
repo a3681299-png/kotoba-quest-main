@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   editorCardVariants,
   getEditorCardClassName,
+  isPreparationDeskOpen,
   shouldRunCodeAfterCardAnimation,
 } from "./editorCardMotion";
 
@@ -26,12 +27,71 @@ describe("editorCardVariants", () => {
 describe("getEditorCardClassName", () => {
   it("marks only the ready editor as an active hand card", () => {
     expect(getEditorCardClassName("ready")).toBe(
-      "code-area code-workbench is-ready",
+      "code-area code-workbench battle-command-hud is-ready",
     );
-    expect(getEditorCardClassName("entering")).toBe("code-area code-workbench");
+    expect(getEditorCardClassName("entering")).toBe(
+      "code-area code-workbench battle-command-hud",
+    );
     expect(getEditorCardClassName("submitting")).toBe(
-      "code-area code-workbench",
+      "code-area code-workbench battle-command-hud",
     );
+  });
+
+  it("uses a desk surface class for the preparation card table", () => {
+    expect(getEditorCardClassName("ready", "desk")).toBe(
+      "code-area code-workbench preparation-desk is-ready",
+    );
+    expect(getEditorCardClassName("submitting", "desk")).toBe(
+      "code-area code-workbench preparation-desk",
+    );
+  });
+});
+
+describe("isPreparationDeskOpen", () => {
+  it("opens only during the visible player preparation phase", () => {
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("stays closed while dialogue, execution, or result screens own the view", () => {
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: true,
+        showVictory: false,
+        showDefeat: false,
+      }),
+    ).toBe(false);
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "executing",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+      }),
+    ).toBe(false);
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: true,
+        showDefeat: false,
+      }),
+    ).toBe(false);
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: true,
+      }),
+    ).toBe(false);
   });
 });
 

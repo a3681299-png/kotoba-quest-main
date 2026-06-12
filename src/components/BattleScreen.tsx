@@ -6,6 +6,7 @@ import {
   updateEnemyAppearance,
   playDefeatAnimation,
   playEnemyAttackAnimation,
+  settlePlayerAttackSequence,
   destroyBattleScene,
 } from "../game/BattleScene";
 import { parse } from "../parser/parser";
@@ -18,6 +19,7 @@ import { parseCombatLogEntry } from "./combatText";
 import {
   editorCardVariants,
   getEditorCardClassName,
+  isPreparationDeskOpen,
   shouldRunCodeAfterCardAnimation,
   type EditorCardMotionState,
 } from "./editorCardMotion";
@@ -79,6 +81,21 @@ export function BattleScreen() {
     introDialogueIndex >= 0 ? stage.introDialogue[introDialogueIndex] : null;
   const isIntroDialogueOpen = Boolean(activeIntroLine);
   const battleFieldPresentation = getBattleFieldPresentation(battlePhase);
+  const isPreparationDeskVisible = isPreparationDeskOpen({
+    battlePhase,
+    isIntroDialogueOpen,
+    showVictory,
+    showDefeat,
+  });
+  const shouldRenderCommandSurface =
+    !showVictory &&
+    !showDefeat &&
+    (isPreparationDeskVisible || editorCardMotionState === "submitting");
+  const isCommandInputDisabled =
+    isExecuting || editorCardMotionState !== "ready";
+  const battleFieldClassName = `${battleFieldPresentation.className}${
+    isPreparationDeskVisible ? " is-preparation-hidden" : ""
+  }`;
   const floatingCombatText = battleLog.slice(-3).map((log) => ({
     raw: log,
     ...parseCombatLogEntry(log),
@@ -195,12 +212,12 @@ export function BattleScreen() {
     currentEnemyHp: number,
   ): Promise<number> => {
     if (action.type === "attack") {
-      await playAttackAnimation(action.attackType);
+      await playAttackAnimation(action.attackType, action.damage);
       const newHp = Math.max(0, currentEnemyHp - action.damage);
       return newHp;
     }
     if (action.type === "meaning") {
-      await playAttackAnimation("normal");
+      await playAttackAnimation("normal", action.amount);
       const newHp = Math.max(0, currentEnemyHp - action.amount);
       return newHp;
     }
@@ -353,13 +370,16 @@ export function BattleScreen() {
     let currentEnemyHp = useGameStore.getState().enemyHp;
     let totalImpact = 0;
     let usedMeaningAction = false;
+    let playedAttackSequence = false;
 
     for (const action of result.actions) {
       if (action.type === "attack") {
+        playedAttackSequence = true;
         totalImpact += action.damage;
         currentEnemyHp = await executeAction(action, currentEnemyHp);
         useGameStore.getState().damageEnemy(action.damage);
       } else if (action.type === "meaning") {
+        playedAttackSequence = true;
         totalImpact += action.amount;
         usedMeaningAction = true;
         currentEnemyHp = await executeAction(action, currentEnemyHp);
@@ -384,12 +404,17 @@ export function BattleScreen() {
       // 敵を倒したか
       if (finalEnemyHp <= 0) {
         await playDefeatAnimation();
+        await settlePlayerAttackSequence();
         addLog(`${stage.enemyName}を倒した！`, "success");
         setBattlePhase("victory");
         setShowVictory(true);
         setIsExecuting(false);
         return;
       }
+    }
+
+    if (playedAttackSequence) {
+      await settlePlayerAttackSequence();
     }
 
     // 敵のターンへ
@@ -459,42 +484,50 @@ export function BattleScreen() {
     <div className="battle-screen-container">
       <div className="battle-screen">
         <div
-          className={battleFieldPresentation.className}
+          className={battleFieldClassName}
           aria-label={battleFieldPresentation.overlayLabel}
+          aria-hidden={isPreparationDeskVisible}
         >
           <div ref={canvasRef} className="battle-canvas" />
           <div className="battle-phase-light" aria-hidden="true" />
-          <div className="floating-combat-text" aria-live="polite">
-            {floatingCombatText.map((entry, index) => (
-              <div
-                key={`${entry.raw}-${index}`}
-                className={`combat-text-pop ${entry.type}`}
-                style={{ "--combat-text-index": index } as CSSProperties}
-              >
-                {entry.message}
-              </div>
-            ))}
-          </div>
-          <div className="phase-icon-strip" aria-label="現在のフェーズ">
-            {phaseIconSteps.map((step) => (
-              <span
-                key={step.id}
-                className={`phase-icon ${
-                  step.phases.includes(battlePhase) ? "active" : ""
-                }`}
-                aria-label={step.label}
-                title={step.label}
-              >
-                {step.icon}
-              </span>
-            ))}
-          </div>
+          {!isPreparationDeskVisible && (
+            <div className="floating-combat-text" aria-live="polite">
+              {floatingCombatText.map((entry, index) => (
+                <div
+                  key={`${entry.raw}-${index}`}
+                  className={`combat-text-pop ${entry.type}`}
+                  style={{ "--combat-text-index": index } as CSSProperties}
+                >
+                  {entry.message}
+                </div>
+              ))}
+            </div>
+          )}
+          {!isPreparationDeskVisible && (
+            <div className="phase-icon-strip" aria-label="現在のフェーズ">
+              {phaseIconSteps.map((step) => (
+                <span
+                  key={step.id}
+                  className={`phase-icon ${
+                    step.phases.includes(battlePhase) ? "active" : ""
+                  }`}
+                  aria-label={step.label}
+                  title={step.label}
+                >
+                  {step.icon}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* コードエディタエリア */}
-        {!isIntroDialogueOpen && (
+        {!isIntroDialogueOpen && shouldRenderCommandSurface && (
           <motion.div
-            className={getEditorCardClassName(editorCardMotionState)}
+            className={getEditorCardClassName(
+              editorCardMotionState,
+              isPreparationDeskVisible ? "desk" : "battle",
+            )}
             variants={editorCardVariants}
             initial="entering"
             animate={editorCardMotionState}
@@ -504,12 +537,24 @@ export function BattleScreen() {
                 editorCardMotionState === "ready" ? "auto" : "none",
             }}
           >
+            {isPreparationDeskVisible && (
+              <>
+                <div className="desk-surface" aria-hidden="true" />
+                <div className="desk-stage-note">
+                  <span className="desk-phase-label">準備</span>
+                  <span className="desk-stage-name">{stage.name}</span>
+                  <span className="desk-enemy-context">
+                    {stage.enemyTrait}
+                  </span>
+                </div>
+              </>
+            )}
             <section className="code-editor-panel" aria-label="戦闘ロジック">
               <CodeEditor
                 ref={codeEditorRef}
                 value={code}
                 onChange={handleCodeChange}
-                disabled={isExecuting}
+                disabled={isCommandInputDisabled}
                 placeholder={`例: ${stage.sampleCode.split("\n")[0]}`}
               />
             </section>
@@ -518,15 +563,13 @@ export function BattleScreen() {
               key={`${stage.id}-${cardBuilderResetKey}`}
               stageId={stage.id}
               onCodeChange={handleCodeChange}
-              disabled={isExecuting}
+              disabled={isCommandInputDisabled}
             />
 
             <button
               className="execute-button"
               onClick={handleConfirmCode}
-              disabled={
-                isExecuting || !code.trim() || editorCardMotionState !== "ready"
-              }
+              disabled={isCommandInputDisabled || !code.trim()}
             >
               {isExecuting || editorCardMotionState === "submitting"
                 ? "詠唱中..."
@@ -538,6 +581,7 @@ export function BattleScreen() {
         {activeIntroLine && (
           <IntroDialogue
             line={activeIntroLine}
+            playerPortraitUrl={stage.mentorPortraitUrl}
             isLastLine={introDialogueIndex === stage.introDialogue.length - 1}
             onNext={advanceIntroDialogue}
             onSkip={closeIntroDialogue}

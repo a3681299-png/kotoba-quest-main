@@ -1,5 +1,11 @@
 // チュートリアル6ステージ定義
 // 仕様書の「言葉の意味を探すRPG」を5分程度で体験するための短い構成
+import contractMentorPortraitUrl from "../assets/characters/battle/2/1.png";
+import princessMentorPortraitUrl from "../assets/characters/battle/2/3.png";
+import plantMentorPortraitUrl from "../assets/characters/battle/1/2.png";
+import puppetMentorPortraitUrl from "../assets/characters/battle/4/2.png";
+import clownMentorPortraitUrl from "../assets/characters/battle/5/2.png";
+import librarianMentorPortraitUrl from "../assets/characters/battle/6/2.png";
 
 export interface StageDialogueLine {
   speaker: "player" | "enemy";
@@ -20,6 +26,7 @@ export interface StageData {
   concept: string;
   mentorName: string;
   mentorRole: string;
+  mentorPortraitUrl: string;
   playerName: string;
   enemyTrait: string;
   introDialogue: StageDialogueLine[];
@@ -35,6 +42,7 @@ export const STAGES: StageData[] = [
     concept: "順次実行",
     mentorName: "人形師",
     mentorRole: "言葉を命令として扱う",
+    mentorPortraitUrl: puppetMentorPortraitUrl,
     playerName: "人形師",
     enemyTrait: "攻撃がそのまま意味を持つ相手",
     introDialogue: [
@@ -71,6 +79,7 @@ export const STAGES: StageData[] = [
     concept: "条件分岐",
     mentorName: "契約者",
     mentorRole: "条件を満たした時だけ言葉を発動させる",
+    mentorPortraitUrl: contractMentorPortraitUrl,
     playerName: "契約者",
     enemyTrait: "弱っている時だけ攻撃が通る",
     introDialogue: [
@@ -105,6 +114,7 @@ export const STAGES: StageData[] = [
     concept: "くりかえし",
     mentorName: "植物の魔女",
     mentorRole: "言葉を循環として扱う",
+    mentorPortraitUrl: plantMentorPortraitUrl,
     playerName: "植物の魔女",
     enemyTrait: "一度ではほどけないが、同じ働きの反復に弱い",
     introDialogue: [
@@ -137,6 +147,7 @@ export const STAGES: StageData[] = [
     concept: "変数",
     mentorName: "司書",
     mentorRole: "言葉を記録として扱う",
+    mentorPortraitUrl: librarianMentorPortraitUrl,
     playerName: "司書",
     enemyTrait: "記録した言葉を使うと反応する",
     introDialogue: [
@@ -171,6 +182,7 @@ export const STAGES: StageData[] = [
     concept: "関数",
     mentorName: "幽閉の姫",
     mentorRole: "言葉をまとまった命令として渡す",
+    mentorPortraitUrl: princessMentorPortraitUrl,
     playerName: "幽閉の姫",
     enemyTrait: "まとまった作戦でだけ開く",
     introDialogue: [
@@ -205,6 +217,7 @@ export const STAGES: StageData[] = [
     concept: "そうでなければ",
     mentorName: "道化師",
     mentorRole: "言葉を反転と例外として扱う",
+    mentorPortraitUrl: clownMentorPortraitUrl,
     playerName: "道化師",
     enemyTrait: "敵ではない時だけ手を伸ばせる",
     introDialogue: [

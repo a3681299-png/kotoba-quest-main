@@ -10,6 +10,10 @@ export interface TacticalCard {
   stageIds: number[];
 }
 
+export interface TacticalCardView extends TacticalCard {
+  isRecommended: boolean;
+}
+
 const CARD_POOL: TacticalCard[] = [
   {
     id: "attack",
@@ -112,12 +116,29 @@ const CARD_POOL: TacticalCard[] = [
   },
 ];
 
-export function getTacticalCardsForStage(stageId: number): TacticalCard[] {
-  return CARD_POOL.filter((card) => card.stageIds.includes(stageId)).sort(
+export function getAllTacticalCards(): TacticalCard[] {
+  return CARD_POOL.map((card) => ({ ...card, stageIds: [...card.stageIds] }));
+}
+
+function getStageContextRank(card: TacticalCardView, stageId: number): number {
+  if (!card.isRecommended) return 2;
+  return card.stageIds[0] === stageId ? 0 : 1;
+}
+
+export function getTacticalCardsForStage(stageId: number): TacticalCardView[] {
+  return CARD_POOL.map((card) => ({
+    ...card,
+    stageIds: [...card.stageIds],
+    isRecommended: card.stageIds.includes(stageId),
+  })).sort(
     (a, b) => {
-      const aStageSpecific = a.stageIds[0] === stageId ? 0 : 1;
-      const bStageSpecific = b.stageIds[0] === stageId ? 0 : 1;
-      return aStageSpecific - bStageSpecific;
+      const contextRank =
+        getStageContextRank(a, stageId) - getStageContextRank(b, stageId);
+      if (contextRank !== 0) return contextRank;
+      return (
+        CARD_POOL.findIndex((card) => card.id === a.id) -
+        CARD_POOL.findIndex((card) => card.id === b.id)
+      );
     },
   );
 }

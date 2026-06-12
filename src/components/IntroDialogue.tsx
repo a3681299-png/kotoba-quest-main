@@ -5,6 +5,7 @@ import type { StageDialogueLine } from "../data/stages";
 
 interface IntroDialogueProps {
   line: StageDialogueLine;
+  playerPortraitUrl: string;
   isLastLine: boolean;
   onNext: () => void;
   onSkip: () => void;
@@ -12,6 +13,7 @@ interface IntroDialogueProps {
 
 export function IntroDialogue({
   line,
+  playerPortraitUrl,
   isLastLine,
   onNext,
   onSkip,
@@ -39,9 +41,10 @@ export function IntroDialogue({
       <div
         className={`intro-portrait player ${
           line.speaker === "player" ? "active" : "inactive"
-        }`}
+        } has-image`}
         aria-hidden="true"
       >
+        <img className="intro-portrait-image" src={playerPortraitUrl} alt="" />
         <span>{line.speaker === "player" ? line.name : "導き手"}</span>
       </div>
 

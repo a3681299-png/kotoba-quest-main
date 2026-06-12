@@ -1,6 +1,15 @@
 import type { Variants } from "framer-motion";
+import type { BattlePhase } from "../store/useGameStore";
 
 export type EditorCardMotionState = "entering" | "ready" | "submitting";
+export type EditorSurface = "battle" | "desk";
+
+interface PreparationDeskState {
+  battlePhase: BattlePhase;
+  isIntroDialogueOpen: boolean;
+  showVictory: boolean;
+  showDefeat: boolean;
+}
 
 export const editorCardVariants: Variants = {
   entering: {
@@ -41,9 +50,26 @@ export const editorCardVariants: Variants = {
 
 export function getEditorCardClassName(
   state: EditorCardMotionState,
+  surface: EditorSurface = "battle",
 ): string {
-  const baseClassName = "code-area code-workbench";
+  const surfaceClassName =
+    surface === "desk" ? "preparation-desk" : "battle-command-hud";
+  const baseClassName = `code-area code-workbench ${surfaceClassName}`;
   return state === "ready" ? `${baseClassName} is-ready` : baseClassName;
+}
+
+export function isPreparationDeskOpen({
+  battlePhase,
+  isIntroDialogueOpen,
+  showVictory,
+  showDefeat,
+}: PreparationDeskState): boolean {
+  return (
+    battlePhase === "player_turn" &&
+    !isIntroDialogueOpen &&
+    !showVictory &&
+    !showDefeat
+  );
 }
 
 export function shouldRunCodeAfterCardAnimation(

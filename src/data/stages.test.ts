@@ -40,4 +40,20 @@ describe("tutorial stage data", () => {
       );
     }
   });
+
+  it("assigns the new mentor portraits to the tutorial stages", () => {
+    expect(
+      STAGES.map((stage) => ({
+        mentor: stage.mentorName,
+        portrait: stage.mentorPortraitUrl,
+      })),
+    ).toEqual([
+      expect.objectContaining({ mentor: "人形師", portrait: expect.stringContaining("/4/2.png") }),
+      expect.objectContaining({ mentor: "契約者", portrait: expect.stringContaining("/2/1.png") }),
+      expect.objectContaining({ mentor: "植物の魔女", portrait: expect.stringContaining("/1/2.png") }),
+      expect.objectContaining({ mentor: "司書", portrait: expect.stringContaining("/6/2.png") }),
+      expect.objectContaining({ mentor: "幽閉の姫", portrait: expect.stringContaining("/2/3.png") }),
+      expect.objectContaining({ mentor: "道化師", portrait: expect.stringContaining("/5/2.png") }),
+    ]);
+  });
 });

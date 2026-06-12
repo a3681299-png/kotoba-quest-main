@@ -1,14 +1,15 @@
+import { animate } from "animejs";
 import * as PIXI from "pixi.js";
 
 import tutorialGroundUrl from "../assets/backgrounds/チュートリアル/ground.png";
 import tutorialPillarUrl from "../assets/backgrounds/チュートリアル/pillar.png";
 import tutorialWallUrl from "../assets/backgrounds/チュートリアル/wall.png";
-import enemyAttackUrl from "../assets/characters/battle/チュートリアル/敵/攻撃/body_export_攻撃.png";
-import enemyDamageUrl from "../assets/characters/battle/チュートリアル/敵/ダメージ/body_export_ダメージ.png";
-import enemyIdleUrl from "../assets/characters/battle/チュートリアル/敵/待機/body_export_待機.png";
-import playerAttackUrl from "../assets/characters/battle/チュートリアル/攻撃/body_export_攻撃.png";
-import playerDamageUrl from "../assets/characters/battle/チュートリアル/ダメージ/body_export_ダメージ.png";
-import playerIdleUrl from "../assets/characters/battle/チュートリアル/待機/body_export_待機.png";
+import {
+  ENEMY_SHEETS,
+  PLAYER_SHEETS,
+  type CharacterSheetDefinition,
+  type SpriteSheetDefinition,
+} from "./characterAssets";
 import {
   calculateLayerLayout,
   type LayerVerticalAlign,
@@ -22,6 +23,15 @@ import {
   sampleAttackArc,
   type CombatMotionProfile,
 } from "./combatMotion";
+import {
+  buildPlayerMeleeAttackPlan,
+  type CameraTransform,
+} from "./cameraMotion";
+import {
+  buildImpactEffectPlan,
+  buildScatterOffsets,
+  type ImpactEffectPlan,
+} from "./battleEffects";
 
 interface BackgroundLayer {
   src: string;
@@ -34,41 +44,25 @@ const BACKGROUND_LAYERS: BackgroundLayer[] = [
   { src: tutorialGroundUrl, verticalAlign: "bottom" },
 ];
 
-interface SpriteSheetDefinition {
-  src: string;
-  columns: number;
-  rows: number;
-}
-
-interface CharacterSheetDefinition {
-  idle: SpriteSheetDefinition;
-  attack: SpriteSheetDefinition;
-  damage: SpriteSheetDefinition;
-  targetHeight: number;
-}
-
 interface CharacterAnimations {
   idle: PIXI.Texture[];
   attack: PIXI.Texture[];
   damage: PIXI.Texture[];
 }
 
-const PLAYER_SHEETS: CharacterSheetDefinition = {
-  idle: { src: playerIdleUrl, columns: 8, rows: 8 },
-  attack: { src: playerAttackUrl, columns: 7, rows: 7 },
-  damage: { src: playerDamageUrl, columns: 5, rows: 5 },
-  targetHeight: 235,
-};
-
-const ENEMY_SHEETS: CharacterSheetDefinition = {
-  idle: { src: enemyIdleUrl, columns: 8, rows: 8 },
-  attack: { src: enemyAttackUrl, columns: 6, rows: 5 },
-  damage: { src: enemyDamageUrl, columns: 6, rows: 5 },
-  targetHeight: 220,
-};
+interface PlayerEngagement {
+  home: {
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+  };
+  shadowHome: { x: number; y: number } | null;
+}
 
 // Pixi.jsアプリケーションインスタンス
 let app: PIXI.Application | null = null;
+let battleWorld: PIXI.Container | null = null;
 
 // スプライトの参照
 let playerSprite: PIXI.AnimatedSprite | null = null;
@@ -80,6 +74,9 @@ let enemyAnimations: CharacterAnimations | null = null;
 let enemyBaseScale = 1;
 let idleTicker: ((ticker: PIXI.Ticker) => void) | null = null;
 let idleStartTime = 0;
+let isPlayerAttackAnimating = false;
+let playerIdleBaseY = 0;
+let playerEngagement: PlayerEngagement | null = null;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,6 +104,19 @@ function animateFor(
 
     requestAnimationFrame(animate);
   });
+}
+
+function tweenNumberProps(
+  target: Record<string, number>,
+  values: Record<string, number>,
+  options: { duration: number; ease?: string; onRender?: () => void },
+): Promise<void> {
+  return animate(target, {
+    ...values,
+    duration: options.duration,
+    ease: options.ease ?? "outQuad",
+    onRender: options.onRender,
+  }).then(() => undefined);
 }
 
 async function loadCharacterAnimations(
@@ -182,6 +192,9 @@ export async function initBattleScene(
     app.canvas.style.height = "100%";
     container.appendChild(app.canvas);
 
+    battleWorld = new PIXI.Container();
+    app.stage.addChild(battleWorld);
+
     // 背景を描画
     await drawBackground();
 
@@ -205,9 +218,10 @@ export async function initBattleScene(
 
 // 背景の描画
 async function drawBackground() {
-  if (!app || !app.stage) return;
+  if (!app || !battleWorld) return;
 
   const activeApp = app;
+  const activeWorld = battleWorld;
   const viewport = {
     width: activeApp.screen.width,
     height: activeApp.screen.height,
@@ -215,7 +229,7 @@ async function drawBackground() {
 
   for (const layer of BACKGROUND_LAYERS) {
     const texture = await PIXI.Assets.load<PIXI.Texture>(layer.src);
-    if (app !== activeApp || !activeApp.stage) return;
+    if (app !== activeApp || battleWorld !== activeWorld) return;
 
     const layout = calculateLayerLayout({
       viewport,
@@ -228,7 +242,7 @@ async function drawBackground() {
     sprite.y = layout.y;
     sprite.scale.set(layout.scale);
 
-    activeApp.stage.addChild(sprite);
+    activeWorld.addChild(sprite);
   }
 }
 
@@ -243,12 +257,13 @@ function createGroundShadow(x: number, y: number, width: number): PIXI.Graphics 
 
 // プレイヤースプライトの作成
 function createPlayerSprite() {
-  if (!app || !app.stage || !playerAnimations) return;
+  if (!app || !battleWorld || !playerAnimations) return;
 
   const x = app.screen.width * 0.25;
   const y = app.screen.height * 0.72;
+  playerIdleBaseY = y;
   playerShadow = createGroundShadow(x, y + 6, 58);
-  app.stage.addChild(playerShadow);
+  battleWorld.addChild(playerShadow);
 
   playerSprite = createCharacterSprite(
     playerAnimations,
@@ -257,17 +272,17 @@ function createPlayerSprite() {
     y,
   );
 
-  app.stage.addChild(playerSprite);
+  battleWorld.addChild(playerSprite);
 }
 
 // 敵スプライトの作成
 function createEnemySprite() {
-  if (!app || !app.stage || !enemyAnimations) return;
+  if (!app || !battleWorld || !enemyAnimations) return;
 
   const x = app.screen.width * 0.75;
   const y = app.screen.height * 0.72;
   enemyShadow = createGroundShadow(x, y + 5, 64);
-  app.stage.addChild(enemyShadow);
+  battleWorld.addChild(enemyShadow);
 
   enemySprite = createCharacterSprite(
     enemyAnimations,
@@ -277,7 +292,7 @@ function createEnemySprite() {
   );
   enemyBaseScale = enemySprite.scale.x;
 
-  app.stage.addChild(enemySprite);
+  battleWorld.addChild(enemySprite);
 }
 
 function createCharacterSprite(
@@ -329,10 +344,11 @@ async function playMomentaryCharacterAnimation(
   animations: CharacterAnimations | null,
   state: "attack" | "damage",
   durationMs: number,
+  speed = 0.28,
 ) {
   setCharacterAnimation(sprite, animations, state, {
     loop: false,
-    speed: 0.34,
+    speed,
   });
   await wait(durationMs);
   restoreIdleAnimation(sprite, animations);
@@ -351,7 +367,9 @@ function startIdleMotion() {
     const enemyBob = Math.sin(elapsed * 1.8 + 0.6) * 5;
     const enemyBreath = Math.sin(elapsed * 1.8 + 0.6) * 0.025;
 
-    playerSprite.y = activeApp.screen.height * 0.72 + playerBob;
+    if (!isPlayerAttackAnimating) {
+      playerSprite.y = playerIdleBaseY + playerBob;
+    }
     enemySprite.y = activeApp.screen.height * 0.72 + enemyBob;
     enemySprite.scale.set(
       enemyBaseScale * (1 - enemyBreath),
@@ -375,18 +393,28 @@ function startIdleMotion() {
 // 攻撃アニメーション
 export function playAttackAnimation(
   attackType: "fire" | "ice" | "thunder" | "normal" = "fire",
+  damageAmount?: number,
 ): Promise<void> {
-  return playPlayerAttack(attackType);
+  if (isPlayerAttackAnimating) {
+    return Promise.resolve();
+  }
+
+  isPlayerAttackAnimating = true;
+  return playPlayerAttack(attackType, damageAmount).finally(() => {
+    isPlayerAttackAnimating = false;
+  });
 }
 
 async function playPlayerAttack(
   attackType: "fire" | "ice" | "thunder" | "normal",
+  damageAmount?: number,
 ): Promise<void> {
-  if (!app || !app.stage || !playerSprite || !enemySprite) {
+  if (!app || !battleWorld || !playerSprite || !enemySprite) {
     return;
   }
 
   const activeApp = app;
+  const activeWorld = battleWorld;
   const motion = getPlayerAttackMotion(attackType);
   const colors: Record<typeof attackType, number> = {
     fire: 0xe94560,
@@ -395,50 +423,735 @@ async function playPlayerAttack(
     normal: 0xffffff,
   };
   const color = colors[attackType];
+  const hitDirection = enemySprite.x >= playerSprite.x ? 1 : -1;
+  const impactPlan = buildImpactEffectPlan({
+    motion,
+    direction: hitDirection,
+    damage: damageAmount,
+  });
+
+  const wasEngaged = playerEngagement !== null;
+  if (!playerEngagement) {
+    playerEngagement = {
+      home: {
+        x: playerSprite.x,
+        y: playerSprite.y,
+        scaleX: playerSprite.scale.x,
+        scaleY: playerSprite.scale.y,
+      },
+      shadowHome: playerShadow
+        ? { x: playerShadow.x, y: playerShadow.y }
+        : null,
+    };
+  }
+
+  const plan = buildPlayerMeleeAttackPlan({
+    viewport: {
+      width: activeApp.screen.width,
+      height: activeApp.screen.height,
+    },
+    player: { x: playerSprite.x, y: playerSprite.y },
+    enemy: { x: enemySprite.x, y: enemySprite.y },
+    isEngaged: wasEngaged,
+  });
+
+  if (plan.shouldEnter) {
+    await applyCameraTransform(activeWorld, plan.closeUp, motion.startupMs);
+    if (app !== activeApp || battleWorld !== activeWorld || !playerSprite) {
+      return;
+    }
+
+    playCharacterAfterimages(playerSprite, impactPlan.afterimages);
+    await Promise.all([
+      applyCameraTransform(activeWorld, plan.follow, motion.travelMs),
+      movePlayerTowardEnemy(playerSprite, playerShadow, plan.approach, motion),
+    ]);
+  }
+
+  if (
+    app !== activeApp ||
+    battleWorld !== activeWorld ||
+    !playerSprite ||
+    !enemySprite
+  ) {
+    return;
+  }
+
+  await applyCameraTransform(
+    activeWorld,
+    plan.strike,
+    plan.shouldEnter
+      ? motion.strikeFocusMs
+      : Math.round(motion.strikeFocusMs * 0.45),
+  );
+
+  if (app !== activeApp || battleWorld !== activeWorld || !playerSprite) {
+    return;
+  }
 
   setCharacterAnimation(playerSprite, playerAnimations, "attack", {
     loop: false,
-    speed: 0.34,
+    speed: motion.animationSpeed,
   });
   await playCasterAnticipation(playerSprite, motion);
 
-  if (app !== activeApp || !playerSprite || !enemySprite) {
-    return;
-  }
-
-  const start = { x: playerSprite.x + 54, y: playerSprite.y - 36 };
-  const target = { x: enemySprite.x, y: enemySprite.y - 8 };
-  const { projectile, trails } = createProjectileEffect(
+  const target = { x: enemySprite.x, y: enemySprite.y - 22 };
+  playImpactEffects({
+    targetSprite: enemySprite,
+    x: target.x,
+    y: target.y,
     color,
-    motion.projectileRadius,
-    motion.trailCopies,
-  );
-
-  activeApp.stage.addChild(...trails, projectile);
-
-  await animateProjectile(activeApp, projectile, trails, start, target, motion);
-  removeDisplayObjects([projectile, ...trails]);
-
-  if (app !== activeApp) {
-    return;
-  }
-
-  playImpactFlash(color, motion.impactFlashAlpha);
-  playHitEffect(target.x, target.y, color, motion);
+    plan: impactPlan,
+  });
   void playMomentaryCharacterAnimation(
     enemySprite,
     enemyAnimations,
     "damage",
-    360,
+    Math.max(420, motion.targetShakeMs),
+    motion.animationSpeed,
   );
   shakeStage(Math.max(4, motion.impactShake * 0.28), motion.stageShakeMs);
 
-  if (enemySprite) {
-    shakeSprite(enemySprite, motion.impactShake, motion.targetShakeMs);
+  await wait(motion.hitStopMs);
+  await playSlowMotionBeat([playerSprite, enemySprite], motion);
+  restoreIdleAnimation(playerSprite, playerAnimations);
+}
+
+export async function settlePlayerAttackSequence(): Promise<void> {
+  if (
+    !app ||
+    !battleWorld ||
+    !playerSprite ||
+    !playerEngagement ||
+    isPlayerAttackAnimating
+  ) {
+    return;
   }
 
-  await wait(motion.hitStopMs + motion.recoveryMs);
-  restoreIdleAnimation(playerSprite, playerAnimations);
+  const activeApp = app;
+  const activeWorld = battleWorld;
+  const engagement = playerEngagement;
+  const motion = getPlayerAttackMotion("normal");
+
+  isPlayerAttackAnimating = true;
+  try {
+    await Promise.all([
+      applyCameraTransform(
+        activeWorld,
+        { x: 0, y: 0, scale: 1 },
+        motion.recoveryMs,
+      ),
+      resetPlayerPosition(
+        playerSprite,
+        playerShadow,
+        engagement.home,
+        engagement.shadowHome,
+        motion,
+      ),
+    ]);
+  } finally {
+    if (app === activeApp && battleWorld === activeWorld) {
+      playerEngagement = null;
+      playerIdleBaseY = engagement.home.y;
+    }
+    isPlayerAttackAnimating = false;
+  }
+}
+
+function applyCameraTransform(
+  world: PIXI.Container,
+  transform: CameraTransform,
+  durationMs: number,
+): Promise<void> {
+  const target = {
+    x: world.x,
+    y: world.y,
+    scale: world.scale.x,
+  };
+
+  return tweenNumberProps(
+    target,
+    {
+      x: transform.x,
+      y: transform.y,
+      scale: transform.scale,
+    },
+    {
+      duration: durationMs,
+      ease: "outCubic",
+      onRender: () => {
+        world.x = target.x;
+        world.y = target.y;
+        world.scale.set(target.scale);
+      },
+    },
+  );
+}
+
+async function playSlowMotionBeat(
+  sprites: Array<PIXI.AnimatedSprite | null>,
+  motion: CombatMotionProfile,
+): Promise<void> {
+  const states = sprites
+    .filter((sprite): sprite is PIXI.AnimatedSprite => Boolean(sprite))
+    .map((sprite) => ({
+      sprite,
+      animationSpeed: sprite.animationSpeed,
+    }));
+
+  for (const state of states) {
+    state.sprite.animationSpeed = Math.min(
+      state.sprite.animationSpeed,
+      motion.slowMotionAnimationSpeed,
+    );
+  }
+
+  await wait(motion.slowMotionMs);
+
+  for (const state of states) {
+    if (!state.sprite.destroyed) {
+      state.sprite.animationSpeed = state.animationSpeed;
+    }
+  }
+}
+
+function movePlayerTowardEnemy(
+  sprite: PIXI.AnimatedSprite,
+  shadow: PIXI.Graphics | null,
+  approach: { x: number; y: number },
+  motion: CombatMotionProfile,
+): Promise<void> {
+  const target = {
+    x: sprite.x,
+    y: sprite.y,
+    scaleX: sprite.scale.x,
+    scaleY: sprite.scale.y,
+    shadowX: shadow?.x ?? sprite.x,
+    shadowY: shadow?.y ?? sprite.y + 6,
+  };
+
+  return tweenNumberProps(
+    target,
+    {
+      x: approach.x,
+      y: approach.y,
+      scaleX: sprite.scale.x * 1.08,
+      scaleY: sprite.scale.y * 0.98,
+      shadowX: approach.x,
+      shadowY: approach.y + 6,
+    },
+    {
+      duration: motion.travelMs,
+      ease: "inOutCubic",
+      onRender: () => {
+        sprite.x = target.x;
+        sprite.y = target.y;
+        sprite.scale.set(target.scaleX, target.scaleY);
+        playerIdleBaseY = target.y;
+        if (shadow) {
+          shadow.x = target.shadowX;
+          shadow.y = target.shadowY;
+        }
+      },
+    },
+  );
+}
+
+function resetPlayerPosition(
+  sprite: PIXI.AnimatedSprite,
+  shadow: PIXI.Graphics | null,
+  playerHome: { x: number; y: number; scaleX: number; scaleY: number },
+  shadowHome: { x: number; y: number } | null,
+  motion: CombatMotionProfile,
+): Promise<void> {
+  const target = {
+    x: sprite.x,
+    y: sprite.y,
+    scaleX: sprite.scale.x,
+    scaleY: sprite.scale.y,
+    shadowX: shadow?.x ?? playerHome.x,
+    shadowY: shadow?.y ?? playerHome.y + 6,
+  };
+
+  return tweenNumberProps(
+    target,
+    {
+      x: playerHome.x,
+      y: playerHome.y,
+      scaleX: playerHome.scaleX,
+      scaleY: playerHome.scaleY,
+      shadowX: shadowHome?.x ?? playerHome.x,
+      shadowY: shadowHome?.y ?? playerHome.y + 6,
+    },
+    {
+      duration: motion.recoveryMs,
+      ease: "outCubic",
+      onRender: () => {
+        sprite.x = target.x;
+        sprite.y = target.y;
+        sprite.scale.set(target.scaleX, target.scaleY);
+        playerIdleBaseY = target.y;
+        if (shadow) {
+          shadow.x = target.shadowX;
+          shadow.y = target.shadowY;
+        }
+      },
+    },
+  );
+}
+
+function removeDisplayObject(object: PIXI.Container) {
+  try {
+    object.parent?.removeChild(object);
+    object.destroy();
+  } catch {
+    // 無視
+  }
+}
+
+function playImpactEffects({
+  targetSprite,
+  x,
+  y,
+  color,
+  plan,
+}: {
+  targetSprite: PIXI.AnimatedSprite;
+  x: number;
+  y: number;
+  color: number;
+  plan: ImpactEffectPlan;
+}) {
+  if (!battleWorld) return;
+
+  playLandingFlash(x, y, color, plan);
+  playShockwave(x, y, color, plan);
+  playTransparentRipple(x, y, plan);
+  playSlashLines(x, y, color, plan);
+  playDamageNumber(x, y, plan);
+  playTextFragments(x, y, color, plan);
+  playPaperFragments(x, y, plan);
+  playAshParticles(x, y, plan);
+  playScreenDarkFlash(plan);
+  blinkSprite(targetSprite, plan);
+  knockbackSprite(targetSprite, plan);
+}
+
+function playLandingFlash(
+  x: number,
+  y: number,
+  color: number,
+  plan: ImpactEffectPlan,
+) {
+  if (!battleWorld) return;
+
+  const flash = new PIXI.Graphics();
+  flash.circle(0, 0, plan.flash.radius);
+  flash.fill({ color, alpha: plan.flash.alpha });
+  flash.x = x;
+  flash.y = y;
+  flash.scale.set(0.28);
+  battleWorld.addChild(flash);
+
+  const target = { scale: 0.28, alpha: plan.flash.alpha };
+  void tweenNumberProps(
+    target,
+    { scale: 1.6, alpha: 0 },
+    {
+      duration: plan.flash.durationMs,
+      ease: "outCubic",
+      onRender: () => {
+        flash.scale.set(target.scale);
+        flash.alpha = target.alpha;
+      },
+    },
+  ).then(() => removeDisplayObject(flash));
+}
+
+function playShockwave(
+  x: number,
+  y: number,
+  color: number,
+  plan: ImpactEffectPlan,
+) {
+  if (!battleWorld) return;
+
+  const wave = new PIXI.Graphics();
+  wave.circle(0, 0, plan.shockwave.innerRadius);
+  wave.stroke({ color, width: 5 });
+  wave.x = x;
+  wave.y = y;
+  wave.alpha = plan.shockwave.alpha;
+  battleWorld.addChild(wave);
+
+  const target = {
+    scale: plan.shockwave.outerRadius / plan.shockwave.innerRadius,
+    alpha: 0,
+  };
+  const start = { scale: 1, alpha: plan.shockwave.alpha };
+  void tweenNumberProps(
+    start,
+    target,
+    {
+      duration: plan.shockwave.durationMs,
+      ease: "outExpo",
+      onRender: () => {
+        wave.scale.set(start.scale);
+        wave.alpha = start.alpha;
+      },
+    },
+  ).then(() => removeDisplayObject(wave));
+}
+
+function playTransparentRipple(x: number, y: number, plan: ImpactEffectPlan) {
+  if (!battleWorld) return;
+
+  const ripple = new PIXI.Graphics();
+  ripple.circle(0, 0, plan.ripple.innerRadius);
+  ripple.stroke({ color: 0xffffff, width: 2 });
+  ripple.x = x;
+  ripple.y = y;
+  ripple.alpha = plan.ripple.alpha;
+  battleWorld.addChild(ripple);
+
+  const target = {
+    scale: plan.ripple.outerRadius / plan.ripple.innerRadius,
+    alpha: 0,
+  };
+  const start = { scale: 1, alpha: plan.ripple.alpha };
+  void tweenNumberProps(
+    start,
+    target,
+    {
+      duration: plan.ripple.durationMs,
+      ease: "outQuad",
+      onRender: () => {
+        ripple.scale.set(start.scale);
+        ripple.alpha = start.alpha;
+      },
+    },
+  ).then(() => removeDisplayObject(ripple));
+}
+
+function playSlashLines(
+  x: number,
+  y: number,
+  color: number,
+  plan: ImpactEffectPlan,
+) {
+  if (!battleWorld) return;
+
+  for (let index = 0; index < plan.slashLines.count; index += 1) {
+    const slash = new PIXI.Graphics();
+    slash.rect(-plan.slashLines.length / 2, -2, plan.slashLines.length, 4);
+    slash.fill({ color, alpha: 0.88 });
+    slash.x = x + (index - 0.5) * 14;
+    slash.y = y - 18 + index * 14;
+    slash.rotation = -0.58 + index * 0.2;
+    slash.alpha = 0.88;
+    slash.scale.set(0.42, 1);
+    battleWorld.addChild(slash);
+
+    const target = { scaleX: 0.42, alpha: 0.88 };
+    void tweenNumberProps(
+      target,
+      { scaleX: 1.25, alpha: 0 },
+      {
+        duration: plan.slashLines.durationMs,
+        ease: "outCubic",
+        onRender: () => {
+          slash.scale.set(target.scaleX, 1);
+          slash.alpha = target.alpha;
+        },
+      },
+    ).then(() => removeDisplayObject(slash));
+  }
+}
+
+function playDamageNumber(x: number, y: number, plan: ImpactEffectPlan) {
+  if (!battleWorld) return;
+
+  const label = new PIXI.Text({
+    text: plan.damageLabel,
+    style: {
+      fill: 0xfff0b8,
+      fontFamily: "Georgia, serif",
+      fontSize: 30,
+      fontWeight: "700",
+      stroke: { color: 0x24140d, width: 5 },
+    },
+  });
+  label.anchor.set(0.5);
+  label.x = x;
+  label.y = y - 34;
+  battleWorld.addChild(label);
+
+  const target = { y: label.y, scale: 0.8, alpha: 1 };
+  void tweenNumberProps(
+    target,
+    { y: label.y - 64, scale: 1.18, alpha: 0 },
+    {
+      duration: 720,
+      ease: "outCubic",
+      onRender: () => {
+        label.y = target.y;
+        label.alpha = target.alpha;
+        label.scale.set(target.scale);
+      },
+    },
+  ).then(() => removeDisplayObject(label));
+}
+
+function playTextFragments(
+  x: number,
+  y: number,
+  color: number,
+  plan: ImpactEffectPlan,
+) {
+  if (!battleWorld) return;
+
+  const glyphs = ["言", "葉", "命", "令", "if", "{}", ";", "!"];
+  const offsets = buildScatterOffsets(
+    plan.textFragments.count,
+    plan.textFragments.radius,
+  );
+
+  offsets.forEach((offset, index) => {
+    const fragment = new PIXI.Text({
+      text: glyphs[index % glyphs.length],
+      style: {
+        fill: index % 2 === 0 ? color : 0xf9f0d0,
+        fontFamily: "Georgia, serif",
+        fontSize: 16,
+        fontWeight: "700",
+      },
+    });
+    fragment.anchor.set(0.5);
+    fragment.x = x;
+    fragment.y = y;
+    fragment.alpha = 0.9;
+    battleWorld?.addChild(fragment);
+
+    const target = {
+      x,
+      y,
+      rotation: 0,
+      alpha: 0.9,
+    };
+    void tweenNumberProps(
+      target,
+      {
+        x: x + offset.x,
+        y: y + offset.y - 18,
+        rotation: (index % 2 === 0 ? 1 : -1) * 1.4,
+        alpha: 0,
+      },
+      {
+        duration: plan.textFragments.durationMs,
+        ease: "outCubic",
+        onRender: () => {
+          fragment.x = target.x;
+          fragment.y = target.y;
+          fragment.rotation = target.rotation;
+          fragment.alpha = target.alpha;
+        },
+      },
+    ).then(() => removeDisplayObject(fragment));
+  });
+}
+
+function playPaperFragments(x: number, y: number, plan: ImpactEffectPlan) {
+  if (!battleWorld) return;
+
+  const offsets = buildScatterOffsets(
+    plan.paperFragments.count,
+    plan.paperFragments.radius,
+  );
+
+  offsets.forEach((offset, index) => {
+    const paper = new PIXI.Graphics();
+    paper.rect(-4, -2, 8, 4);
+    paper.fill({ color: index % 2 === 0 ? 0xf4e7bf : 0xc9b88f, alpha: 0.9 });
+    paper.x = x;
+    paper.y = y;
+    paper.rotation = index * 0.7;
+    battleWorld?.addChild(paper);
+
+    const target = { x, y, rotation: paper.rotation, alpha: 0.9 };
+    void tweenNumberProps(
+      target,
+      {
+        x: x + offset.x,
+        y: y + offset.y + 18,
+        rotation: paper.rotation + 2.2,
+        alpha: 0,
+      },
+      {
+        duration: plan.paperFragments.durationMs,
+        ease: "outQuad",
+        onRender: () => {
+          paper.x = target.x;
+          paper.y = target.y;
+          paper.rotation = target.rotation;
+          paper.alpha = target.alpha;
+        },
+      },
+    ).then(() => removeDisplayObject(paper));
+  });
+}
+
+function playAshParticles(x: number, y: number, plan: ImpactEffectPlan) {
+  if (!battleWorld) return;
+
+  const offsets = buildScatterOffsets(
+    plan.ashParticles.count,
+    plan.ashParticles.radius,
+  );
+
+  offsets.forEach((offset, index) => {
+    const ash = new PIXI.Graphics();
+    ash.circle(0, 0, 2 + (index % 3));
+    ash.fill({ color: 0x111111, alpha: 0.68 });
+    ash.x = x;
+    ash.y = y;
+    battleWorld?.addChild(ash);
+
+    const target = { x, y, alpha: 0.68, scale: 0.65 };
+    void tweenNumberProps(
+      target,
+      {
+        x: x + offset.x * 0.78,
+        y: y + offset.y * 0.78 - 28,
+        alpha: 0,
+        scale: 1.35,
+      },
+      {
+        duration: plan.ashParticles.durationMs,
+        ease: "outQuad",
+        onRender: () => {
+          ash.x = target.x;
+          ash.y = target.y;
+          ash.alpha = target.alpha;
+          ash.scale.set(target.scale);
+        },
+      },
+    ).then(() => removeDisplayObject(ash));
+  });
+}
+
+function playScreenDarkFlash(plan: ImpactEffectPlan) {
+  if (!app || !app.stage || plan.darkFlash.alpha <= 0) return;
+
+  const flash = new PIXI.Graphics();
+  flash.rect(0, 0, app.screen.width, app.screen.height);
+  flash.fill({ color: 0x000000, alpha: plan.darkFlash.alpha });
+  app.stage.addChild(flash);
+
+  const target = { alpha: plan.darkFlash.alpha };
+  void tweenNumberProps(
+    target,
+    { alpha: 0 },
+    {
+      duration: plan.darkFlash.durationMs,
+      ease: "outQuad",
+      onRender: () => {
+        flash.alpha = target.alpha;
+      },
+    },
+  ).then(() => removeDisplayObject(flash));
+}
+
+function blinkSprite(sprite: PIXI.AnimatedSprite, plan: ImpactEffectPlan) {
+  const originalTint = sprite.tint;
+  const totalFrames = Math.max(1, plan.enemyBlink.count * 2);
+  let frame = 0;
+
+  const tick = () => {
+    if (frame >= totalFrames) {
+      sprite.tint = originalTint;
+      return;
+    }
+
+    sprite.tint = frame % 2 === 0 ? plan.enemyBlink.tint : originalTint;
+    frame += 1;
+    window.setTimeout(tick, plan.enemyBlink.durationMs / totalFrames);
+  };
+
+  tick();
+}
+
+function knockbackSprite(sprite: PIXI.AnimatedSprite, plan: ImpactEffectPlan) {
+  const start = {
+    x: sprite.x,
+    y: sprite.y,
+  };
+  const impact = {
+    x: sprite.x,
+    y: sprite.y,
+  };
+
+  void tweenNumberProps(
+    impact,
+    {
+      x: start.x + plan.knockback.x,
+      y: start.y + plan.knockback.y,
+    },
+    {
+      duration: plan.knockback.impactMs,
+      ease: "outCubic",
+      onRender: () => {
+        sprite.x = impact.x;
+        sprite.y = impact.y;
+      },
+    },
+  ).then(() => {
+    void tweenNumberProps(
+      impact,
+      start,
+      {
+        duration: plan.knockback.recoverMs,
+        ease: "outCubic",
+        onRender: () => {
+          sprite.x = impact.x;
+          sprite.y = impact.y;
+        },
+      },
+    );
+  });
+}
+
+function playCharacterAfterimages(
+  sprite: PIXI.AnimatedSprite,
+  plan: ImpactEffectPlan["afterimages"],
+) {
+  for (let index = 0; index < plan.count; index += 1) {
+    window.setTimeout(() => {
+      if (!battleWorld || !sprite.texture) return;
+
+      const image = new PIXI.Sprite(sprite.texture);
+      image.anchor.set(sprite.anchor.x, sprite.anchor.y);
+      image.x = sprite.x;
+      image.y = sprite.y;
+      image.scale.set(sprite.scale.x, sprite.scale.y);
+      image.alpha = 0.26;
+      image.tint = 0xe7d7ff;
+      battleWorld.addChild(image);
+
+      const target = { alpha: image.alpha, scale: 1 };
+      void tweenNumberProps(
+        target,
+        { alpha: 0, scale: 1.06 },
+        {
+          duration: plan.durationMs,
+          ease: "outQuad",
+          onRender: () => {
+            image.alpha = target.alpha;
+            image.scale.set(sprite.scale.x * target.scale, sprite.scale.y);
+          },
+        },
+      ).then(() => removeDisplayObject(image));
+    }, index * plan.spacingMs);
+  }
 }
 
 function createProjectileEffect(
@@ -528,48 +1241,12 @@ async function playCasterAnticipation(
 function removeDisplayObjects(objects: PIXI.Graphics[]) {
   for (const object of objects) {
     try {
-      app?.stage?.removeChild(object);
+      object.parent?.removeChild(object);
       object.destroy();
     } catch {
       // 無視
     }
   }
-}
-
-// ヒットエフェクト
-function playHitEffect(
-  x: number,
-  y: number,
-  color: number,
-  motion: CombatMotionProfile = getPlayerAttackMotion("normal"),
-) {
-  if (!app || !app.stage) return;
-
-  const hitEffect = new PIXI.Graphics();
-  hitEffect.x = x;
-  hitEffect.y = y;
-
-  for (const point of buildRadialBurstPoints(
-    motion.burstCount,
-    motion.burstRadius,
-  )) {
-    hitEffect.circle(point.x, point.y, 5);
-  }
-  hitEffect.fill(color);
-
-  app.stage.addChild(hitEffect);
-
-  void animateFor(240, (progress) => {
-    hitEffect.alpha = 1 - progress;
-    hitEffect.scale.set(1 + progress * 0.95);
-  }).then(() => {
-    try {
-      app?.stage?.removeChild(hitEffect);
-      hitEffect.destroy();
-    } catch {
-      // 無視
-    }
-  });
 }
 
 function playImpactFlash(color: number, alpha: number) {
@@ -614,24 +1291,6 @@ function shakeStage(amount: number, durationMs: number) {
   });
 }
 
-// スプライトを揺らす
-function shakeSprite(
-  sprite: PIXI.AnimatedSprite,
-  amount: number = 10,
-  durationMs: number = 300,
-) {
-  if (!sprite) return;
-
-  const originalX = sprite.x;
-
-  void animateFor(durationMs, (progress) => {
-    const decay = 1 - progress;
-    sprite.x = originalX + Math.sin(progress * Math.PI * 9) * amount * decay;
-  }).then(() => {
-    sprite.x = originalX;
-  });
-}
-
 // 敵のHPを更新
 export function updateEnemyAppearance(hpPercent: number) {
   if (!enemySprite) return;
@@ -648,7 +1307,7 @@ export function updateEnemyAppearance(hpPercent: number) {
 // 敵を倒したときのアニメーション
 export function playDefeatAnimation(): Promise<void> {
   return new Promise((resolve) => {
-    if (!enemySprite || !app || !app.stage) {
+    if (!enemySprite || !app || !battleWorld) {
       resolve();
       return;
     }
@@ -672,7 +1331,7 @@ export function playDefeatAnimation(): Promise<void> {
         requestAnimationFrame(animate);
       } else {
         try {
-          app?.stage?.removeChild(enemySprite);
+          battleWorld?.removeChild(enemySprite);
           enemySprite.destroy();
         } catch {
           // 無視
@@ -698,7 +1357,7 @@ async function playEnemyAttack(
   attackType: "normal" | "heavy" | "multi",
   isBlocked: boolean,
 ): Promise<void> {
-  if (!app || !app.stage || !playerSprite || !enemySprite) {
+  if (!app || !battleWorld || !playerSprite || !enemySprite) {
     return;
   }
 
@@ -713,7 +1372,7 @@ async function playEnemyAttack(
 
   setCharacterAnimation(enemySprite, enemyAnimations, "attack", {
     loop: false,
-    speed: 0.34,
+    speed: motion.animationSpeed,
   });
   await playCasterAnticipation(enemySprite, motion);
 
@@ -764,7 +1423,7 @@ async function playEnemyProjectile(
     motion.trailCopies,
   );
 
-  activeApp.stage.addChild(...trails, projectile);
+  battleWorld?.addChild(...trails, projectile);
   await animateProjectile(activeApp, projectile, trails, start, target, motion);
   removeDisplayObjects([projectile, ...trails]);
 
@@ -775,12 +1434,24 @@ async function playEnemyProjectile(
   if (isBlocked) {
     playBlockEffect(target.x, target.y, motion);
   } else {
-    playHitEffect(target.x, target.y, color, motion);
+    const impactPlan = buildImpactEffectPlan({
+      motion,
+      direction: playerSprite.x >= enemySprite.x ? 1 : -1,
+    });
+
+    playImpactEffects({
+      targetSprite: playerSprite,
+      x: target.x,
+      y: target.y,
+      color,
+      plan: impactPlan,
+    });
     void playMomentaryCharacterAnimation(
       playerSprite,
       playerAnimations,
       "damage",
-      360,
+      Math.max(360, motion.targetShakeMs),
+      motion.animationSpeed,
     );
   }
 
@@ -790,11 +1461,10 @@ async function playEnemyProjectile(
   );
   shakeStage(Math.max(3, motion.impactShake * 0.25), motion.stageShakeMs);
 
-  if (playerSprite && !isBlocked) {
-    shakeSprite(playerSprite, motion.impactShake, motion.targetShakeMs);
-  }
-
   await wait(motion.hitStopMs);
+  if (!isBlocked) {
+    await playSlowMotionBeat([playerSprite, enemySprite], motion);
+  }
 }
 
 // 防御成功エフェクト
@@ -803,7 +1473,7 @@ function playBlockEffect(
   y: number,
   motion: CombatMotionProfile = getEnemyAttackMotion("normal", true),
 ) {
-  if (!app || !app.stage) return;
+  if (!battleWorld) return;
 
   const blockEffect = new PIXI.Graphics();
   blockEffect.x = x;
@@ -819,14 +1489,14 @@ function playBlockEffect(
   }
   blockEffect.fill({ color: 0xb9dcff, alpha: 0.58 });
 
-  app.stage.addChild(blockEffect);
+  battleWorld.addChild(blockEffect);
 
   void animateFor(320, (progress) => {
     blockEffect.alpha = 1 - progress;
     blockEffect.scale.set(1 + progress * 0.65);
   }).then(() => {
     try {
-      app?.stage?.removeChild(blockEffect);
+      blockEffect.parent?.removeChild(blockEffect);
       blockEffect.destroy();
     } catch {
       // 無視
@@ -848,6 +1518,7 @@ export function destroyBattleScene() {
     app = null;
   }
 
+  battleWorld = null;
   playerSprite = null;
   enemySprite = null;
   playerShadow = null;
@@ -856,4 +1527,7 @@ export function destroyBattleScene() {
   enemyAnimations = null;
   enemyBaseScale = 1;
   idleTicker = null;
+  isPlayerAttackAnimating = false;
+  playerIdleBaseY = 0;
+  playerEngagement = null;
 }

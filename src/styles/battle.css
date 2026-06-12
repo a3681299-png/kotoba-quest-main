@@ -1094,6 +1094,31 @@ body {
   opacity: 0.82;
 }
 
+.intro-portrait.has-image {
+  padding: 0;
+}
+
+.intro-portrait.has-image::before {
+  opacity: 0.28;
+}
+
+.intro-portrait-image {
+  position: absolute;
+  right: 50%;
+  bottom: 0;
+  z-index: 1;
+  max-width: 116%;
+  max-height: 100%;
+  object-fit: contain;
+  transform: translateX(50%);
+  transform-origin: bottom center;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.72));
+}
+
+.intro-portrait.has-image span {
+  display: none;
+}
+
 .intro-portrait span {
   position: relative;
   z-index: 1;
@@ -1830,6 +1855,14 @@ body {
     radial-gradient(circle at 50% 18%, rgba(199, 81, 255, 0.28), transparent 44%);
 }
 
+.tactical-card.recommended {
+  border-color: rgba(255, 216, 121, 0.88);
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.52),
+    0 0 18px rgba(255, 204, 92, 0.24),
+    inset 0 1px 0 rgba(255, 244, 207, 0.26);
+}
+
 .card-kind {
   min-width: 0;
   justify-self: start;
@@ -1858,6 +1891,20 @@ body {
   font-size: 0.92rem;
   font-weight: 900;
   text-shadow: 0 1px 3px #001019;
+}
+
+.card-context {
+  position: absolute;
+  top: 36px;
+  right: 7px;
+  padding: 2px 6px;
+  color: #1a0f05;
+  background: linear-gradient(180deg, #ffe7a4, #d89435);
+  border: 1px solid rgba(255, 236, 178, 0.82);
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .card-title {
@@ -2332,11 +2379,12 @@ body {
   height: 194px;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(12px, 1.6vw, 26px);
   padding: 0 12px 12px;
-  overflow-x: visible;
+  overflow-x: auto;
   overflow-y: visible;
+  scrollbar-width: thin;
 }
 
 .code-workbench .tactical-card {
@@ -2421,6 +2469,301 @@ body {
     min-width: 140px;
     min-height: 44px;
     font-size: 0.94rem;
+  }
+}
+
+/* Preparation card table surface. */
+.battle-field.is-preparation-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(1.015);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.code-workbench.preparation-desk {
+  --desk-edge: rgba(229, 177, 91, 0.38);
+  --desk-ink: #f6dfad;
+  --desk-shadow: rgba(0, 0, 0, 0.62);
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 72% 44%, rgba(224, 169, 75, 0.16), transparent 20%),
+    radial-gradient(circle at 18% 82%, rgba(66, 126, 112, 0.14), transparent 24%),
+    linear-gradient(180deg, #131514, #070808 74%);
+}
+
+.code-workbench.preparation-desk::before {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 236, 181, 0.055) 0 2px,
+      transparent 2px 7px,
+      rgba(0, 0, 0, 0.26) 7px 9px,
+      transparent 9px 86px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.028) 0 1px,
+      transparent 1px 12px,
+      rgba(0, 0, 0, 0.2) 12px 14px,
+      transparent 14px 126px
+    ),
+    linear-gradient(90deg, #171410, #24170f 34%, #111616 68%, #0a0c0c);
+  transform: rotate(-1deg) scale(1.04);
+}
+
+.code-workbench.preparation-desk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 47%, transparent 0 48%, rgba(0, 0, 0, 0.44) 82%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.44), transparent 22%, rgba(0, 0, 0, 0.5));
+}
+
+.preparation-desk .desk-surface {
+  position: absolute;
+  inset: clamp(18px, 3vw, 44px);
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid rgba(231, 182, 98, 0.16);
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.5),
+    0 24px 60px rgba(0, 0, 0, 0.32);
+}
+
+.preparation-desk .desk-stage-note {
+  position: absolute;
+  top: clamp(20px, 3.6vh, 38px);
+  left: clamp(22px, 4vw, 58px);
+  right: clamp(22px, 4vw, 58px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  pointer-events: none;
+  color: var(--desk-ink);
+  text-shadow: 0 2px 8px #000;
+}
+
+.desk-phase-label {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  color: #0f1412;
+  background: linear-gradient(180deg, #e4bf72, #a96f31);
+  border: 1px solid rgba(255, 233, 170, 0.72);
+  border-radius: 5px;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.desk-stage-name {
+  flex: 0 0 auto;
+  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  font-weight: 900;
+}
+
+.desk-enemy-context {
+  min-width: 0;
+  color: rgba(236, 224, 196, 0.76);
+  font-size: clamp(0.78rem, 1vw, 0.94rem);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-workbench.preparation-desk .code-editor-panel,
+.code-workbench.preparation-desk .card-command-builder,
+.code-workbench.preparation-desk .execute-button {
+  z-index: 4;
+}
+
+.code-workbench.preparation-desk .code-editor-panel {
+  left: clamp(20px, 4vw, 58px);
+  top: clamp(116px, 17vh, 168px);
+  bottom: clamp(86px, 11vh, 124px);
+  width: clamp(260px, 22vw, 360px);
+  height: auto;
+  translate: 0 0;
+  background:
+    linear-gradient(180deg, rgba(9, 16, 18, 0.9), rgba(5, 8, 10, 0.96)),
+    radial-gradient(circle at 0% 0%, rgba(80, 164, 144, 0.16), transparent 48%);
+  border-color: rgba(116, 197, 170, 0.34);
+  box-shadow:
+    0 22px 48px var(--desk-shadow),
+    inset 0 1px 0 rgba(220, 255, 236, 0.08);
+}
+
+.code-workbench.preparation-desk .card-command-builder {
+  left: clamp(330px, 28vw, 440px);
+  right: clamp(24px, 5vw, 74px);
+  top: clamp(104px, 14vh, 138px);
+  bottom: clamp(86px, 11vh, 124px);
+  width: auto;
+  min-width: 0;
+  height: auto;
+  transform: none;
+}
+
+.code-workbench.preparation-desk .script-chain {
+  top: 0;
+  bottom: auto;
+  width: min(660px, 100%);
+  height: 82px;
+  transform: translateX(-50%);
+}
+
+.code-workbench.preparation-desk .chain-slots {
+  height: 56px;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 20, 0.62), rgba(6, 8, 8, 0.82)),
+    radial-gradient(circle at 50% 0%, rgba(236, 178, 82, 0.14), transparent 56%);
+  border-color: var(--desk-edge);
+}
+
+.code-workbench.preparation-desk .tactical-hand {
+  top: 104px;
+  bottom: 0;
+  height: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  align-content: center;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(14px, 2vw, 24px);
+  padding: clamp(16px, 2vw, 28px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at 48% 50%, rgba(245, 186, 86, 0.1), transparent 44%),
+    linear-gradient(180deg, rgba(8, 9, 8, 0.08), rgba(0, 0, 0, 0.2));
+  border: 1px solid rgba(229, 177, 91, 0.08);
+}
+
+.code-workbench.preparation-desk .tactical-card {
+  flex: none;
+  width: min(100%, 148px);
+  max-width: 148px;
+  height: 196px;
+  justify-self: center;
+  background:
+    linear-gradient(180deg, rgba(21, 27, 24, 0.98), rgba(7, 9, 9, 1)),
+    radial-gradient(circle at 50% 22%, rgba(85, 206, 118, 0.22), transparent 42%);
+}
+
+.code-workbench.preparation-desk .tactical-card.recommended {
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.58),
+    0 0 28px rgba(237, 188, 82, 0.36),
+    inset 0 1px 0 rgba(255, 244, 207, 0.26);
+}
+
+.code-workbench.preparation-desk .execute-button {
+  right: clamp(24px, 5vw, 74px);
+  bottom: clamp(20px, 3vh, 42px);
+  translate: 0 0;
+  border-color: rgba(255, 223, 143, 0.62);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.58),
+    0 0 22px rgba(91, 199, 169, 0.16),
+    inset 0 1px 0 rgba(255, 242, 190, 0.42);
+}
+
+@media (max-width: 1100px) {
+  .code-workbench.preparation-desk .code-editor-panel {
+    left: 18px;
+    width: 248px;
+  }
+
+  .code-workbench.preparation-desk .card-command-builder {
+    left: 292px;
+    right: 18px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .code-workbench.preparation-desk {
+    position: absolute;
+  }
+
+  .preparation-desk .desk-stage-note {
+    top: 14px;
+    left: 12px;
+    right: 12px;
+    gap: 8px;
+  }
+
+  .desk-enemy-context {
+    display: none;
+  }
+
+  .code-workbench.preparation-desk .card-command-builder {
+    left: 10px;
+    right: 10px;
+    top: 76px;
+    bottom: 228px;
+    width: auto;
+    height: auto;
+    transform: none;
+  }
+
+  .code-workbench.preparation-desk .script-chain {
+    width: min(520px, calc(100vw - 28px));
+    height: 68px;
+  }
+
+  .code-workbench.preparation-desk .tactical-hand {
+    top: 84px;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 10px;
+    padding: 12px 8px;
+  }
+
+  .code-workbench.preparation-desk .tactical-card {
+    width: min(100%, 116px);
+    height: 150px;
+    padding: 8px;
+  }
+
+  .code-workbench.preparation-desk .card-title {
+    font-size: 0.8rem;
+  }
+
+  .code-workbench.preparation-desk .card-code {
+    padding: 5px;
+    font-size: 0.58rem;
+  }
+
+  .code-workbench.preparation-desk .code-editor-panel {
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: 66px;
+    width: auto;
+    height: 148px;
+  }
+
+  .code-workbench.preparation-desk .execute-button {
+    right: 10px;
+    bottom: 12px;
+    min-width: 142px;
+    min-height: 44px;
   }
 }
 
