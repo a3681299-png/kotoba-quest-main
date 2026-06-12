@@ -15,21 +15,27 @@ import {
   type LayerVerticalAlign,
 } from "./backgroundLayout";
 import {
+  buildDashPlan,
   buildRadialBurstPoints,
   buildVolleyOffsets,
   easeOutCubic,
   getEnemyAttackMotion,
   getPlayerAttackMotion,
-  sampleAttackArc,
   type CombatMotionProfile,
+  type DashPlan,
 } from "./combatMotion";
 import {
+  buildCameraTransform,
   buildPlayerMeleeAttackPlan,
   type CameraTransform,
 } from "./cameraMotion";
 import {
+  buildClashSparkPlan,
+  buildDustPlan,
   buildImpactEffectPlan,
   buildScatterOffsets,
+  buildSpeedLinePlan,
+  type ClashSparkPlan,
   type ImpactEffectPlan,
 } from "./battleEffects";
 
@@ -75,8 +81,17 @@ let enemyBaseScale = 1;
 let idleTicker: ((ticker: PIXI.Ticker) => void) | null = null;
 let idleStartTime = 0;
 let isPlayerAttackAnimating = false;
+let isEnemyAttackAnimating = false;
+let isEnemyDefeated = false;
+// ヒットストップ中は全スプライトを静止させる
+let isStageFrozen = false;
+// ノックバック中はアイドルの上下動がトゥイーンと競合しないようロックする
+let playerMotionLock = false;
+let enemyMotionLock = false;
 let playerIdleBaseY = 0;
 let playerEngagement: PlayerEngagement | null = null;
+let enemyHome: { x: number; y: number } | null = null;
+let enemyShadowHome: { x: number; y: number } | null = null;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -281,6 +296,8 @@ function createEnemySprite() {
 
   const x = app.screen.width * 0.75;
   const y = app.screen.height * 0.72;
+  enemyHome = { x, y };
+  enemyShadowHome = { x, y: y + 5 };
   enemyShadow = createGroundShadow(x, y + 5, 64);
   battleWorld.addChild(enemyShadow);
 
@@ -321,7 +338,7 @@ function setCharacterAnimation(
   state: keyof CharacterAnimations,
   options: { loop: boolean; speed: number },
 ) {
-  if (!sprite || !animations) return;
+  if (!sprite || sprite.destroyed || !animations) return;
 
   sprite.textures = animations[state];
   sprite.loop = options.loop;
@@ -361,20 +378,23 @@ function startIdleMotion() {
   idleStartTime = Date.now();
   idleTicker = () => {
     if (app !== activeApp || !playerSprite || !enemySprite) return;
+    if (isStageFrozen) return;
 
     const elapsed = (Date.now() - idleStartTime) / 1000;
     const playerBob = Math.sin(elapsed * 2.1) * 3;
     const enemyBob = Math.sin(elapsed * 1.8 + 0.6) * 5;
     const enemyBreath = Math.sin(elapsed * 1.8 + 0.6) * 0.025;
 
-    if (!isPlayerAttackAnimating) {
+    if (!isPlayerAttackAnimating && !playerMotionLock) {
       playerSprite.y = playerIdleBaseY + playerBob;
     }
-    enemySprite.y = activeApp.screen.height * 0.72 + enemyBob;
-    enemySprite.scale.set(
-      enemyBaseScale * (1 - enemyBreath),
-      enemyBaseScale * (1 + enemyBreath),
-    );
+    if (!isEnemyAttackAnimating && !enemyMotionLock) {
+      enemySprite.y = activeApp.screen.height * 0.72 + enemyBob;
+      enemySprite.scale.set(
+        enemyBaseScale * (1 - enemyBreath),
+        enemyBaseScale * (1 + enemyBreath),
+      );
+    }
 
     if (playerShadow) {
       playerShadow.scale.set(1 + Math.abs(playerBob) * 0.008, 1);
@@ -456,15 +476,23 @@ async function playPlayerAttack(
   });
 
   if (plan.shouldEnter) {
-    await applyCameraTransform(activeWorld, plan.closeUp, motion.startupMs);
+    // 一瞬の溜め（しゃがみ込み）
+    await Promise.all([
+      applyCameraTransform(activeWorld, plan.closeUp, motion.startupMs),
+      playCasterAnticipation(playerSprite, motion),
+    ]);
     if (app !== activeApp || battleWorld !== activeWorld || !playerSprite) {
       return;
     }
 
-    playCharacterAfterimages(playerSprite, impactPlan.afterimages);
+    // 爆発的なダッシュで間合いを詰める
+    const dashPlan = buildDashPlan({
+      distance: plan.approach.x - playerSprite.x,
+    });
+    const dashMs = Math.min(dashPlan.durationMs, motion.travelMs);
     await Promise.all([
-      applyCameraTransform(activeWorld, plan.follow, motion.travelMs),
-      movePlayerTowardEnemy(playerSprite, playerShadow, plan.approach, motion),
+      applyCameraTransform(activeWorld, plan.follow, dashMs),
+      dashCharacter(playerSprite, playerShadow, plan.approach, dashPlan, dashMs),
     ]);
   }
 
@@ -489,15 +517,31 @@ async function playPlayerAttack(
     return;
   }
 
+  // 斬撃: 振り始めから接触までの短い間
   setCharacterAnimation(playerSprite, playerAnimations, "attack", {
     loop: false,
     speed: motion.animationSpeed,
   });
-  await playCasterAnticipation(playerSprite, motion);
+  await wait(Math.min(70, motion.strikeFocusMs));
 
+  if (app !== activeApp || battleWorld !== activeWorld || !enemySprite) {
+    return;
+  }
+
+  // 接触の瞬間: インパクトフレームを保持したまま全体をフリーズ
   const target = { x: enemySprite.x, y: enemySprite.y - 22 };
+  spawnImpactFrame(target.x, target.y, color, motion.hitStopMs);
+  await playHitStop(motion.hitStopMs);
+
+  if (app !== activeApp || battleWorld !== activeWorld || !enemySprite) {
+    return;
+  }
+
+  // 解放: エフェクト一斉放出 + ノックバック滑走
   playImpactEffects({
     targetSprite: enemySprite,
+    targetShadow: enemyShadow,
+    targetKind: "enemy",
     x: target.x,
     y: target.y,
     color,
@@ -510,10 +554,9 @@ async function playPlayerAttack(
     Math.max(420, motion.targetShakeMs),
     motion.animationSpeed,
   );
-  shakeStage(Math.max(4, motion.impactShake * 0.28), motion.stageShakeMs);
+  shakeStage(Math.max(5, motion.impactShake * 0.32), motion.stageShakeMs);
 
-  await wait(motion.hitStopMs);
-  await playSlowMotionBeat([playerSprite, enemySprite], motion);
+  await wait(160);
   restoreIdleAnimation(playerSprite, playerAnimations);
 }
 
@@ -535,20 +578,31 @@ export async function settlePlayerAttackSequence(): Promise<void> {
 
   isPlayerAttackAnimating = true;
   try {
+    // LoR風: 帰還もダッシュで素早く戻る
+    const dashPlan = buildDashPlan({
+      distance: engagement.home.x - playerSprite.x,
+    });
     await Promise.all([
       applyCameraTransform(
         activeWorld,
         { x: 0, y: 0, scale: 1 },
         motion.recoveryMs,
       ),
-      resetPlayerPosition(
+      dashCharacter(
         playerSprite,
         playerShadow,
-        engagement.home,
-        engagement.shadowHome,
-        motion,
+        { x: engagement.home.x, y: engagement.home.y },
+        dashPlan,
+        Math.min(dashPlan.durationMs, motion.recoveryMs),
       ),
     ]);
+    if (playerSprite && !playerSprite.destroyed) {
+      playerSprite.scale.set(engagement.home.scaleX, engagement.home.scaleY);
+    }
+    if (playerShadow && engagement.shadowHome) {
+      playerShadow.x = engagement.shadowHome.x;
+      playerShadow.y = engagement.shadowHome.y;
+    }
   } finally {
     if (app === activeApp && battleWorld === activeWorld) {
       playerEngagement = null;
@@ -615,39 +669,57 @@ async function playSlowMotionBeat(
   }
 }
 
-function movePlayerTowardEnemy(
+// LoR風の爆発的ダッシュ: 前傾＋伸長スメア、濃い残像、スピード線を伴う
+async function dashCharacter(
   sprite: PIXI.AnimatedSprite,
   shadow: PIXI.Graphics | null,
-  approach: { x: number; y: number },
-  motion: CombatMotionProfile,
+  to: { x: number; y: number },
+  plan: DashPlan,
+  durationMs: number,
 ): Promise<void> {
+  const direction = Math.sign(to.x - sprite.x) || 1;
+  const baseScaleX = sprite.scale.x;
+  const baseScaleY = sprite.scale.y;
+  const baseRotation = sprite.rotation;
+  const isPlayer = sprite === playerSprite;
+
+  spawnSpeedLines(
+    { x: sprite.x, y: sprite.y - sprite.height * 0.45 },
+    { x: to.x, y: to.y - sprite.height * 0.45 },
+  );
+  playCharacterAfterimages(sprite, {
+    count: plan.afterimageCount,
+    durationMs: 240,
+    spacingMs: plan.afterimageSpacingMs,
+  });
+
+  sprite.rotation = direction * plan.leanRotation;
+  sprite.scale.set(baseScaleX * plan.stretchX, baseScaleY * plan.squashY);
+
   const target = {
     x: sprite.x,
     y: sprite.y,
-    scaleX: sprite.scale.x,
-    scaleY: sprite.scale.y,
-    shadowX: shadow?.x ?? sprite.x,
-    shadowY: shadow?.y ?? sprite.y + 6,
+    shadowX: shadow?.x ?? to.x,
+    shadowY: shadow?.y ?? to.y + 6,
   };
 
-  return tweenNumberProps(
+  await tweenNumberProps(
     target,
     {
-      x: approach.x,
-      y: approach.y,
-      scaleX: sprite.scale.x * 1.08,
-      scaleY: sprite.scale.y * 0.98,
-      shadowX: approach.x,
-      shadowY: approach.y + 6,
+      x: to.x,
+      y: to.y,
+      shadowX: to.x,
+      shadowY: to.y + 6,
     },
     {
-      duration: motion.travelMs,
-      ease: "inOutCubic",
+      duration: durationMs,
+      ease: "outExpo",
       onRender: () => {
         sprite.x = target.x;
         sprite.y = target.y;
-        sprite.scale.set(target.scaleX, target.scaleY);
-        playerIdleBaseY = target.y;
+        if (isPlayer) {
+          playerIdleBaseY = target.y;
+        }
         if (shadow) {
           shadow.x = target.shadowX;
           shadow.y = target.shadowY;
@@ -655,49 +727,295 @@ function movePlayerTowardEnemy(
       },
     },
   );
+
+  if (!sprite.destroyed) {
+    sprite.rotation = baseRotation;
+    sprite.scale.set(baseScaleX, baseScaleY);
+  }
 }
 
-function resetPlayerPosition(
+// ダッシュの軌跡に流れるスピード線
+function spawnSpeedLines(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  if (!battleWorld) return;
+
+  const plan = buildSpeedLinePlan({ distance: to.x - from.x });
+  const direction = Math.sign(to.x - from.x) || 1;
+
+  for (let index = 0; index < plan.count; index += 1) {
+    const progress = (index + 0.5) / plan.count;
+    const line = new PIXI.Graphics();
+    line.rect(-plan.length / 2, -plan.thickness / 2, plan.length, plan.thickness);
+    line.fill({ color: 0xffffff, alpha: plan.alpha });
+    line.x = from.x + (to.x - from.x) * progress;
+    line.y =
+      from.y +
+      (to.y - from.y) * progress +
+      (index - (plan.count - 1) / 2) * (plan.spreadY / Math.max(1, plan.count - 1));
+    battleWorld.addChild(line);
+
+    const target = { x: line.x, alpha: plan.alpha, scaleX: 1 };
+    void tweenNumberProps(
+      target,
+      {
+        x: line.x - direction * plan.length * 0.6,
+        alpha: 0,
+        scaleX: 0.35,
+      },
+      {
+        duration: plan.durationMs,
+        ease: "outQuad",
+        onRender: () => {
+          line.x = target.x;
+          line.alpha = target.alpha;
+          line.scale.set(target.scaleX, 1);
+        },
+      },
+    ).then(() => removeDisplayObject(line));
+  }
+}
+
+// 全体フリーズのヒットストップ: アイドル・スプライト再生を完全静止させる
+async function playHitStop(durationMs: number): Promise<void> {
+  const sprites = [playerSprite, enemySprite].filter(
+    (sprite): sprite is PIXI.AnimatedSprite =>
+      Boolean(sprite) && !sprite!.destroyed,
+  );
+  const states = sprites.map((sprite) => ({
+    sprite,
+    wasPlaying: sprite.playing,
+  }));
+
+  isStageFrozen = true;
+  for (const state of states) {
+    state.sprite.stop();
+  }
+
+  await wait(durationMs);
+
+  isStageFrozen = false;
+  for (const state of states) {
+    if (!state.sprite.destroyed && state.wasPlaying) {
+      state.sprite.play();
+    }
+  }
+}
+
+// 接触の瞬間の白いインパクトフレーム。ヒットストップ中は静止保持し、解放後に弾けて消える
+function spawnImpactFrame(x: number, y: number, color: number, holdMs: number) {
+  if (!battleWorld) return;
+
+  const frame = new PIXI.Container();
+  frame.x = x;
+  frame.y = y;
+
+  for (const rotation of [-0.7, 0.7]) {
+    const spike = new PIXI.Graphics();
+    spike.rect(-72, -2.5, 144, 5);
+    spike.fill({ color: 0xffffff, alpha: 0.92 });
+    spike.rotation = rotation;
+    frame.addChild(spike);
+  }
+
+  const core = new PIXI.Graphics();
+  core.circle(0, 0, 26);
+  core.fill({ color: 0xffffff, alpha: 0.95 });
+  frame.addChild(core);
+
+  const ring = new PIXI.Graphics();
+  ring.circle(0, 0, 42);
+  ring.stroke({ color, width: 4, alpha: 0.85 });
+  frame.addChild(ring);
+
+  battleWorld.addChild(frame);
+
+  window.setTimeout(() => {
+    const target = { alpha: 1, scale: 1 };
+    void tweenNumberProps(
+      target,
+      { alpha: 0, scale: 1.5 },
+      {
+        duration: 140,
+        ease: "outQuad",
+        onRender: () => {
+          frame.alpha = target.alpha;
+          frame.scale.set(target.scale);
+        },
+      },
+    ).then(() => removeDisplayObject(frame));
+  }, holdMs);
+}
+
+// 足元から舞い上がる土埃
+function spawnGroundDust(
+  x: number,
+  y: number,
+  direction: number,
+  force: number,
+) {
+  if (!battleWorld) return;
+
+  const plan = buildDustPlan({ force });
+
+  for (let index = 0; index < plan.count; index += 1) {
+    const puff = new PIXI.Graphics();
+    puff.circle(0, 0, 3 + (index % 3));
+    puff.fill({ color: 0x9a8f78, alpha: 0.5 });
+    puff.x = x;
+    puff.y = y;
+    battleWorld.addChild(puff);
+
+    const spread = (index + 1) / plan.count;
+    const target = { x: puff.x, y: puff.y, alpha: 0.5, scale: 0.7 };
+    void tweenNumberProps(
+      target,
+      {
+        x: x + direction * plan.radius * spread,
+        y: y - plan.riseY * (0.4 + spread * 0.6),
+        alpha: 0,
+        scale: 1.6,
+      },
+      {
+        duration: plan.durationMs,
+        ease: "outQuad",
+        onRender: () => {
+          puff.x = target.x;
+          puff.y = target.y;
+          puff.alpha = target.alpha;
+          puff.scale.set(target.scale);
+        },
+      },
+    ).then(() => removeDisplayObject(puff));
+  }
+}
+
+// クラッシュ相殺の弾かれ: 押し出されてから素早く戻る
+async function pushbackCharacter(
   sprite: PIXI.AnimatedSprite,
   shadow: PIXI.Graphics | null,
-  playerHome: { x: number; y: number; scaleX: number; scaleY: number },
-  shadowHome: { x: number; y: number } | null,
-  motion: CombatMotionProfile,
+  deltaX: number,
+  durationMs: number,
+  lock: "player" | "enemy",
 ): Promise<void> {
-  const target = {
-    x: sprite.x,
-    y: sprite.y,
-    scaleX: sprite.scale.x,
-    scaleY: sprite.scale.y,
-    shadowX: shadow?.x ?? playerHome.x,
-    shadowY: shadow?.y ?? playerHome.y + 6,
-  };
+  if (lock === "player") {
+    playerMotionLock = true;
+  } else {
+    enemyMotionLock = true;
+  }
 
-  return tweenNumberProps(
-    target,
-    {
-      x: playerHome.x,
-      y: playerHome.y,
-      scaleX: playerHome.scaleX,
-      scaleY: playerHome.scaleY,
-      shadowX: shadowHome?.x ?? playerHome.x,
-      shadowY: shadowHome?.y ?? playerHome.y + 6,
-    },
-    {
-      duration: motion.recoveryMs,
-      ease: "outCubic",
-      onRender: () => {
-        sprite.x = target.x;
-        sprite.y = target.y;
-        sprite.scale.set(target.scaleX, target.scaleY);
-        playerIdleBaseY = target.y;
-        if (shadow) {
-          shadow.x = target.shadowX;
-          shadow.y = target.shadowY;
-        }
+  const startX = sprite.x;
+  const shadowStartX = shadow?.x ?? startX;
+
+  try {
+    const out = { x: startX, shadowX: shadowStartX };
+    await tweenNumberProps(
+      out,
+      { x: startX + deltaX, shadowX: shadowStartX + deltaX },
+      {
+        duration: Math.round(durationMs * 0.35),
+        ease: "outQuart",
+        onRender: () => {
+          sprite.x = out.x;
+          if (shadow) shadow.x = out.shadowX;
+        },
       },
-    },
-  );
+    );
+    await tweenNumberProps(
+      out,
+      { x: startX, shadowX: shadowStartX },
+      {
+        duration: Math.round(durationMs * 0.65),
+        ease: "outCubic",
+        onRender: () => {
+          sprite.x = out.x;
+          if (shadow) shadow.x = out.shadowX;
+        },
+      },
+    );
+  } finally {
+    if (lock === "player") {
+      playerMotionLock = false;
+    } else {
+      enemyMotionLock = false;
+    }
+  }
+}
+
+// 剣戟スパーク: X字の閃光＋放射状の火花
+function playClashSparkVisual(x: number, y: number, plan: ClashSparkPlan) {
+  if (!battleWorld) return;
+
+  const container = new PIXI.Container();
+  container.x = x;
+  container.y = y;
+
+  for (const rotation of [-0.66, 0.66]) {
+    const slash = new PIXI.Graphics();
+    slash.rect(
+      -plan.crossSlashes.length / 2,
+      -plan.crossSlashes.width / 2,
+      plan.crossSlashes.length,
+      plan.crossSlashes.width,
+    );
+    slash.fill({ color: 0xffffff, alpha: 0.92 });
+    slash.rotation = rotation;
+    container.addChild(slash);
+  }
+
+  const flash = new PIXI.Graphics();
+  flash.circle(0, 0, plan.flash.radius);
+  flash.fill({ color: 0xdcecff, alpha: plan.flash.alpha });
+  container.addChild(flash);
+
+  battleWorld.addChild(container);
+
+  // フリーズ中は静止保持し、解放後に火花が飛び散る
+  window.setTimeout(() => {
+    const fade = { alpha: 1, scale: 1 };
+    void tweenNumberProps(
+      fade,
+      { alpha: 0, scale: 1.35 },
+      {
+        duration: plan.flash.durationMs,
+        ease: "outQuad",
+        onRender: () => {
+          container.alpha = fade.alpha;
+          container.scale.set(fade.scale);
+        },
+      },
+    ).then(() => removeDisplayObject(container));
+
+    for (const point of buildRadialBurstPoints(plan.sparks.count, 1)) {
+      const spark = new PIXI.Graphics();
+      spark.rect(0, -1.5, 11, 3);
+      spark.fill({ color: 0xfff3c4, alpha: 0.9 });
+      spark.x = x;
+      spark.y = y;
+      spark.rotation = Math.atan2(point.y, point.x);
+      battleWorld?.addChild(spark);
+
+      const target = { x, y, alpha: 0.9 };
+      void tweenNumberProps(
+        target,
+        {
+          x: x + point.x * plan.sparks.radius,
+          y: y + point.y * plan.sparks.radius,
+          alpha: 0,
+        },
+        {
+          duration: plan.sparks.durationMs,
+          ease: "outExpo",
+          onRender: () => {
+            spark.x = target.x;
+            spark.y = target.y;
+            spark.alpha = target.alpha;
+          },
+        },
+      ).then(() => removeDisplayObject(spark));
+    }
+  }, plan.freezeMs);
 }
 
 function removeDisplayObject(object: PIXI.Container) {
@@ -711,12 +1029,16 @@ function removeDisplayObject(object: PIXI.Container) {
 
 function playImpactEffects({
   targetSprite,
+  targetShadow,
+  targetKind,
   x,
   y,
   color,
   plan,
 }: {
   targetSprite: PIXI.AnimatedSprite;
+  targetShadow: PIXI.Graphics | null;
+  targetKind: "player" | "enemy";
   x: number;
   y: number;
   color: number;
@@ -734,7 +1056,7 @@ function playImpactEffects({
   playAshParticles(x, y, plan);
   playScreenDarkFlash(plan);
   blinkSprite(targetSprite, plan);
-  knockbackSprite(targetSprite, plan);
+  void playKnockbackSlide(targetSprite, targetShadow, targetKind, plan);
 }
 
 function playLandingFlash(
@@ -886,15 +1208,24 @@ function playDamageNumber(x: number, y: number, plan: ImpactEffectPlan) {
   label.y = y - 34;
   battleWorld.addChild(label);
 
-  const target = { y: label.y, scale: 0.8, alpha: 1 };
+  // LoR風: 被弾方向へ斜めに弾けて回転しながら消える
+  const target = { x: label.x, y: label.y, rotation: 0, scale: 0.7, alpha: 1 };
   void tweenNumberProps(
     target,
-    { y: label.y - 64, scale: 1.18, alpha: 0 },
     {
-      duration: 720,
+      x: label.x + plan.damageFlight.x,
+      y: label.y + plan.damageFlight.y,
+      rotation: plan.damageFlight.rotation,
+      scale: 1.25,
+      alpha: 0,
+    },
+    {
+      duration: plan.damageFlight.durationMs,
       ease: "outCubic",
       onRender: () => {
+        label.x = target.x;
         label.y = target.y;
+        label.rotation = target.rotation;
         label.alpha = target.alpha;
         label.scale.set(target.scale);
       },
@@ -1080,44 +1411,81 @@ function blinkSprite(sprite: PIXI.AnimatedSprite, plan: ImpactEffectPlan) {
   tick();
 }
 
-function knockbackSprite(sprite: PIXI.AnimatedSprite, plan: ImpactEffectPlan) {
-  const start = {
-    x: sprite.x,
-    y: sprite.y,
-  };
+// LoR風ノックバック: 大きく弾き飛ばし、土埃を上げながら滑って戻る
+async function playKnockbackSlide(
+  sprite: PIXI.AnimatedSprite,
+  shadow: PIXI.Graphics | null,
+  targetKind: "player" | "enemy",
+  plan: ImpactEffectPlan,
+): Promise<void> {
+  if (targetKind === "player") {
+    playerMotionLock = true;
+  } else {
+    enemyMotionLock = true;
+  }
+
+  const direction = Math.sign(plan.knockback.x) || 1;
+  const start = { x: sprite.x, y: sprite.y };
+  const shadowStart = { x: shadow?.x ?? start.x, y: shadow?.y ?? start.y + 6 };
+
+  spawnGroundDust(
+    start.x,
+    shadowStart.y,
+    direction,
+    Math.abs(plan.knockback.x) / 2.4,
+  );
+
   const impact = {
-    x: sprite.x,
-    y: sprite.y,
+    x: start.x,
+    y: start.y,
+    shadowX: shadowStart.x,
   };
 
-  void tweenNumberProps(
-    impact,
-    {
-      x: start.x + plan.knockback.x,
-      y: start.y + plan.knockback.y,
-    },
-    {
-      duration: plan.knockback.impactMs,
-      ease: "outCubic",
-      onRender: () => {
-        sprite.x = impact.x;
-        sprite.y = impact.y;
-      },
-    },
-  ).then(() => {
-    void tweenNumberProps(
+  // 撃破演出が始まったら吹き飛ばしに任せ、位置の書き戻しをやめる
+  const shouldSkip = () =>
+    sprite.destroyed || (targetKind === "enemy" && isEnemyDefeated);
+
+  try {
+    await tweenNumberProps(
       impact,
-      start,
+      {
+        x: start.x + plan.knockback.x,
+        y: start.y + plan.knockback.y,
+        shadowX: shadowStart.x + plan.knockback.x,
+      },
+      {
+        duration: plan.knockback.impactMs,
+        ease: "outQuart",
+        onRender: () => {
+          if (shouldSkip()) return;
+          sprite.x = impact.x;
+          sprite.y = impact.y;
+          if (shadow) shadow.x = impact.shadowX;
+        },
+      },
+    );
+    // 滑走しながら定位置へ戻る
+    await tweenNumberProps(
+      impact,
+      { x: start.x, y: start.y, shadowX: shadowStart.x },
       {
         duration: plan.knockback.recoverMs,
         ease: "outCubic",
         onRender: () => {
+          if (shouldSkip()) return;
           sprite.x = impact.x;
           sprite.y = impact.y;
+          if (shadow) shadow.x = impact.shadowX;
         },
       },
     );
-  });
+  } finally {
+    if (targetKind === "player") {
+      playerMotionLock = false;
+    } else {
+      enemyMotionLock = false;
+    }
+  }
 }
 
 function playCharacterAfterimages(
@@ -1133,7 +1501,7 @@ function playCharacterAfterimages(
       image.x = sprite.x;
       image.y = sprite.y;
       image.scale.set(sprite.scale.x, sprite.scale.y);
-      image.alpha = 0.26;
+      image.alpha = 0.36;
       image.tint = 0xe7d7ff;
       battleWorld.addChild(image);
 
@@ -1154,66 +1522,6 @@ function playCharacterAfterimages(
   }
 }
 
-function createProjectileEffect(
-  color: number,
-  radius: number,
-  trailCopies: number,
-): { projectile: PIXI.Graphics; trails: PIXI.Graphics[] } {
-  const projectile = new PIXI.Graphics();
-  projectile.circle(0, 0, radius);
-  projectile.fill({ color, alpha: 0.96 });
-  projectile.circle(0, 0, radius * 0.45);
-  projectile.fill({ color: 0xffffff, alpha: 0.58 });
-
-  const trails = Array.from({ length: trailCopies }, (_, index) => {
-    const trail = new PIXI.Graphics();
-    trail.circle(0, 0, radius * Math.max(0.42, 1 - index * 0.1));
-    trail.fill({ color, alpha: 0.22 });
-    trail.alpha = 0;
-    return trail;
-  });
-
-  return { projectile, trails };
-}
-
-async function animateProjectile(
-  activeApp: PIXI.Application,
-  projectile: PIXI.Graphics,
-  trails: PIXI.Graphics[],
-  start: { x: number; y: number },
-  target: { x: number; y: number },
-  motion: CombatMotionProfile,
-): Promise<void> {
-  await animateFor(motion.travelMs, (progress, easedProgress) => {
-    if (app !== activeApp) return;
-
-    const point = sampleAttackArc({
-      start,
-      target,
-      progress: easedProgress,
-      arcHeight: motion.arcHeight,
-    });
-
-    projectile.x = point.x;
-    projectile.y = point.y;
-    projectile.scale.set(1 + Math.sin(progress * Math.PI) * 0.28);
-
-    trails.forEach((trail, index) => {
-      const trailProgress = Math.max(0, easedProgress - (index + 1) * 0.045);
-      const trailPoint = sampleAttackArc({
-        start,
-        target,
-        progress: trailProgress,
-        arcHeight: motion.arcHeight,
-      });
-
-      trail.x = trailPoint.x;
-      trail.y = trailPoint.y;
-      trail.alpha = Math.max(0, (0.34 - index * 0.045) * progress);
-    });
-  });
-}
-
 async function playCasterAnticipation(
   sprite: PIXI.AnimatedSprite,
   motion: CombatMotionProfile,
@@ -1223,30 +1531,20 @@ async function playCasterAnticipation(
   const originalScaleX = sprite.scale.x;
   const originalScaleY = sprite.scale.y;
 
+  // LoR風: 突進前に深くしゃがみ込んで力を溜める
   await animateFor(motion.startupMs, (progress) => {
     const pull = Math.sin(progress * Math.PI);
     sprite.x = originalX + motion.anticipationX * pull;
     sprite.y = originalY + motion.anticipationY * pull;
     sprite.scale.set(
-      originalScaleX * (1 + pull * 0.045),
-      originalScaleY * (1 - pull * 0.025),
+      originalScaleX * (1 + pull * 0.06),
+      originalScaleY * (1 - pull * 0.1),
     );
   });
 
   sprite.x = originalX;
   sprite.y = originalY;
   sprite.scale.set(originalScaleX, originalScaleY);
-}
-
-function removeDisplayObjects(objects: PIXI.Graphics[]) {
-  for (const object of objects) {
-    try {
-      object.parent?.removeChild(object);
-      object.destroy();
-    } catch {
-      // 無視
-    }
-  }
 }
 
 function playImpactFlash(color: number, alpha: number) {
@@ -1304,45 +1602,60 @@ export function updateEnemyAppearance(hpPercent: number) {
   }
 }
 
-// 敵を倒したときのアニメーション
+// 敵を倒したときのアニメーション: LoR風にスローモーション + 大きな吹き飛ばし
 export function playDefeatAnimation(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!enemySprite || !app || !battleWorld) {
-      resolve();
-      return;
+  return playDefeat();
+}
+
+async function playDefeat(): Promise<void> {
+  if (!enemySprite || !app || !battleWorld) {
+    return;
+  }
+
+  const activeApp = app;
+  const sprite = enemySprite;
+  const shadow = enemyShadow;
+  const motion = getPlayerAttackMotion("normal");
+  const direction = playerSprite && sprite.x < playerSprite.x ? -1 : 1;
+
+  isEnemyDefeated = true;
+  enemyMotionLock = true;
+
+  // 致命打の余韻: 一瞬のスローモーション
+  playImpactFlash(0xffffff, 0.26);
+  await playSlowMotionBeat([playerSprite, sprite], motion);
+
+  if (app !== activeApp || sprite.destroyed) {
+    return;
+  }
+
+  spawnGroundDust(sprite.x, sprite.y + 4, direction, 26);
+  shakeStage(8, 300);
+
+  const startX = sprite.x;
+  const startY = sprite.y;
+
+  await animateFor(680, (progress, eased) => {
+    if (app !== activeApp || sprite.destroyed) return;
+
+    sprite.x = startX + direction * 130 * eased;
+    sprite.y = startY - Math.sin(Math.min(progress, 1) * Math.PI) * 46;
+    sprite.rotation = direction * 0.55 * eased;
+    sprite.alpha = 1 - Math.pow(progress, 1.6);
+
+    if (shadow && !shadow.destroyed) {
+      shadow.alpha = 0.3 * (1 - progress);
     }
-
-    let scale = 1;
-    let alpha = 1;
-
-    const animate = () => {
-      if (!enemySprite) {
-        resolve();
-        return;
-      }
-
-      scale += 0.05;
-      alpha -= 0.05;
-
-      enemySprite.scale.set(scale);
-      enemySprite.alpha = alpha;
-
-      if (alpha > 0) {
-        requestAnimationFrame(animate);
-      } else {
-        try {
-          battleWorld?.removeChild(enemySprite);
-          enemySprite.destroy();
-        } catch {
-          // 無視
-        }
-        enemySprite = null;
-        resolve();
-      }
-    };
-
-    requestAnimationFrame(animate);
   });
+
+  try {
+    battleWorld?.removeChild(sprite);
+    sprite.destroy();
+  } catch {
+    // 無視
+  }
+  enemySprite = null;
+  enemyMotionLock = false;
 }
 
 // 敵の攻撃アニメーション
@@ -1357,11 +1670,12 @@ async function playEnemyAttack(
   attackType: "normal" | "heavy" | "multi",
   isBlocked: boolean,
 ): Promise<void> {
-  if (!app || !battleWorld || !playerSprite || !enemySprite) {
+  if (!app || !battleWorld || !playerSprite || !enemySprite || !enemyHome) {
     return;
   }
 
   const activeApp = app;
+  const activeWorld = battleWorld;
   const motion = getEnemyAttackMotion(attackType, isBlocked);
   const colors: Record<typeof attackType, number> = {
     normal: 0xff6b6b,
@@ -1369,139 +1683,155 @@ async function playEnemyAttack(
     multi: 0x8b5cf6,
   };
   const color = colors[attackType];
+  const home = enemyHome;
+  const baseTint = enemySprite.tint;
 
-  setCharacterAnimation(enemySprite, enemyAnimations, "attack", {
-    loop: false,
-    speed: motion.animationSpeed,
-  });
-  await playCasterAnticipation(enemySprite, motion);
+  isEnemyAttackAnimating = true;
+  try {
+    // テレグラフ: 大技は赤く光りながら深く溜める
+    if (attackType === "heavy") {
+      enemySprite.tint = 0xff8377;
+    }
+    await playCasterAnticipation(enemySprite, motion);
+    if (app !== activeApp || !playerSprite || !enemySprite) return;
+    enemySprite.tint = baseTint;
 
-  if (app !== activeApp || !playerSprite || !enemySprite) {
-    return;
-  }
+    // 突進: プレイヤーの目の前まで一気に詰める
+    const dirToPlayer = playerSprite.x >= enemySprite.x ? 1 : -1;
+    const approach = {
+      x:
+        playerSprite.x -
+        dirToPlayer * Math.max(88, activeApp.screen.width * 0.12),
+      y: home.y,
+    };
+    const dashPlan = buildDashPlan({ distance: approach.x - enemySprite.x });
+    const dashMs = Math.min(dashPlan.durationMs, motion.travelMs);
+    const strikeCamera = buildCameraTransform({
+      focus: { x: playerSprite.x + dirToPlayer * 30, y: playerSprite.y - 40 },
+      scale: 1.14,
+      screenAnchor: {
+        x: activeApp.screen.width * 0.5,
+        y: activeApp.screen.height * 0.62,
+      },
+    });
+    await Promise.all([
+      applyCameraTransform(activeWorld, strikeCamera, dashMs),
+      dashCharacter(enemySprite, enemyShadow, approach, dashPlan, dashMs),
+    ]);
+    if (app !== activeApp || !playerSprite || !enemySprite) return;
 
-  const volleyOffsets = buildVolleyOffsets(
-    motion.volleyCount,
-    motion.volleySpread,
-  );
-
-  for (let index = 0; index < volleyOffsets.length; index += 1) {
-    await playEnemyProjectile(
-      activeApp,
-      color,
-      motion,
-      isBlocked,
-      volleyOffsets[index],
+    // ダイスごとに1ストライクを刻む連撃リズム
+    const strikeOffsets = buildVolleyOffsets(
+      motion.volleyCount,
+      motion.volleySpread,
     );
 
-    if (index < volleyOffsets.length - 1) {
-      await wait(motion.volleyDelayMs);
+    for (let index = 0; index < strikeOffsets.length; index += 1) {
+      setCharacterAnimation(enemySprite, enemyAnimations, "attack", {
+        loop: false,
+        speed: motion.animationSpeed,
+      });
+      await wait(Math.round(motion.strikeFocusMs * 0.8));
+      if (app !== activeApp || !playerSprite || !enemySprite) return;
+
+      if (isBlocked) {
+        // 防御成功 = クラッシュ相殺: 中間点で剣戟スパーク、攻撃側が弾かれる
+        const spark = buildClashSparkPlan({ force: motion.impactShake });
+        const sparkPoint = {
+          x: playerSprite.x - dirToPlayer * 44,
+          y: playerSprite.y - 34 + strikeOffsets[index] * 0.6,
+        };
+        playClashSparkVisual(sparkPoint.x, sparkPoint.y, spark);
+        await playHitStop(spark.freezeMs);
+        if (app !== activeApp || !playerSprite || !enemySprite) return;
+
+        void pushbackCharacter(
+          enemySprite,
+          enemyShadow,
+          -dirToPlayer * spark.pushback.distance,
+          spark.pushback.durationMs,
+          "enemy",
+        );
+        void pushbackCharacter(
+          playerSprite,
+          playerShadow,
+          dirToPlayer * spark.pushback.distance * 0.3,
+          spark.pushback.durationMs,
+          "player",
+        );
+        playImpactFlash(0x9fd8ff, motion.impactFlashAlpha);
+        shakeStage(
+          Math.max(3, motion.impactShake * 0.18),
+          Math.round(motion.stageShakeMs * 0.7),
+        );
+      } else {
+        const contact = {
+          x: playerSprite.x - dirToPlayer * 16,
+          y: playerSprite.y - 30 + strikeOffsets[index] * 0.6,
+        };
+        spawnImpactFrame(contact.x, contact.y, color, motion.hitStopMs);
+        await playHitStop(motion.hitStopMs);
+        if (app !== activeApp || !playerSprite || !enemySprite) return;
+
+        const impactPlan = buildImpactEffectPlan({
+          motion,
+          direction: dirToPlayer,
+        });
+        playImpactEffects({
+          targetSprite: playerSprite,
+          targetShadow: playerShadow,
+          targetKind: "player",
+          x: contact.x,
+          y: contact.y,
+          color,
+          plan: impactPlan,
+        });
+        void playMomentaryCharacterAnimation(
+          playerSprite,
+          playerAnimations,
+          "damage",
+          Math.max(360, motion.targetShakeMs),
+          motion.animationSpeed,
+        );
+        playImpactFlash(color, motion.impactFlashAlpha);
+        shakeStage(Math.max(4, motion.impactShake * 0.3), motion.stageShakeMs);
+      }
+
+      if (index < strikeOffsets.length - 1) {
+        await wait(motion.volleyDelayMs);
+      }
+    }
+
+    // 一拍置いて素早く定位置へ帰還
+    await wait(150);
+    if (app !== activeApp || !enemySprite) return;
+    restoreIdleAnimation(enemySprite, enemyAnimations);
+
+    const returnPlan = buildDashPlan({ distance: home.x - enemySprite.x });
+    await Promise.all([
+      applyCameraTransform(
+        activeWorld,
+        { x: 0, y: 0, scale: 1 },
+        motion.recoveryMs,
+      ),
+      dashCharacter(
+        enemySprite,
+        enemyShadow,
+        home,
+        returnPlan,
+        Math.min(returnPlan.durationMs, motion.recoveryMs),
+      ),
+    ]);
+    if (enemyShadow && enemyShadowHome) {
+      enemyShadow.x = enemyShadowHome.x;
+      enemyShadow.y = enemyShadowHome.y;
+    }
+  } finally {
+    isEnemyAttackAnimating = false;
+    if (enemySprite && !enemySprite.destroyed) {
+      enemySprite.tint = baseTint;
     }
   }
-
-  await wait(motion.recoveryMs);
-  restoreIdleAnimation(enemySprite, enemyAnimations);
-}
-
-async function playEnemyProjectile(
-  activeApp: PIXI.Application,
-  color: number,
-  motion: CombatMotionProfile,
-  isBlocked: boolean,
-  verticalOffset: number = 0,
-): Promise<void> {
-  if (!playerSprite || !enemySprite) return;
-
-  const start = { x: enemySprite.x - 54, y: enemySprite.y + verticalOffset };
-  const target = {
-    x: playerSprite.x,
-    y: playerSprite.y - 30 + verticalOffset * 0.35,
-  };
-  const { projectile, trails } = createProjectileEffect(
-    color,
-    motion.projectileRadius,
-    motion.trailCopies,
-  );
-
-  battleWorld?.addChild(...trails, projectile);
-  await animateProjectile(activeApp, projectile, trails, start, target, motion);
-  removeDisplayObjects([projectile, ...trails]);
-
-  if (app !== activeApp) {
-    return;
-  }
-
-  if (isBlocked) {
-    playBlockEffect(target.x, target.y, motion);
-  } else {
-    const impactPlan = buildImpactEffectPlan({
-      motion,
-      direction: playerSprite.x >= enemySprite.x ? 1 : -1,
-    });
-
-    playImpactEffects({
-      targetSprite: playerSprite,
-      x: target.x,
-      y: target.y,
-      color,
-      plan: impactPlan,
-    });
-    void playMomentaryCharacterAnimation(
-      playerSprite,
-      playerAnimations,
-      "damage",
-      Math.max(360, motion.targetShakeMs),
-      motion.animationSpeed,
-    );
-  }
-
-  playImpactFlash(
-    isBlocked ? 0x3b82f6 : color,
-    motion.impactFlashAlpha,
-  );
-  shakeStage(Math.max(3, motion.impactShake * 0.25), motion.stageShakeMs);
-
-  await wait(motion.hitStopMs);
-  if (!isBlocked) {
-    await playSlowMotionBeat([playerSprite, enemySprite], motion);
-  }
-}
-
-// 防御成功エフェクト
-function playBlockEffect(
-  x: number,
-  y: number,
-  motion: CombatMotionProfile = getEnemyAttackMotion("normal", true),
-) {
-  if (!battleWorld) return;
-
-  const blockEffect = new PIXI.Graphics();
-  blockEffect.x = x;
-  blockEffect.y = y;
-
-  // シールド形状
-  blockEffect.circle(0, 0, 40);
-  blockEffect.stroke({ color: 0x3b82f6, width: 4 });
-  blockEffect.fill({ color: 0x3b82f6, alpha: 0.3 });
-
-  for (const point of buildRadialBurstPoints(8, motion.burstRadius * 0.74)) {
-    blockEffect.circle(point.x, point.y, 3);
-  }
-  blockEffect.fill({ color: 0xb9dcff, alpha: 0.58 });
-
-  battleWorld.addChild(blockEffect);
-
-  void animateFor(320, (progress) => {
-    blockEffect.alpha = 1 - progress;
-    blockEffect.scale.set(1 + progress * 0.65);
-  }).then(() => {
-    try {
-      blockEffect.parent?.removeChild(blockEffect);
-      blockEffect.destroy();
-    } catch {
-      // 無視
-    }
-  });
 }
 
 // クリーンアップ
@@ -1528,6 +1858,13 @@ export function destroyBattleScene() {
   enemyBaseScale = 1;
   idleTicker = null;
   isPlayerAttackAnimating = false;
+  isEnemyAttackAnimating = false;
+  isEnemyDefeated = false;
+  isStageFrozen = false;
+  playerMotionLock = false;
+  enemyMotionLock = false;
   playerIdleBaseY = 0;
   playerEngagement = null;
+  enemyHome = null;
+  enemyShadowHome = null;
 }

@@ -68,9 +68,10 @@ export function buildPlayerMeleeAttackPlan({
     y: viewport.height * 0.66,
   };
 
+  // LoR風: カメラはほぼ固定。動くのはキャラ自身なのでズームは微パンチインに留める
   const strike = buildCameraTransform({
     focus: strikeFocus,
-    scale: 1.56,
+    scale: 1.18,
     screenAnchor: {
       x: viewport.width * 0.5,
       y: viewport.height * 0.62,
@@ -82,14 +83,14 @@ export function buildPlayerMeleeAttackPlan({
       ? strike
       : buildCameraTransform({
           focus: player,
-          scale: 1.72,
+          scale: 1.16,
           screenAnchor: lowerFocus,
         }),
     follow: isEngaged
       ? strike
       : buildCameraTransform({
           focus: approach,
-          scale: 1.48,
+          scale: 1.1,
           screenAnchor: lowerFocus,
         }),
     strike,

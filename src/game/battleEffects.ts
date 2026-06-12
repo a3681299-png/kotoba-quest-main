@@ -25,6 +25,12 @@ export interface ImpactEffectPlan {
     impactMs: number;
     recoverMs: number;
   };
+  damageFlight: {
+    x: number;
+    y: number;
+    rotation: number;
+    durationMs: number;
+  };
   enemyBlink: {
     count: number;
     durationMs: number;
@@ -80,6 +86,109 @@ export function buildScatterOffsets(count: number, radius: number): Point[] {
   });
 }
 
+export interface ClashSparkPlan {
+  freezeMs: number;
+  flash: {
+    radius: number;
+    alpha: number;
+    durationMs: number;
+  };
+  crossSlashes: {
+    count: number;
+    length: number;
+    width: number;
+    durationMs: number;
+  };
+  sparks: {
+    count: number;
+    radius: number;
+    durationMs: number;
+  };
+  pushback: {
+    distance: number;
+    durationMs: number;
+  };
+}
+
+// 剣戟スパーク: 攻撃同士（または防御成功）がぶつかった瞬間のX字閃光
+export function buildClashSparkPlan({
+  force,
+}: {
+  force: number;
+}): ClashSparkPlan {
+  const clamped = Math.max(8, force);
+
+  return {
+    freezeMs: 90,
+    flash: {
+      radius: roundToTwo(clamped * 2.2),
+      alpha: 0.85,
+      durationMs: 160,
+    },
+    crossSlashes: {
+      count: 2,
+      length: roundToTwo(clamped * 5.4),
+      width: 5,
+      durationMs: 210,
+    },
+    sparks: {
+      count: Math.max(8, Math.round(clamped * 0.6)),
+      radius: roundToTwo(clamped * 3.4),
+      durationMs: 340,
+    },
+    pushback: {
+      distance: roundToTwo(Math.max(24, clamped * 1.7)),
+      durationMs: 240,
+    },
+  };
+}
+
+export interface DustPlan {
+  count: number;
+  radius: number;
+  riseY: number;
+  durationMs: number;
+}
+
+// 土埃: ノックバックで地面を滑る足元から舞い上がる
+export function buildDustPlan({ force }: { force: number }): DustPlan {
+  const clamped = Math.max(6, force);
+
+  return {
+    count: Math.max(4, Math.round(clamped * 0.4)),
+    radius: roundToTwo(Math.max(30, clamped * 2.2)),
+    riseY: roundToTwo(Math.max(10, clamped * 0.8)),
+    durationMs: 460,
+  };
+}
+
+export interface SpeedLinePlan {
+  count: number;
+  length: number;
+  thickness: number;
+  alpha: number;
+  durationMs: number;
+  spreadY: number;
+}
+
+// スピード線: ダッシュの軌跡に流れる細い線
+export function buildSpeedLinePlan({
+  distance,
+}: {
+  distance: number;
+}): SpeedLinePlan {
+  const magnitude = Math.abs(distance);
+
+  return {
+    count: Math.min(7, Math.max(3, Math.round(magnitude / 70))),
+    length: roundToTwo(Math.min(150, Math.max(60, magnitude * 0.32))),
+    thickness: 3,
+    alpha: 0.5,
+    durationMs: 190,
+    spreadY: 34,
+  };
+}
+
 export function buildImpactEffectPlan({
   motion,
   direction,
@@ -112,10 +221,17 @@ export function buildImpactEffectPlan({
       alpha: 0.32,
     },
     knockback: {
-      x: roundToTwo(direction * Math.max(18, force * 1.45)),
-      y: roundToTwo(-Math.max(3, force * 0.22)),
-      impactMs: 80,
-      recoverMs: Math.max(170, motion.targetShakeMs),
+      // LoR風: 大きく弾き飛ばし、recoverMsかけて滑りながら戻る
+      x: roundToTwo(direction * Math.max(46, force * 2.6)),
+      y: roundToTwo(-Math.max(2, force * 0.18)),
+      impactMs: 110,
+      recoverMs: Math.max(320, motion.targetShakeMs),
+    },
+    damageFlight: {
+      x: roundToTwo(direction * 30),
+      y: -72,
+      rotation: roundToTwo(direction * 0.22),
+      durationMs: 640,
     },
     enemyBlink: {
       count: 3,
