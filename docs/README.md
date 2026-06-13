@@ -1,9 +1,9 @@
 # Kotoba Quest 実装ドキュメント
 
-最終更新: 2026-05-30
+最終更新: 2026-06-13
 
 本ディレクトリは **実装に直結する Stage 5・6 の確定仕様** と実装ステータスをまとめる。
-ゲーム全体の要件・言語仕様の正本は `../prototype-5173/docs/` 配下にあり、本書はそれを前提として Stage 単位の決定事項のみを扱う。
+ゲーム全体の要件は `requirements-v3.md`、言語仕様は `../prototype-5173/docs/language-spec.md` を前提として、Stage 単位の決定事項を扱う。
 
 ## ドキュメント一覧
 
@@ -22,8 +22,7 @@
 
 | ファイル | 内容 |
 |---------|------|
-| [stage5-6-spec.md](./stage5-6-spec.md) | Stage 5・6 の確定仕様（Wave 構成・ラスボス適応ロジック） |
-| `../prototype-5173/docs/requirements.md` | ゲーム全体の要件定義書（正本） |
+| [requirements-v3.md](./requirements-v3.md) | ゲーム全体の要件定義書 |
 | `../prototype-5173/docs/language-spec.md` | 独自言語の仕様書（正本） |
 
 ---
@@ -82,11 +81,11 @@
 
 ### Stage 5：総合課題
 攻撃力 40 / 初期MP 90 / 3 Wave / NPC なし
-- 詳細は [stage5-6-spec.md](./stage5-6-spec.md) §1 を参照
+- 詳細は [stage5-design.md](./stage5-design.md) を参照
 
 ### Stage 6：ボスラッシュ
 攻撃力 45 / 初期MP 100 / 5 Wave / 学習型ラスボス
-- 詳細は [stage5-6-spec.md](./stage5-6-spec.md) §2 を参照
+- 詳細は [stage6-design.md](./stage6-design.md) を参照
 
 ---
 

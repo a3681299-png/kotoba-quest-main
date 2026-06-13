@@ -5,7 +5,7 @@
 **ステータス**: Stage 1〜4 実装済み / Stage 5・6 実装中
 
 > 言語仕様の詳細は `../prototype-5173/docs/language-spec.md` を正本とし、本書はゲーム全体の要件を扱う。
-> Stage 5・6 の実装詳細は `./stage5-6-spec.md` を参照。
+> Stage 5 の実装詳細は `./stage5-design.md`、Stage 6 の実装詳細は `./stage6-design.md` を参照。
 
 ---
 
@@ -345,7 +345,7 @@
 | Wave 3 | 総合ボス（HP400 / 防8 / 攻22〜28 / 3ラウンドごとチャージ→60ダメージ）+ コボルト×最大6体（HP70%/30% で 3 体ずつ召喚） | 合体魔法を撃つタイミングを見極める |
 
 - NPC なし
-- 詳細は `./stage5-6-spec.md` §1 参照
+- 詳細は `./stage5-design.md` 参照
 
 ### 4-7. Stage 6 詳細：ボスラッシュ
 
@@ -758,4 +758,4 @@ Wave 結果画面
 ---
 
 *言語構文の詳細仕様は `../prototype-5173/docs/language-spec.md` を正本とする。*
-*Stage 5・6 の実装仕様詳細は `./stage5-6-spec.md` を参照。*
+*Stage 5 の実装仕様詳細は `./stage5-design.md`、Stage 6 の実装仕様詳細は `./stage6-design.md` を参照。*
