@@ -1,5 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import attackCardTextureUrl from "../assets/UI/card/attack.png";
+import branchCardTextureUrl from "../assets/UI/card/branch.png";
+import healCardTextureUrl from "../assets/UI/card/heal.png";
+import observationCardTextureUrl from "../assets/UI/card/observation.png";
+import recordCardTextureUrl from "../assets/UI/card/record.png";
+import tableTextureUrl from "../assets/UI/table/table.png";
+import booksDecorTextureUrl from "../assets/UI/table/decor/books.png";
+import candleDecorTextureUrl from "../assets/UI/table/decor/candle.png";
+import {
+  PREPARATION_CARD_HEIGHT,
+  PREPARATION_CARD_LAYOUTS,
+  PREPARATION_CARD_WIDTH,
+} from "./PreparationCardLayout";
+import { getPreparationSceneSetupKey } from "./PreparationScreenLifecycle";
+import {
+  PREPARATION_TABLE_DECOR_ITEMS,
+  type PreparationTableDecorItem,
+} from "./PreparationTableDecor";
 import "../styles/preparation.css";
 
 type PreparationScreenProps = {
@@ -18,17 +36,8 @@ type SpellCard = {
   command: string;
   cost: number;
   power: number;
-  icon: string;
   description: string;
-};
-
-type CardLayout = {
-  x: number;
-  y: number;
-  z: number;
-  rotationY: number;
-  rotationZ: number;
-  zIndex: number;
+  textureUrl: string;
 };
 
 type CardMeshEntry = {
@@ -37,92 +46,69 @@ type CardMeshEntry = {
   baseY: number;
   baseZ: number;
   baseRotationY: number;
+  baseRenderOrder: number;
 };
 
 const SPELL_CARDS: SpellCard[] = [
   {
-    id: "guard",
-    title: "守りの構え",
-    kind: "防御",
-    command: "防御()",
-    cost: 0,
-    power: 1,
-    icon: "🛡️",
-    description: "次の攻撃に備えて、受けるダメージを軽くする。",
-  },
-  {
-    id: "fire",
-    title: "火のことば",
-    kind: "攻撃",
-    command: "攻撃(\"ファイア\")",
+    id: "record",
+    title: "言葉を記録",
+    kind: "記録",
+    command: "敵の言葉を 記録する",
     cost: 1,
-    power: 3,
-    icon: "🔥",
-    description: "正面の敵に、まっすぐ火の魔法を放つ。",
+    power: 1,
+    description: "あとで使う情報を残す。",
+    textureUrl: recordCardTextureUrl,
   },
   {
-    id: "loop",
-    title: "くり返しの印",
-    kind: "連続",
-    command: "繰り返す(3)",
+    id: "branch",
+    title: "弱っているなら攻撃",
+    kind: "分岐",
+    command: "もし 敵HP が 少ない なら 攻撃する",
     cost: 2,
     power: 2,
-    icon: "🔁",
-    description: "同じ行動をまとめて実行する準備カード。",
+    description: "状態を見て行動を選ぶ。",
+    textureUrl: branchCardTextureUrl,
+  },
+  {
+    id: "attack",
+    title: "攻撃",
+    kind: "攻撃",
+    command: "攻撃する",
+    cost: 1,
+    power: 3,
+    description: "正面から意味を通す。",
+    textureUrl: attackCardTextureUrl,
+  },
+  {
+    id: "observe",
+    title: "観察",
+    kind: "観察",
+    command: "観察する",
+    cost: 0,
+    power: 1,
+    description: "文脈を読む。",
+    textureUrl: observationCardTextureUrl,
   },
   {
     id: "heal",
-    title: "回復の光",
+    title: "回復",
     kind: "回復",
-    command: "回復()",
-    cost: 1,
+    command: "回復する",
+    cost: 0,
     power: 2,
-    icon: "✨",
-    description: "傷ついたときに、少しだけ体力を戻す。",
+    description: "順番の中に立て直しを入れる。",
+    textureUrl: healCardTextureUrl,
   },
 ];
-
-const CARD_LAYOUTS: Record<string, CardLayout> = {
-  guard: {
-    x: -1.02,
-    y: 0.91,
-    z: 1.08,
-    rotationY: -13,
-    rotationZ: 9,
-    zIndex: 1,
-  },
-  fire: {
-    x: -0.34,
-    y: 0.98,
-    z: 1.2,
-    rotationY: -5,
-    rotationZ: 2,
-    zIndex: 4,
-  },
-  loop: {
-    x: 0.29,
-    y: 0.94,
-    z: 1.12,
-    rotationY: 6,
-    rotationZ: -5,
-    zIndex: 3,
-  },
-  heal: {
-    x: 0.91,
-    y: 0.88,
-    z: 1,
-    rotationY: 14,
-    rotationZ: -12,
-    zIndex: 2,
-  },
+const TABLE_SLOT_LABELS = ["準備 1", "準備 2", "準備 3"];
+const TABLE_DECOR_TEXTURE_URLS: Record<PreparationTableDecorItem["id"], string> = {
+  books: booksDecorTextureUrl,
+  candle: candleDecorTextureUrl,
 };
 
-const TABLE_SLOT_LABELS = ["準備 1", "準備 2", "準備 3"];
-const CARD_WIDTH = 0.92;
-const CARD_HEIGHT = 1.34;
-
 export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
-  const [selectedCardId, setSelectedCardId] = useState(SPELL_CARDS[1].id);
+  const [selectedCardId, setSelectedCardId] = useState("attack");
   const selectedCard =
     SPELL_CARDS.find((card) => card.id === selectedCardId) ?? SPELL_CARDS[0];
 
@@ -164,6 +150,15 @@ function PreparationThreeScene({
   onCardSelect,
 }: PreparationThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const selectedCardIdRef = useRef(selectedCardId);
+  const sceneSetupKey = getPreparationSceneSetupKey({
+    selectedCardId,
+    onCardSelect,
+  });
+
+  useEffect(() => {
+    selectedCardIdRef.current = selectedCardId;
+  }, [selectedCardId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -207,9 +202,10 @@ function PreparationThreeScene({
     rimLight.position.set(2.2, 1.8, 1.8);
     scene.add(rimLight);
 
-    const tableTexture = createWoodTexture();
-    textures.push(tableTexture);
-    const tableGeometry = new THREE.PlaneGeometry(8.5, 6.4, 16, 16);
+    const textureLoader = new THREE.TextureLoader();
+
+    const tableTexture = loadSceneTexture(textureLoader, tableTextureUrl, textures);
+    const tableGeometry = new THREE.PlaneGeometry(8.8, 5.85, 1, 1);
     geometries.push(tableGeometry);
     const tableMaterial = new THREE.MeshStandardMaterial({
       map: tableTexture,
@@ -223,15 +219,16 @@ function PreparationThreeScene({
     tableMesh.receiveShadow = true;
     scene.add(tableMesh);
 
+    addTableDecor(scene, textureLoader, textures, materials, geometries);
     addTableCards(scene, textures, materials, geometries);
     addStandingCards(
       scene,
+      textureLoader,
       textures,
       materials,
       geometries,
       cardMeshes,
       cardEntries,
-      selectedCardId,
     );
 
     const raycaster = new THREE.Raycaster();
@@ -279,7 +276,7 @@ function PreparationThreeScene({
       const time = clock.getElapsedTime();
 
       cardEntries.forEach((entry, index) => {
-        const isSelected = entry.cardId === selectedCardId;
+        const isSelected = entry.cardId === selectedCardIdRef.current;
         const selectedLift = isSelected ? 0.17 : 0;
         const selectedForward = isSelected ? 0.08 : 0;
         const breath = Math.sin(time * 1.2 + index * 0.8) * 0.008;
@@ -288,6 +285,7 @@ function PreparationThreeScene({
         entry.mesh.position.y = entry.baseY + selectedLift + breath;
         entry.mesh.position.z = entry.baseZ + selectedForward;
         entry.mesh.rotation.y = entry.baseRotationY + Math.sin(time * 0.8 + index) * 0.012;
+        entry.mesh.renderOrder = isSelected ? 20 : entry.baseRenderOrder;
         entry.mesh.scale.set(scale, scale, scale);
       });
 
@@ -312,34 +310,39 @@ function PreparationThreeScene({
       textures.forEach((texture) => texture.dispose());
       renderer.dispose();
     };
-  }, [onCardSelect, selectedCardId]);
+  }, [onCardSelect, sceneSetupKey]);
 
   return <canvas ref={canvasRef} className="preparation-three-canvas" />;
 }
 
 function addStandingCards(
   scene: THREE.Scene,
+  textureLoader: THREE.TextureLoader,
   textures: THREE.Texture[],
   materials: THREE.Material[],
   geometries: THREE.BufferGeometry[],
   cardMeshes: THREE.Object3D[],
   cardEntries: CardMeshEntry[],
-  selectedCardId: string,
 ) {
-  const cardGeometry = new THREE.PlaneGeometry(CARD_WIDTH, CARD_HEIGHT, 4, 4);
+  const cardGeometry = new THREE.PlaneGeometry(
+    PREPARATION_CARD_WIDTH,
+    PREPARATION_CARD_HEIGHT,
+    4,
+    4,
+  );
   geometries.push(cardGeometry);
 
   SPELL_CARDS.forEach((card) => {
-    const layout = CARD_LAYOUTS[card.id];
-    const isSelected = card.id === selectedCardId;
-    const texture = createCardTexture(card, isSelected);
-    textures.push(texture);
+    const layout = PREPARATION_CARD_LAYOUTS[card.id];
+    const texture = loadSceneTexture(textureLoader, card.textureUrl, textures);
 
     const material = new THREE.MeshStandardMaterial({
       map: texture,
       roughness: 0.78,
       metalness: 0,
       side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.03,
     });
     materials.push(material);
 
@@ -361,11 +364,67 @@ function addStandingCards(
       baseY: layout.y,
       baseZ: layout.z,
       baseRotationY: mesh.rotation.y,
+      baseRenderOrder: layout.zIndex,
     });
     scene.add(mesh);
   });
 }
 
+function addTableDecor(
+  scene: THREE.Scene,
+  textureLoader: THREE.TextureLoader,
+  textures: THREE.Texture[],
+  materials: THREE.Material[],
+  geometries: THREE.BufferGeometry[],
+) {
+  PREPARATION_TABLE_DECOR_ITEMS.forEach((decorItem) => {
+    const texture = loadSceneTexture(
+      textureLoader,
+      TABLE_DECOR_TEXTURE_URLS[decorItem.id],
+      textures,
+    );
+    const geometry = new THREE.PlaneGeometry(
+      decorItem.width,
+      decorItem.height,
+      1,
+      1,
+    );
+    geometries.push(geometry);
+
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.86,
+      metalness: 0,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.04,
+    });
+    materials.push(material);
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(decorItem.x, decorItem.y, decorItem.z);
+    mesh.rotation.set(
+      -Math.PI / 2,
+      0,
+      THREE.MathUtils.degToRad(decorItem.rotationZ),
+    );
+    mesh.renderOrder = decorItem.renderOrder;
+    mesh.receiveShadow = true;
+    mesh.castShadow = true;
+    scene.add(mesh);
+
+    if (decorItem.glow) {
+      const candleGlow = new THREE.PointLight(
+        0xffb56d,
+        decorItem.glow.intensity,
+        decorItem.glow.distance,
+        1.7,
+      );
+      candleGlow.position.set(decorItem.x, 0.36, decorItem.z + 0.04);
+      scene.add(candleGlow);
+    }
+  });
+}
 function addTableCards(
   scene: THREE.Scene,
   textures: THREE.Texture[],
@@ -384,6 +443,8 @@ function addTableCards(
       roughness: 0.9,
       metalness: 0,
       side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.03,
     });
     materials.push(deckMaterial);
 
@@ -416,122 +477,18 @@ function addTableCards(
   });
 }
 
-function createWoodTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 1024;
-  const context = getContext2d(canvas);
-
-  const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#5b341f");
-  gradient.addColorStop(0.42, "#3a2013");
-  gradient.addColorStop(1, "#1b0e09");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (let index = 0; index < 56; index += 1) {
-    const y = index * 19 + Math.sin(index * 2.1) * 8;
-    context.beginPath();
-    context.moveTo(0, y);
-
-    for (let x = 0; x <= canvas.width; x += 34) {
-      const wave = Math.sin(x * 0.018 + index * 0.8) * 8;
-      context.lineTo(x, y + wave);
-    }
-
-    context.strokeStyle = index % 3 === 0 ? "rgba(255, 205, 132, 0.1)" : "rgba(27, 10, 4, 0.24)";
-    context.lineWidth = index % 3 === 0 ? 2 : 1;
-    context.stroke();
-  }
-
-  for (let index = 0; index < 7; index += 1) {
-    const x = 90 + index * 142;
-    context.fillStyle = "rgba(10, 3, 1, 0.12)";
-    context.fillRect(x, 0, 2, canvas.height);
-    context.fillStyle = "rgba(255, 214, 143, 0.05)";
-    context.fillRect(x + 4, 0, 2, canvas.height);
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1.5, 2.2);
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function createCardTexture(card: SpellCard, isSelected: boolean) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 744;
-  const context = getContext2d(canvas);
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  drawRoundedRect(context, 20, 20, 472, 704, 28);
-  const cardGradient = context.createLinearGradient(0, 20, 0, 724);
-  cardGradient.addColorStop(0, isSelected ? "#f3d894" : "#d7bd7d");
-  cardGradient.addColorStop(0.58, isSelected ? "#dfbd77" : "#c79b58");
-  cardGradient.addColorStop(1, isSelected ? "#a96331" : "#8f5229");
-  context.fillStyle = cardGradient;
-  context.fill();
-
-  context.lineWidth = 14;
-  context.strokeStyle = isSelected ? "#2a1208" : "#241006";
-  context.stroke();
-
-  drawRoundedRect(context, 46, 48, 420, 648, 18);
-  context.lineWidth = 5;
-  context.strokeStyle = "rgba(44, 20, 9, 0.62)";
-  context.stroke();
-
-  context.fillStyle = "rgba(43, 20, 9, 0.9)";
-  context.font = "900 56px 'Noto Sans JP', sans-serif";
-  context.textAlign = "left";
-  context.fillText(String(card.cost), 62, 112);
-  context.textAlign = "right";
-  context.fillText(String(card.power), 448, 666);
-
-  context.textAlign = "center";
-  context.font = "900 30px 'Noto Sans JP', sans-serif";
-  context.fillText(card.kind, 256, 92);
-
-  drawRoundedRect(context, 112, 132, 288, 248, 120);
-  context.fillStyle = "rgba(255, 235, 181, 0.24)";
-  context.fill();
-  context.lineWidth = 6;
-  context.strokeStyle = "rgba(43, 20, 9, 0.58)";
-  context.stroke();
-
-  context.font = "116px serif";
-  context.fillText(card.icon, 256, 298);
-
-  context.font = "900 37px 'Noto Sans JP', sans-serif";
-  context.fillStyle = "#2d160d";
-  wrapText(context, card.title, 256, 438, 346, 42, "center");
-
-  context.strokeStyle = "rgba(45, 19, 8, 0.35)";
-  context.lineWidth = 3;
-  context.beginPath();
-  context.moveTo(86, 512);
-  context.lineTo(426, 512);
-  context.stroke();
-
-  context.font = "700 27px Consolas, 'Courier New', monospace";
-  context.fillStyle = "#37190c";
-  wrapText(context, card.command, 256, 560, 360, 34, "center");
-
-  context.font = "500 22px 'Noto Sans JP', sans-serif";
-  context.fillStyle = "rgba(49, 22, 9, 0.78)";
-  wrapText(context, card.description, 256, 626, 346, 28, "center");
-
-  const texture = new THREE.CanvasTexture(canvas);
+function loadSceneTexture(
+  textureLoader: THREE.TextureLoader,
+  textureUrl: string,
+  textures: THREE.Texture[],
+) {
+  const texture = textureLoader.load(textureUrl);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   texture.needsUpdate = true;
+  textures.push(texture);
   return texture;
 }
-
 function createTableCardTexture(label: string, isDeck: boolean) {
   const canvas = document.createElement("canvas");
   canvas.width = 360;
@@ -589,42 +546,6 @@ function drawRoundedRect(
   context.lineTo(x, y + radius);
   context.quadraticCurveTo(x, y, x + radius, y);
   context.closePath();
-}
-
-function wrapText(
-  context: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  align: CanvasTextAlign,
-) {
-  const previousAlign = context.textAlign;
-  context.textAlign = align;
-
-  const lines: string[] = [];
-  let line = "";
-
-  for (const character of text) {
-    const nextLine = line + character;
-    if (context.measureText(nextLine).width > maxWidth && line.length > 0) {
-      lines.push(line);
-      line = character;
-    } else {
-      line = nextLine;
-    }
-  }
-
-  if (line) {
-    lines.push(line);
-  }
-
-  lines.forEach((currentLine, index) => {
-    context.fillText(currentLine, x, y + index * lineHeight);
-  });
-
-  context.textAlign = previousAlign;
 }
 
 function getContext2d(canvas: HTMLCanvasElement) {

@@ -9,6 +9,7 @@ interface PreparationDeskState {
   isIntroDialogueOpen: boolean;
   showVictory: boolean;
   showDefeat: boolean;
+  useLegacyPreparationDesk?: boolean;
 }
 
 export const editorCardVariants: Variants = {
@@ -63,6 +64,22 @@ export function isPreparationDeskOpen({
   isIntroDialogueOpen,
   showVictory,
   showDefeat,
+  useLegacyPreparationDesk = false,
+}: PreparationDeskState): boolean {
+  return (
+    useLegacyPreparationDesk &&
+    battlePhase === "player_turn" &&
+    !isIntroDialogueOpen &&
+    !showVictory &&
+    !showDefeat
+  );
+}
+
+export function isBattleCommandSurfaceOpen({
+  battlePhase,
+  isIntroDialogueOpen,
+  showVictory,
+  showDefeat,
 }: PreparationDeskState): boolean {
   return (
     battlePhase === "player_turn" &&
@@ -71,7 +88,6 @@ export function isPreparationDeskOpen({
     !showDefeat
   );
 }
-
 export function shouldRunCodeAfterCardAnimation(
   currentState: EditorCardMotionState,
   completedDefinition: unknown,

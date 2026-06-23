@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   editorCardVariants,
   getEditorCardClassName,
+  isBattleCommandSurfaceOpen,
   isPreparationDeskOpen,
   shouldRunCodeAfterCardAnimation,
 } from "./editorCardMotion";
@@ -48,13 +49,25 @@ describe("getEditorCardClassName", () => {
 });
 
 describe("isPreparationDeskOpen", () => {
-  it("opens only during the visible player preparation phase", () => {
+  it("stays closed by default because the standalone preparation screen owns that phase", () => {
     expect(
       isPreparationDeskOpen({
         battlePhase: "player_turn",
         isIntroDialogueOpen: false,
         showVictory: false,
         showDefeat: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("can still open the legacy desk only when explicitly enabled", () => {
+    expect(
+      isPreparationDeskOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+        useLegacyPreparationDesk: true,
       }),
     ).toBe(true);
   });
@@ -95,6 +108,37 @@ describe("isPreparationDeskOpen", () => {
   });
 });
 
+describe("isBattleCommandSurfaceOpen", () => {
+  it("opens the regular battle command HUD during a visible player turn", () => {
+    expect(
+      isBattleCommandSurfaceOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("stays closed while dialogue or result screens own the view", () => {
+    expect(
+      isBattleCommandSurfaceOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: true,
+        showVictory: false,
+        showDefeat: false,
+      }),
+    ).toBe(false);
+    expect(
+      isBattleCommandSurfaceOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: true,
+        showDefeat: false,
+      }),
+    ).toBe(false);
+  });
+});
 describe("shouldRunCodeAfterCardAnimation", () => {
   it("runs code only after the submit animation completes", () => {
     expect(shouldRunCodeAfterCardAnimation("submitting", "submitting")).toBe(

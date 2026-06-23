@@ -19,6 +19,7 @@ import { parseCombatLogEntry } from "./combatText";
 import {
   editorCardVariants,
   getEditorCardClassName,
+  isBattleCommandSurfaceOpen,
   isPreparationDeskOpen,
   shouldRunCodeAfterCardAnimation,
   type EditorCardMotionState,
@@ -87,10 +88,16 @@ export function BattleScreen() {
     showVictory,
     showDefeat,
   });
+  const isBattleCommandSurfaceVisible = isBattleCommandSurfaceOpen({
+    battlePhase,
+    isIntroDialogueOpen,
+    showVictory,
+    showDefeat,
+  });
   const shouldRenderCommandSurface =
     !showVictory &&
     !showDefeat &&
-    (isPreparationDeskVisible || editorCardMotionState === "submitting");
+    (isBattleCommandSurfaceVisible || editorCardMotionState === "submitting");
   const isCommandInputDisabled =
     isExecuting || editorCardMotionState !== "ready";
   const battleFieldClassName = `${battleFieldPresentation.className}${
