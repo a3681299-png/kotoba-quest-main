@@ -1,17 +1,7 @@
-import { useState } from "react";
-import BattleScreen from "./components/BattleScreen";
-import { PreparationScreen } from "./components/PreparationScreen";
-
-type ScreenMode = "preparation" | "battle";
+import BattleScreen from './components/BattleScreen'
 
 function App() {
-  const [screenMode, setScreenMode] = useState<ScreenMode>("preparation");
-
-  if (screenMode === "preparation") {
-    return <PreparationScreen onStartBattle={() => setScreenMode("battle")} />;
-  }
-
-  return <BattleScreen />;
+  return <BattleScreen />
 }
 
-export default App;
+export default App
