@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import attackCardTextureUrl from "../assets/UI/card/attack.png";
 import branchCardTextureUrl from "../assets/UI/card/branch.png";
@@ -29,6 +29,18 @@ type PreparationThreeSceneProps = {
   onCardSelect: (cardId: string) => void;
 };
 
+type ActionPreviewProps = {
+  previewCards: SpellCard[];
+  isDraftPreview: boolean;
+};
+
+type SyntaxBuilderProps = {
+  preparedCards: SpellCard[];
+  selectedCard: SpellCard;
+  onUndo: () => void;
+  onClear: () => void;
+};
+
 type SpellCard = {
   id: string;
   title: string;
@@ -37,6 +49,7 @@ type SpellCard = {
   cost: number;
   power: number;
   description: string;
+  glyph: string;
   textureUrl: string;
 };
 
@@ -49,6 +62,8 @@ type CardMeshEntry = {
   baseRenderOrder: number;
 };
 
+const PREPARATION_SEQUENCE_SIZE = 4;
+
 const SPELL_CARDS: SpellCard[] = [
   {
     id: "record",
@@ -58,6 +73,7 @@ const SPELL_CARDS: SpellCard[] = [
     cost: 1,
     power: 1,
     description: "あとで使う情報を残す。",
+    glyph: "▧",
     textureUrl: recordCardTextureUrl,
   },
   {
@@ -68,6 +84,7 @@ const SPELL_CARDS: SpellCard[] = [
     cost: 2,
     power: 2,
     description: "状態を見て行動を選ぶ。",
+    glyph: "Y",
     textureUrl: branchCardTextureUrl,
   },
   {
@@ -78,6 +95,7 @@ const SPELL_CARDS: SpellCard[] = [
     cost: 1,
     power: 3,
     description: "正面から意味を通す。",
+    glyph: "╱",
     textureUrl: attackCardTextureUrl,
   },
   {
@@ -88,6 +106,7 @@ const SPELL_CARDS: SpellCard[] = [
     cost: 0,
     power: 1,
     description: "文脈を読む。",
+    glyph: "◎",
     textureUrl: observationCardTextureUrl,
   },
   {
@@ -98,10 +117,11 @@ const SPELL_CARDS: SpellCard[] = [
     cost: 0,
     power: 2,
     description: "順番の中に立て直しを入れる。",
+    glyph: "✚",
     textureUrl: healCardTextureUrl,
   },
 ];
-const TABLE_SLOT_LABELS = ["準備 1", "準備 2", "準備 3"];
+const TABLE_SLOT_LABELS = ["Ⅰ", "Ⅱ", "Ⅲ"];
 const TABLE_DECOR_TEXTURE_URLS: Record<PreparationTableDecorItem["id"], string> = {
   books: booksDecorTextureUrl,
   candle: candleDecorTextureUrl,
@@ -109,15 +129,34 @@ const TABLE_DECOR_TEXTURE_URLS: Record<PreparationTableDecorItem["id"], string> 
 
 export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
   const [selectedCardId, setSelectedCardId] = useState("attack");
-  const selectedCard =
-    SPELL_CARDS.find((card) => card.id === selectedCardId) ?? SPELL_CARDS[0];
+  const [preparedCardIds, setPreparedCardIds] = useState<string[]>([]);
+  const selectedCard = getSpellCardById(selectedCardId);
+  const preparedCards = preparedCardIds.map(getSpellCardById);
+  const previewCards = preparedCards.length > 0 ? preparedCards : [selectedCard];
+  const isDraftPreview = preparedCards.length === 0;
+
+  const handleCardSelect = useCallback((cardId: string) => {
+    setSelectedCardId(cardId);
+    setPreparedCardIds((currentCardIds) => {
+      const nextCardIds = [...currentCardIds, cardId];
+      return nextCardIds.slice(-PREPARATION_SEQUENCE_SIZE);
+    });
+  }, []);
+
+  const handleUndoSequence = () => {
+    setPreparedCardIds((currentCardIds) => currentCardIds.slice(0, -1));
+  };
+
+  const handleClearSequence = () => {
+    setPreparedCardIds([]);
+  };
 
   return (
     <main className="preparation-screen">
       <section className="preparation-stage" aria-label="準備フェーズの3Dテーブル">
         <PreparationThreeScene
           selectedCardId={selectedCardId}
-          onCardSelect={setSelectedCardId}
+          onCardSelect={handleCardSelect}
         />
 
         <header className="preparation-overlay preparation-header">
@@ -134,14 +173,205 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
           </button>
         </header>
 
+        <ActionPreview previewCards={previewCards} isDraftPreview={isDraftPreview} />
+
+        <SyntaxBuilder
+          preparedCards={preparedCards}
+          selectedCard={selectedCard}
+          onUndo={handleUndoSequence}
+          onClear={handleClearSequence}
+        />
+
         <aside className="preparation-overlay selected-card-panel" aria-live="polite">
           <span className="selected-card-label">選択中</span>
-          <strong>{selectedCard.title}</strong>
+          <div className="selected-card-title-row">
+            <span
+              className={`selected-card-glyph is-${selectedCard.id}`}
+              aria-hidden="true"
+            >
+              {selectedCard.glyph}
+            </span>
+            <strong>{selectedCard.title}</strong>
+          </div>
           <code>{selectedCard.command}</code>
           <p>{selectedCard.description}</p>
         </aside>
       </section>
     </main>
+  );
+}
+
+function ActionPreview({ previewCards, isDraftPreview }: ActionPreviewProps) {
+  const hasCard = (cardId: string) => previewCards.some((card) => card.id === cardId);
+  const hasRecord = hasCard("record");
+  const hasBranch = hasCard("branch");
+  const hasAttack = hasCard("attack");
+  const hasObserve = hasCard("observe");
+  const hasHeal = hasCard("heal");
+  const previewGlyph = previewCards[0]?.glyph ?? "•";
+  const previewClassName = [
+    "preparation-overlay",
+    "action-preview",
+    isDraftPreview ? "is-draft-preview" : "",
+    hasRecord ? "has-record" : "",
+    hasBranch ? "has-branch" : "",
+    hasAttack ? "has-attack" : "",
+    hasObserve ? "has-observe" : "",
+    hasHeal ? "has-heal" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={previewClassName} aria-label="行動プレビュー">
+      <div className="preview-board" aria-hidden="true">
+        <svg className="preview-lines" viewBox="0 0 600 180" preserveAspectRatio="none">
+          <defs>
+            <marker
+              id="preview-arrow"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="5"
+              orient="auto"
+            >
+              <path d="M1 1 L9 5 L1 9 Z" />
+            </marker>
+            <marker
+              id="preview-arrow-soft"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="5"
+              orient="auto"
+            >
+              <path d="M1 1 L9 5 L1 9 Z" />
+            </marker>
+          </defs>
+
+          {hasObserve && <circle className="preview-scan-ring" cx="432" cy="82" r="44" />}
+          {hasRecord && (
+            <path
+              className="preview-path preview-record-path"
+              d="M435 86 C355 36 270 38 198 82"
+              markerEnd="url(#preview-arrow-soft)"
+            />
+          )}
+          {hasBranch && (
+            <>
+              <path
+                className="preview-path preview-branch-path"
+                d="M300 90 C338 58 367 56 402 62"
+              />
+              <path
+                className="preview-path preview-branch-path is-lower"
+                d="M300 90 C340 116 374 122 412 112"
+              />
+            </>
+          )}
+          {hasAttack && (
+            <path
+              className="preview-path preview-attack-path"
+              d="M302 88 C348 54 404 42 480 61"
+              markerEnd="url(#preview-arrow)"
+            />
+          )}
+          {hasHeal && (
+            <path
+              className="preview-path preview-heal-path"
+              d="M298 96 C246 126 188 128 118 106"
+              markerEnd="url(#preview-arrow-soft)"
+            />
+          )}
+        </svg>
+
+        <div className={`preview-note ${hasRecord ? "is-visible" : ""}`}>▧</div>
+        <div className={`preview-hub ${hasBranch ? "is-split" : ""}`}>
+          <span>{hasBranch ? "Y" : previewGlyph}</span>
+        </div>
+
+        <div className={`preview-unit ally-unit ally-one ${hasHeal ? "is-targeted" : ""}`} />
+        <div className="preview-unit ally-unit ally-two" />
+        <div className="preview-unit ally-unit ally-three" />
+        <div className={`preview-unit enemy-unit enemy-one ${hasAttack ? "is-targeted" : ""}`} />
+        <div className={`preview-unit enemy-unit enemy-two ${hasObserve ? "is-scanned" : ""}`} />
+        <div className="preview-unit enemy-unit enemy-three" />
+      </div>
+    </div>
+  );
+}
+
+function SyntaxBuilder({
+  preparedCards,
+  selectedCard,
+  onUndo,
+  onClear,
+}: SyntaxBuilderProps) {
+  const slots = Array.from(
+    { length: PREPARATION_SEQUENCE_SIZE },
+    (_, index) => preparedCards[index] ?? null,
+  );
+  const nextSlotIndex = Math.min(preparedCards.length, PREPARATION_SEQUENCE_SIZE - 1);
+  const hasPreparedCards = preparedCards.length > 0;
+
+  return (
+    <nav className="preparation-overlay syntax-builder" aria-label="構文スロット">
+      <ol className="syntax-track">
+        {slots.map((card, index) => {
+          const slotClassName = [
+            "syntax-slot",
+            card ? "is-filled" : "is-empty",
+            card ? `is-${card.id}` : "",
+            !card && index === nextSlotIndex ? "is-next" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const connectorClassName = [
+            "syntax-connector",
+            card?.id === "branch" ? "is-branch" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <li className="syntax-step" key={`syntax-slot-${index}`}>
+              <div
+                className={slotClassName}
+                aria-label={card ? `${index + 1}: ${card.title}` : `${index + 1}: 空き`}
+              >
+                <span className={card ? "syntax-glyph" : "syntax-ghost-glyph"}>
+                  {card?.glyph ?? (index === nextSlotIndex ? selectedCard.glyph : "·")}
+                </span>
+              </div>
+              {index < slots.length - 1 && (
+                <span className={connectorClassName} aria-hidden="true" />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="syntax-controls">
+        <button
+          className="syntax-control-button"
+          type="button"
+          onClick={onUndo}
+          disabled={!hasPreparedCards}
+          aria-label="最後のカードを戻す"
+        >
+          <span aria-hidden="true">↶</span>
+        </button>
+        <button
+          className="syntax-control-button"
+          type="button"
+          onClick={onClear}
+          disabled={!hasPreparedCards}
+          aria-label="構文を消す"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+    </nav>
   );
 }
 
@@ -554,4 +784,8 @@ function getContext2d(canvas: HTMLCanvasElement) {
     throw new Error("Canvas 2D context is not available.");
   }
   return context;
+}
+
+function getSpellCardById(cardId: string) {
+  return SPELL_CARDS.find((card) => card.id === cardId) ?? SPELL_CARDS[0];
 }
