@@ -7,48 +7,56 @@ export type PreparationCardLayout = {
   zIndex: number;
 };
 
-export const PREPARATION_CARD_WIDTH = 0.74;
-export const PREPARATION_CARD_HEIGHT = 0.99;
+export const PREPARATION_CARD_WIDTH = 0.68;
+export const PREPARATION_CARD_HEIGHT = 0.91;
 
 export const PREPARATION_CARD_LAYOUTS: Record<string, PreparationCardLayout> = {
-  record: {
-    x: -1.12,
-    y: 0.68,
-    z: 1.36,
-    rotationY: -18,
+  "condition-always": {
+    x: -1.35,
+    y: 0.66,
+    z: 1.34,
+    rotationY: -20,
     rotationZ: 13,
     zIndex: 1,
   },
-  branch: {
-    x: -0.56,
-    y: 0.74,
+  "condition-enemy-low": {
+    x: -0.82,
+    y: 0.72,
     z: 1.48,
-    rotationY: -10,
-    rotationZ: 6,
+    rotationY: -12,
+    rotationZ: 7,
     zIndex: 2,
   },
-  attack: {
-    x: 0,
-    y: 0.8,
-    z: 1.62,
-    rotationY: 0,
-    rotationZ: -1,
-    zIndex: 5,
-  },
-  observe: {
-    x: 0.56,
-    y: 0.74,
-    z: 1.48,
-    rotationY: 10,
-    rotationZ: -7,
+  "condition-weakness-known": {
+    x: -0.28,
+    y: 0.78,
+    z: 1.6,
+    rotationY: -4,
+    rotationZ: 2,
     zIndex: 4,
   },
-  heal: {
-    x: 1.12,
-    y: 0.68,
-    z: 1.36,
-    rotationY: 18,
-    rotationZ: -13,
+  "action-observe": {
+    x: 0.28,
+    y: 0.78,
+    z: 1.6,
+    rotationY: 4,
+    rotationZ: -2,
+    zIndex: 5,
+  },
+  "action-attack": {
+    x: 0.82,
+    y: 0.72,
+    z: 1.48,
+    rotationY: 12,
+    rotationZ: -7,
     zIndex: 3,
+  },
+  "action-heal": {
+    x: 1.35,
+    y: 0.66,
+    z: 1.34,
+    rotationY: 20,
+    rotationZ: -13,
+    zIndex: 2,
   },
 };
