@@ -10,6 +10,8 @@ interface PreparationDeskState {
   showVictory: boolean;
   showDefeat: boolean;
   useLegacyPreparationDesk?: boolean;
+  hasPreparedBattlePlan?: boolean;
+  isPreparationPending?: boolean;
 }
 
 export const editorCardVariants: Variants = {
@@ -80,14 +82,19 @@ export function isBattleCommandSurfaceOpen({
   isIntroDialogueOpen,
   showVictory,
   showDefeat,
+  hasPreparedBattlePlan = false,
+  isPreparationPending = false,
 }: PreparationDeskState): boolean {
   return (
+    !hasPreparedBattlePlan &&
+    !isPreparationPending &&
     battlePhase === "player_turn" &&
     !isIntroDialogueOpen &&
     !showVictory &&
     !showDefeat
   );
 }
+
 export function shouldRunCodeAfterCardAnimation(
   currentState: EditorCardMotionState,
   completedDefinition: unknown,

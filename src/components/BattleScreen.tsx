@@ -13,6 +13,7 @@ import { parse } from "../parser/parser";
 import { SpellExecutor, type GameAction } from "../engine/SpellExecutor";
 import { CardCommandBuilder } from "./CardCommandBuilder";
 import { CodeEditor, type CodeEditorRef } from "./CodeEditor";
+import type { PreparationBattlePlan } from "./preparationBattlePlan";
 import { IntroDialogue } from "./IntroDialogue";
 import { getBattleFieldPresentation } from "./battlePresentation";
 import { parseCombatLogEntry } from "./combatText";
@@ -33,23 +34,43 @@ import {
 } from "../engine/EnemyAI";
 import "../styles/battle.css";
 
-export function BattleScreen() {
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
+type BattleScreenProps = {
+  stageIndex?: number;
+  preparedBattlePlan?: PreparationBattlePlan | null;
+  onPreparationReady?: () => void;
+  onAdvanceStage?: (nextStageIndex: number) => void;
+  onPreparedPlanComplete?: () => void;
+};
+
+export function BattleScreen({
+  stageIndex,
+  preparedBattlePlan = null,
+  onPreparationReady,
+  onAdvanceStage,
+  onPreparedPlanComplete,
+}: BattleScreenProps) {
+  const [localStageIndex, setLocalStageIndex] = useState(0);
+  const currentStageIndex = stageIndex ?? localStageIndex;
   const [code, setCode] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
-  const [introDialogueState, setIntroDialogueState] = useState({
-    stageIndex: 0,
-    index: 0,
-  });
+  const [introDialogueState, setIntroDialogueState] = useState(() => ({
+    stageIndex: stageIndex ?? 0,
+    index: preparedBattlePlan ? -1 : 0,
+  }));
   const [cardBuilderResetKey, setCardBuilderResetKey] = useState(0);
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [editorCardMotionState, setEditorCardMotionState] =
     useState<EditorCardMotionState>("entering");
+  const [isBattleSceneReady, setIsBattleSceneReady] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const codeEditorRef = useRef<CodeEditorRef>(null);
   const pendingCodeRunRef = useRef(false);
+  const preparedPlanRunRef = useRef<string | null>(null);
+  const executeCodeRef = useRef<(sourceCode?: string) => Promise<void>>(
+    async () => undefined,
+  );
 
   // Zustand ストアから状態を取得
   const {
@@ -57,7 +78,6 @@ export function BattleScreen() {
     isStepMode,
     battlePhase,
     turnCount,
-    currentIntent,
     isDefending,
     lastDamageBlocked,
     resetStage,
@@ -81,6 +101,10 @@ export function BattleScreen() {
   const activeIntroLine =
     introDialogueIndex >= 0 ? stage.introDialogue[introDialogueIndex] : null;
   const isIntroDialogueOpen = Boolean(activeIntroLine);
+  const hasPreparedBattlePlan = Boolean(preparedBattlePlan?.code.trim());
+  const isPreparationPending = Boolean(
+    onPreparationReady && !hasPreparedBattlePlan,
+  );
   const battleFieldPresentation = getBattleFieldPresentation(battlePhase);
   const isPreparationDeskVisible = isPreparationDeskOpen({
     battlePhase,
@@ -93,6 +117,8 @@ export function BattleScreen() {
     isIntroDialogueOpen,
     showVictory,
     showDefeat,
+    hasPreparedBattlePlan,
+    isPreparationPending,
   });
   const shouldRenderCommandSurface =
     !showVictory &&
@@ -161,6 +187,9 @@ export function BattleScreen() {
     const init = async () => {
       if (canvasRef.current && mounted) {
         await initBattleScene(canvasRef.current);
+        if (mounted) {
+          setIsBattleSceneReady(true);
+        }
       }
     };
 
@@ -168,16 +197,27 @@ export function BattleScreen() {
 
     return () => {
       mounted = false;
+      setIsBattleSceneReady(false);
       destroyBattleScene();
     };
   }, [currentStageIndex]);
 
   useEffect(() => {
-    if (battlePhase !== "player_turn" || showVictory || showDefeat) return;
+    if (
+      isPreparationPending ||
+      hasPreparedBattlePlan ||
+      battlePhase !== "player_turn" ||
+      showVictory ||
+      showDefeat
+    ) {
+      return;
+    }
 
     return scheduleEditorCardEnterAnimation();
   }, [
     battlePhase,
+    hasPreparedBattlePlan,
+    isPreparationPending,
     turnCount,
     showVictory,
     showDefeat,
@@ -233,32 +273,34 @@ export function BattleScreen() {
 
   // 敵のターンを実行
   const executeEnemyTurn = async () => {
-    if (!currentIntent || currentIntent.type === "idle") {
+    const activeIntent = useGameStore.getState().currentIntent;
+
+    if (!activeIntent || activeIntent.type === "idle") {
       // ステージ1-2: 攻撃なし
       addLog(`👾 ${stage.enemyName}はこちらを見ている...`);
       await new Promise((resolve) => setTimeout(resolve, 500));
     } else {
       // ステージ3以降: 攻撃
-      const damage = calculateDamage(currentIntent, isDefending);
-      const blocked = isDefending ? currentIntent.damage - damage : 0;
+      const damage = calculateDamage(activeIntent, isDefending);
+      const blocked = isDefending ? activeIntent.damage - damage : 0;
 
       // 攻撃アニメーション
       const attackType =
-        currentIntent.type === "attack_heavy"
+        activeIntent.type === "attack_heavy"
           ? "heavy"
-          : currentIntent.type === "attack_multi"
+          : activeIntent.type === "attack_multi"
             ? "multi"
             : "normal";
       await playEnemyAttackAnimation(attackType, isDefending);
 
       // ダメージ適用
-      damagePlayer(currentIntent.damage);
+      damagePlayer(activeIntent.damage);
 
       if (isDefending) {
         addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
         addLog(`${damage}ダメージを受けた！`, "damage");
       } else {
-        addLog(`💥 ${currentIntent.damage}ダメージを受けた！`, "damage");
+        addLog(`💥 ${activeIntent.damage}ダメージを受けた！`, "damage");
       }
 
       // プレイヤーHPチェック
@@ -285,8 +327,20 @@ export function BattleScreen() {
     }
   };
 
+  const returnToPreparationAfterPreparedPlan = () => {
+    if (hasPreparedBattlePlan && onPreparedPlanComplete) {
+      onPreparedPlanComplete();
+      return true;
+    }
+
+    return false;
+  };
+
   const closeIntroDialogue = () => {
     setIntroDialogueState({ stageIndex: currentStageIndex, index: -1 });
+    if (onPreparationReady && !hasPreparedBattlePlan) {
+      onPreparationReady();
+    }
   };
 
   const advanceIntroDialogue = () => {
@@ -302,8 +356,9 @@ export function BattleScreen() {
   };
 
   // コードを実行する関数
-  const executeCode = async () => {
-    if (isExecuting || !code.trim()) return;
+  const executeCode = async (sourceCode = code) => {
+    const trimmedCode = sourceCode.trim();
+    if (isExecuting || !trimmedCode) return;
 
     setIsExecuting(true);
     setBattlePhase("executing");
@@ -318,7 +373,7 @@ export function BattleScreen() {
     addLog(`🔮 呪文を詠唱中...`);
 
     // パース
-    const parseResult = parse(code.trim());
+    const parseResult = parse(trimmedCode);
 
     if (!parseResult.success) {
       const err = parseResult.error;
@@ -329,7 +384,9 @@ export function BattleScreen() {
       addLog(friendlyMessage, "normal");
       setIsExecuting(false);
       setBattlePhase("player_turn");
-      playEditorCardEnterAnimation();
+      if (!returnToPreparationAfterPreparedPlan()) {
+        playEditorCardEnterAnimation();
+      }
       return;
     }
 
@@ -365,7 +422,9 @@ export function BattleScreen() {
       addLog(result.error, "normal");
       setIsExecuting(false);
       setBattlePhase("player_turn");
-      playEditorCardEnterAnimation();
+      if (!returnToPreparationAfterPreparedPlan()) {
+        playEditorCardEnterAnimation();
+      }
       return;
     }
 
@@ -433,7 +492,14 @@ export function BattleScreen() {
     await executeEnemyTurn();
 
     setIsExecuting(false);
+    if (useGameStore.getState().playerHp > 0) {
+      returnToPreparationAfterPreparedPlan();
+    }
   };
+
+  useEffect(() => {
+    executeCodeRef.current = executeCode;
+  });
 
   const handleConfirmCode = () => {
     if (
@@ -458,6 +524,39 @@ export function BattleScreen() {
       void executeCode();
     }
   };
+  useEffect(() => {
+    const preparedBattleCode = preparedBattlePlan?.code.trim() ?? "";
+
+    if (
+      !hasPreparedBattlePlan ||
+      !preparedBattleCode ||
+      !isBattleSceneReady ||
+      isIntroDialogueOpen ||
+      showVictory ||
+      showDefeat ||
+      isExecuting ||
+      battlePhase !== "player_turn" ||
+      preparedPlanRunRef.current === preparedBattleCode
+    ) {
+      return;
+    }
+
+    preparedPlanRunRef.current = preparedBattleCode;
+    const runPreparedBattleCode = window.setTimeout(() => {
+      void executeCodeRef.current(preparedBattleCode);
+    }, 0);
+
+    return () => window.clearTimeout(runPreparedBattleCode);
+  }, [
+    battlePhase,
+    hasPreparedBattlePlan,
+    isBattleSceneReady,
+    isExecuting,
+    isIntroDialogueOpen,
+    preparedBattlePlan,
+    showDefeat,
+    showVictory,
+  ]);
 
   // リトライ
   const handleRetry = () => {
@@ -471,7 +570,12 @@ export function BattleScreen() {
   const goToNextStage = () => {
     if (currentStageIndex < STAGES.length - 1) {
       const nextStageIdx = currentStageIndex + 1;
-      setCurrentStageIndex(nextStageIdx);
+      if (onAdvanceStage) {
+        onAdvanceStage(nextStageIdx);
+        return;
+      }
+
+      setLocalStageIndex(nextStageIdx);
       setCode("");
       setBattleLog([]);
       setShowVictory(false);
@@ -590,6 +694,7 @@ export function BattleScreen() {
             line={activeIntroLine}
             playerPortraitUrl={stage.mentorPortraitUrl}
             isLastLine={introDialogueIndex === stage.introDialogue.length - 1}
+            lastLineActionLabel={onPreparationReady ? "準備へ" : "戦闘へ"}
             onNext={advanceIntroDialogue}
             onSkip={closeIntroDialogue}
           />

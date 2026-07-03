@@ -7,6 +7,7 @@ interface IntroDialogueProps {
   line: StageDialogueLine;
   playerPortraitUrl: string;
   isLastLine: boolean;
+  lastLineActionLabel?: string;
   onNext: () => void;
   onSkip: () => void;
 }
@@ -15,6 +16,7 @@ export function IntroDialogue({
   line,
   playerPortraitUrl,
   isLastLine,
+  lastLineActionLabel = "戦闘へ",
   onNext,
   onSkip,
 }: IntroDialogueProps) {
@@ -61,7 +63,7 @@ export function IntroDialogue({
             SKIP
           </button>
           <button type="button" className="intro-next-button" onClick={onNext}>
-            {isLastLine ? "戦闘へ" : "NEXT"}
+            {isLastLine ? lastLineActionLabel : "NEXT"}
           </button>
         </div>
       </section>

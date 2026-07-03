@@ -120,6 +120,30 @@ describe("isBattleCommandSurfaceOpen", () => {
     ).toBe(true);
   });
 
+  it("stays closed when a prepared battle plan is already queued", () => {
+    expect(
+      isBattleCommandSurfaceOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+        hasPreparedBattlePlan: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("stays closed while the dialogue is handing off to preparation", () => {
+    expect(
+      isBattleCommandSurfaceOpen({
+        battlePhase: "player_turn",
+        isIntroDialogueOpen: false,
+        showVictory: false,
+        showDefeat: false,
+        isPreparationPending: true,
+      }),
+    ).toBe(false);
+  });
+
   it("stays closed while dialogue or result screens own the view", () => {
     expect(
       isBattleCommandSurfaceOpen({

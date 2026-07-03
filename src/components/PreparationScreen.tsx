@@ -15,6 +15,11 @@ import {
 } from "./PreparationCardLayout";
 import { getPreparationSceneSetupKey } from "./PreparationScreenLifecycle";
 import {
+  buildPreparationBattlePlan,
+  type PreparationBattlePlan,
+  type PreparationPlanCard,
+} from "./preparationBattlePlan";
+import {
   PREPARATION_TABLE_DECOR_ITEMS,
   type PreparationTableDecorItem,
 } from "./PreparationTableDecor";
@@ -22,7 +27,8 @@ import "../styles/preparation.css";
 import "../styles/preparation-logic.css";
 
 type PreparationScreenProps = {
-  onStartBattle: () => void;
+  stageId?: number;
+  onStartBattle: (battlePlan: PreparationBattlePlan) => void;
 };
 
 type PreparationThreeSceneProps = {
@@ -276,6 +282,10 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
   );
   const traceSteps = useMemo(() => simulateRules(previewRules), [previewRules]);
   const isDraftPreview = getCompleteRules(rules).length === 0;
+  const battlePlan = useMemo(
+    () => buildBattlePlanFromRules(previewRules),
+    [previewRules],
+  );
 
   const handleCardSelect = useCallback(
     (cardId: PreparationCardId) => {
@@ -350,7 +360,7 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
           <button
             className="start-battle-button"
             type="button"
-            onClick={onStartBattle}
+            onClick={() => onStartBattle(battlePlan)}
           >
             バトルへ進む
           </button>
@@ -1000,6 +1010,44 @@ function createEmptyRuleSlots() {
 
 function cloneRuleSlots(rules: RuleSlot[]) {
   return rules.map((rule) => ({ ...rule }));
+}
+
+function buildBattlePlanFromRules(rules: RuleSlot[]): PreparationBattlePlan {
+  const planCards = getCompleteRules(rules).map(ruleToPlanCard);
+  const fallbackCard = planCards[0] ?? {
+    id: "action-attack",
+    command: "攻撃する",
+  };
+
+  return buildPreparationBattlePlan(planCards, fallbackCard);
+}
+
+function ruleToPlanCard(rule: CompleteRule): PreparationPlanCard {
+  return {
+    id: `${rule.condition.id}:${rule.action.id}`,
+    command: getExecutableCommandForRule(rule),
+  };
+}
+
+function getExecutableCommandForRule(rule: CompleteRule): string {
+  const actionCommand = getExecutableActionCommand(rule.action);
+
+  switch (rule.condition.id) {
+    case "condition-always":
+      return actionCommand;
+    case "condition-enemy-low":
+      return `もし 敵HP が 少ない なら { ${actionCommand} }`;
+    case "condition-weakness-known":
+      return `もし 弱点 が 判明している なら { ${actionCommand} }`;
+  }
+}
+
+function getExecutableActionCommand(action: ActionCard): string {
+  if (action.id === "action-observe") {
+    return `${action.command}\n変数 弱点 = 判明している`;
+  }
+
+  return action.command;
 }
 
 function createPreviewRules(rules: RuleSlot[], selectedCard: PreparationCard) {
