@@ -8,6 +8,7 @@ import {
   startPreparedBattle,
 } from "./components/battleFlow";
 import { PreparationScreen } from "./components/PreparationScreen";
+import "./styles/preparation-readable.css";
 
 function App() {
   const [battleFlow, setBattleFlow] = useState(initialBattleFlowState);
