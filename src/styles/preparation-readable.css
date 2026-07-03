@@ -9,10 +9,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.45rem;
 }
 
-.logic-feedback-label::after {
-  content: "左→右";
+.logic-feedback-label::after,
+.logic-feedback-count {
   padding: 0.18rem 0.42rem;
   border: 1px solid rgba(244, 183, 96, 0.28);
   border-radius: 999px;
@@ -20,6 +21,14 @@
   background: rgba(0, 0, 0, 0.22);
   font-size: 0.62rem;
   letter-spacing: 0.06em;
+}
+
+.logic-feedback-label::after {
+  content: "左→右";
+}
+
+.logic-feedback-count {
+  color: #ffe1a8;
 }
 
 .logic-feedback-note,
