@@ -1,6 +1,6 @@
 export type PreparationSceneSetupInput = {
   selectedCardId: string;
-  onCardSelect: (cardId: string) => void;
+  onCardSelect: unknown;
 };
 
 export function getPreparationSceneSetupKey({
