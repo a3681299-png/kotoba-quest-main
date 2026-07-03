@@ -1,137 +1,130 @@
 /* Split condition/action card builder */
-.logic-feedback-panel {
-  top: clamp(136px, 16vh, 172px);
+.logic-animation-panel {
+  top: clamp(132px, 15vh, 164px);
   right: 32px;
-  width: min(340px, calc(100vw - 64px));
-  max-height: min(410px, calc(100vh - 310px));
-  overflow-y: auto;
-  padding: 1rem;
-  border: 1px solid var(--prep-panel-border);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(34, 17, 9, 0.72), rgba(10, 5, 3, 0.62)),
-    var(--prep-panel);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(8px);
+  width: 178px;
+  height: 152px;
+  pointer-events: none;
 }
 
-.logic-feedback-label,
-.selected-card-kind {
-  display: inline-block;
-  color: var(--prep-gold);
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-
-.logic-feedback-note {
-  margin: 0.35rem 0 0.75rem;
-  color: var(--prep-muted);
-  font-size: 0.82rem;
-  line-height: 1.55;
-}
-
-.trace-list {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.trace-step {
+.logic-animation-orbit {
   position: relative;
-  display: grid;
-  gap: 0.32rem;
-  padding: 0.62rem 0.7rem;
-  border: 1px solid rgba(229, 178, 105, 0.18);
-  border-radius: 13px;
-  background: rgba(8, 4, 2, 0.44);
-  box-shadow: inset 0 0 16px rgba(255, 184, 92, 0.04);
-}
-
-.trace-step.is-passed {
-  border-color: rgba(246, 190, 99, 0.44);
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(230, 171, 91, 0.18);
+  border-radius: 26px;
   background:
-    radial-gradient(circle at 12% 20%, rgba(245, 166, 78, 0.18), transparent 42%),
-    rgba(35, 16, 8, 0.58);
+    radial-gradient(circle at 50% 50%, rgba(244, 199, 118, 0.1), transparent 48%),
+    rgba(13, 7, 5, 0.28);
+  box-shadow:
+    inset 0 0 28px rgba(255, 180, 86, 0.05),
+    0 18px 54px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(5px);
 }
 
-.trace-step.is-passed::after {
-  content: "焼印";
+.logic-animation-orbit::before,
+.logic-animation-orbit::after {
+  content: "";
   position: absolute;
-  top: 0.54rem;
-  right: 0.6rem;
-  color: rgba(255, 223, 168, 0.34);
-  font-size: 0.68rem;
-  font-weight: 900;
-  transform: rotate(-10deg);
+  inset: 18px;
+  border: 1px solid rgba(255, 212, 143, 0.12);
+  border-radius: 999px;
 }
 
-.trace-step.is-skipped {
-  opacity: 0.76;
+.logic-animation-orbit::after {
+  inset: 37px;
+  animation: logic-orbit-breathe 2.8s ease-in-out infinite;
 }
 
-.trace-step-header {
-  display: flex;
+.logic-rune {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  grid-template-columns: auto auto auto auto;
   align-items: center;
-  gap: 0.42rem;
-  padding-right: 2.2rem;
-}
-
-.trace-order,
-.trace-result {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border: 1px solid rgba(244, 183, 96, 0.3);
-  color: #ffe1a8;
-  background: rgba(0, 0, 0, 0.28);
+  gap: 0.24rem;
+  min-width: 78px;
+  padding: 0.36rem 0.46rem;
+  border: 1px solid rgba(244, 183, 96, 0.28);
+  border-radius: 999px;
+  color: rgba(255, 229, 175, 0.78);
+  background: rgba(9, 4, 2, 0.64);
+  box-shadow: inset 0 0 14px rgba(255, 182, 91, 0.05);
   font-weight: 900;
+  transform: translate(-50%, -50%);
+  opacity: 0.54;
+  animation: logic-rune-scan 2.4s ease-in-out infinite;
 }
 
-.trace-order {
-  width: 24px;
-  height: 24px;
+.logic-rune:nth-child(1) {
+  top: 28%;
+}
+
+.logic-rune:nth-child(2) {
+  top: 50%;
+}
+
+.logic-rune:nth-child(3) {
+  top: 72%;
+}
+
+.logic-rune::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -11px;
+  height: 2px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 150, 0.74), transparent);
+  opacity: 0;
+  animation: logic-spark 2.4s ease-in-out infinite;
 }
 
-.trace-result {
-  margin-left: auto;
-  padding: 0.2rem 0.42rem;
+.logic-rune:last-child::after {
+  display: none;
+}
+
+.logic-rune.is-passed {
+  color: #ffe1a8;
+  border-color: rgba(246, 190, 99, 0.56);
+  background:
+    radial-gradient(circle at 18% 50%, rgba(255, 203, 115, 0.2), transparent 54%),
+    rgba(47, 21, 9, 0.72);
+  box-shadow:
+    0 0 18px rgba(236, 154, 69, 0.18),
+    inset 0 0 18px rgba(255, 223, 165, 0.09);
+  opacity: 1;
+}
+
+.logic-rune.is-passed::after {
+  opacity: 0.72;
+}
+
+.logic-rune.is-skipped {
+  filter: grayscale(0.35);
+}
+
+.logic-rune-order {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid rgba(244, 183, 96, 0.28);
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
 }
 
-.trace-step strong {
-  min-width: 0;
-  color: var(--prep-text);
+.logic-rune-condition,
+.logic-rune-action,
+.logic-rune-arrow {
   font-size: 0.86rem;
+  line-height: 1;
 }
 
-.trace-step p,
-.trace-step small,
-.trace-step code,
-.empty-trace,
-.sequence-tip {
-  color: var(--prep-muted);
-  font-size: 0.78rem;
-  line-height: 1.48;
-}
-
-.trace-step code {
-  display: block;
-  padding: 0.28rem 0.42rem;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.32);
-  font-family: "Consolas", "Courier New", monospace;
-}
-
-.sequence-tip {
-  margin-top: 0.72rem;
-  padding-top: 0.72rem;
-  border-top: 1px solid rgba(229, 178, 105, 0.18);
+.logic-rune-arrow {
+  opacity: 0.62;
 }
 
 .syntax-builder {
@@ -312,30 +305,134 @@
   opacity: 0.45;
 }
 
-.selected-card-kind {
-  margin-bottom: 0.12rem;
+.card-effect-tooltip {
+  position: fixed;
+  z-index: 30;
+  width: min(260px, calc(100vw - 36px));
+  padding: 0.86rem 0.92rem;
+  border: 1px solid rgba(229, 178, 105, 0.34);
+  border-radius: 16px;
+  color: var(--prep-text);
+  background:
+    linear-gradient(180deg, rgba(34, 17, 9, 0.84), rgba(10, 5, 3, 0.78)),
+    rgba(13, 7, 5, 0.72);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(9px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 
-.selected-card-kind.is-action {
+.card-effect-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.tooltip-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  margin-bottom: 0.58rem;
+}
+
+.tooltip-glyph {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(244, 183, 96, 0.34);
+  border-radius: 11px;
+  color: #ffe1a8;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 12px rgba(255, 197, 112, 0.08);
+  font-weight: 900;
+}
+
+.tooltip-kind {
+  display: block;
+  color: var(--prep-gold);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.tooltip-kind.is-action {
   color: #ffd7a0;
 }
 
-.selected-card-panel small {
+.card-effect-tooltip strong {
   display: block;
-  margin-top: 0.7rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid rgba(229, 178, 105, 0.18);
-  color: rgba(255, 229, 175, 0.7);
-  font-size: 0.76rem;
+  font-size: 1rem;
+}
+
+.card-effect-tooltip p {
+  margin: 0 0 0.42rem;
+  color: #ffe1a8;
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.card-effect-tooltip small {
+  display: block;
+  color: var(--prep-muted);
+  font-size: 0.78rem;
   line-height: 1.55;
 }
 
+@keyframes logic-rune-scan {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  45% {
+    transform: translate(-50%, -50%) scale(1.045);
+  }
+}
+
+@keyframes logic-spark {
+  0%,
+  25% {
+    transform: translateY(-3px) scaleX(0.42);
+    opacity: 0;
+  }
+
+  48% {
+    transform: translateY(0) scaleX(1);
+    opacity: 0.78;
+  }
+
+  78%,
+  100% {
+    transform: translateY(3px) scaleX(0.52);
+    opacity: 0;
+  }
+}
+
+@keyframes logic-orbit-breathe {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.82;
+    transform: scale(1.05);
+  }
+}
+
 @media (max-width: 1180px) {
-  .logic-feedback-panel {
-    top: 180px;
+  .logic-animation-panel {
+    top: 174px;
     right: 28px;
-    width: min(310px, calc(100vw - 56px));
-    max-height: 300px;
+    width: 160px;
+    height: 136px;
   }
 
   .syntax-builder {
@@ -349,7 +446,7 @@
 }
 
 @media (max-width: 900px) {
-  .logic-feedback-panel {
+  .logic-animation-panel {
     display: none;
   }
 
@@ -383,5 +480,9 @@
 
   .rule-pocket strong {
     font-size: 0.72rem;
+  }
+
+  .card-effect-tooltip {
+    display: none;
   }
 }
