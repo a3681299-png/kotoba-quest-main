@@ -160,15 +160,15 @@ const CONDITION_CARDS: ConditionCard[] = [
     type: "condition",
     title: "いつでも",
     kind: "条件",
-    shortLabel: "いつでも",
+    shortLabel: "常時",
     command: "もし いつでも なら",
-    definition: "常に条件成立。最初の行動や基本行動に使う。",
-    description: "行動を必ず発動させるための条件札。",
+    definition: "常に成立",
+    description: "必ず行動する。",
     glyph: "○",
     textureUrl: recordCardTextureUrl,
     evaluate: () => ({
       passed: true,
-      detail: "いつでも = 常に成立",
+      detail: "常に成立",
     }),
   },
   {
@@ -176,17 +176,17 @@ const CONDITION_CARDS: ConditionCard[] = [
     type: "condition",
     title: "敵HPが30%以下",
     kind: "条件",
-    shortLabel: "敵HP≤30%",
+    shortLabel: "HP≤30%",
     command: "もし 敵HP が 30%以下 なら",
-    definition: "敵HPが最大HPの30%以下になった瞬間から成立。",
-    description: "前の行動で敵HPが減ると、後ろの判定結果が変わる。",
+    definition: "敵HP≤30%",
+    description: "攻撃後に成立しやすい。",
     glyph: "Y",
     textureUrl: branchCardTextureUrl,
     evaluate: (state) => {
       const percent = getEnemyHpPercent(state);
       return {
         passed: percent <= 30,
-        detail: `敵HP ${percent}% は 30%以下${percent <= 30 ? "" : "ではない"}`,
+        detail: `敵HP${percent}% ${percent <= 30 ? "≤" : ">"} 30%`,
       };
     },
   },
@@ -197,15 +197,13 @@ const CONDITION_CARDS: ConditionCard[] = [
     kind: "条件",
     shortLabel: "弱点判明",
     command: "もし 弱点 が 判明している なら",
-    definition: "観察する行動のあとに成立。先に置くとまだ成立しない。",
-    description: "観察→攻撃の順序を考えるための条件札。",
+    definition: "観察後に成立",
+    description: "観察の後に使う。",
     glyph: "目",
     textureUrl: observationCardTextureUrl,
     evaluate: (state) => ({
       passed: state.weaknessKnown,
-      detail: state.weaknessKnown
-        ? "観察済みなので弱点が判明している"
-        : "まだ観察していないので弱点は不明",
+      detail: state.weaknessKnown ? "弱点判明済み" : "弱点はまだ不明",
     }),
   },
 ];
@@ -218,13 +216,13 @@ const ACTION_CARDS: ActionCard[] = [
     kind: "行動",
     shortLabel: "観察",
     command: "観察する",
-    effectText: "弱点判明フラグを立てる。",
-    description: "この後ろにある「弱点が判明」条件を成立させる。",
+    effectText: "弱点判明",
+    description: "後ろの弱点条件を通す。",
     glyph: "◎",
     textureUrl: observationCardTextureUrl,
     apply: (state) => {
       state.weaknessKnown = true;
-      return { message: "弱点が判明。後ろの条件が読めるようになった" };
+      return { message: "弱点判明" };
     },
   },
   {
@@ -234,8 +232,8 @@ const ACTION_CARDS: ActionCard[] = [
     kind: "行動",
     shortLabel: "攻撃",
     command: "攻撃する",
-    effectText: "敵HPを20%減らす。弱点判明中なら30%減らす。",
-    description: "敵HPを変化させ、後続の条件判定に影響する。",
+    effectText: "敵HP -20% / 弱点後 -30%",
+    description: "敵HPを下げる。",
     glyph: "╱",
     textureUrl: attackCardTextureUrl,
     apply: (state) => {
@@ -243,7 +241,7 @@ const ACTION_CARDS: ActionCard[] = [
       const damage = state.weaknessKnown ? 30 : 20;
       state.enemyHp = Math.max(0, state.enemyHp - damage);
       return {
-        message: `敵HP ${before}% → ${state.enemyHp}%（${damage}%ダメージ）`,
+        message: `敵HP ${before}%→${state.enemyHp}%`,
       };
     },
   },
@@ -254,21 +252,24 @@ const ACTION_CARDS: ActionCard[] = [
     kind: "行動",
     shortLabel: "回復",
     command: "回復する",
-    effectText: "自分HPを18%回復する。",
-    description: "次の敵行動に備えて状態を立て直す。",
+    effectText: "自分HP +18%",
+    description: "自分HPを戻す。",
     glyph: "✚",
     textureUrl: healCardTextureUrl,
     apply: (state) => {
       const before = state.playerHp;
       state.playerHp = Math.min(state.maxPlayerHp, state.playerHp + 18);
-      return { message: `自分HP ${before}% → ${state.playerHp}%` };
+      return { message: `自分HP ${before}%→${state.playerHp}%` };
     },
   },
 ];
 
 const PREPARATION_CARDS: PreparationCard[] = [...CONDITION_CARDS, ...ACTION_CARDS];
 
-export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
+export function PreparationScreen({
+  stageId = 1,
+  onStartBattle,
+}: PreparationScreenProps) {
   const [selectedCardId, setSelectedCardId] = useState<PreparationCardId>("action-attack");
   const [rules, setRules] = useState<RuleSlot[]>(createEmptyRuleSlots);
   const [activeTarget, setActiveTarget] = useState<RuleTarget>({
@@ -281,11 +282,11 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
     [rules, selectedCard],
   );
   const traceSteps = useMemo(() => simulateRules(previewRules), [previewRules]);
-  const isDraftPreview = getCompleteRules(rules).length === 0;
   const battlePlan = useMemo(
-    () => buildBattlePlanFromRules(previewRules),
-    [previewRules],
+    () => buildPlanFromRules(rules, selectedCard),
+    [rules, selectedCard],
   );
+  const isDraftPreview = getCompleteRules(rules).length === 0;
 
   const handleCardSelect = useCallback(
     (cardId: PreparationCardId) => {
@@ -354,15 +355,15 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
 
         <header className="preparation-overlay preparation-header">
           <div>
-            <p className="phase-label">PREPARATION PHASE</p>
-            <h1>カードで作戦を書く</h1>
+            <p className="phase-label">PREPARATION PHASE · STAGE {stageId}</p>
+            <h1>作戦を組む</h1>
           </div>
           <button
             className="start-battle-button"
             type="button"
             onClick={() => onStartBattle(battlePlan)}
           >
-            バトルへ進む
+            バトルへ
           </button>
         </header>
 
@@ -403,7 +404,7 @@ export function PreparationScreen({ onStartBattle }: PreparationScreenProps) {
           <p>{selectedCard.description}</p>
           <small>
             {selectedCard.type === "condition"
-              ? `定義: ${selectedCard.definition}`
+              ? `判定: ${selectedCard.definition}`
               : `効果: ${selectedCard.effectText}`}
           </small>
         </aside>
@@ -530,13 +531,17 @@ function ActionPreview({
 }
 
 function CausalityPanel({ traceSteps, isDraftPreview }: CausalityPanelProps) {
+  const passedCount = traceSteps.filter((step) => step.passed).length;
+  const summary = traceSteps.length > 0 ? `${passedCount}/${traceSteps.length}` : "0/0";
+
   return (
     <aside className="preparation-overlay logic-feedback-panel" aria-live="polite">
-      <span className="logic-feedback-label">因果ログ</span>
+      <span className="logic-feedback-label">
+        実行プレビュー
+        <span className="logic-feedback-count">{summary}</span>
+      </span>
       <p className="logic-feedback-note">
-        {isDraftPreview
-          ? "選択中カードから仮の if→then を表示中。"
-          : "敵HP45%から、左の札順に判定します。"}
+        {isDraftPreview ? "仮プレビュー" : "敵HP45%から判定"}
       </p>
 
       {traceSteps.length > 0 ? (
@@ -545,16 +550,17 @@ function CausalityPanel({ traceSteps, isDraftPreview }: CausalityPanelProps) {
             <li
               className={`trace-step ${step.passed ? "is-passed" : "is-skipped"}`}
               key={`trace-${step.ruleIndex}`}
+              title={`${step.conditionDetail}${step.actionDetail ? ` / ${step.actionDetail}` : ""}`}
             >
               <div className="trace-step-header">
                 <span className="trace-order">{step.ruleIndex + 1}</span>
                 <strong>
-                  {step.conditionTitle} → {step.actionTitle}
+                  {step.conditionGlyph}→{step.actionGlyph} {step.conditionTitle}→{step.actionTitle}
                 </strong>
                 <span className="trace-result">{step.passed ? "成立" : "不成立"}</span>
               </div>
               <p>{step.conditionDetail}</p>
-              <small>{step.passed ? step.actionDetail : "行動は発動せず、次の札へ進む"}</small>
+              <small>{step.passed ? step.actionDetail : "発動せず"}</small>
               <code>
                 {step.beforeState} → {step.afterState}
               </code>
@@ -562,12 +568,10 @@ function CausalityPanel({ traceSteps, isDraftPreview }: CausalityPanelProps) {
           ))}
         </ol>
       ) : (
-        <p className="empty-trace">条件札と行動札を1枚ずつ入れると、結果がここに刻まれます。</p>
+        <p className="empty-trace">条件札と行動札を入れると表示されます。</p>
       )}
 
-      <div className="sequence-tip">
-        例: 攻撃→敵HP≤30%なら、攻撃後のHPで次の条件を判定。
-      </div>
+      <div className="sequence-tip">左から順に判定。</div>
     </aside>
   );
 }
@@ -584,7 +588,7 @@ function SyntaxBuilder({
 
   return (
     <nav className="preparation-overlay syntax-builder" aria-label="作戦レール">
-      <div className="syntax-builder-caption">左から順に実行される作戦レール</div>
+      <div className="syntax-builder-caption">左から順に実行</div>
       <ol className="syntax-track">
         {rules.map((rule, index) => {
           const condition = getConditionCardById(rule.conditionId);
@@ -1012,44 +1016,6 @@ function cloneRuleSlots(rules: RuleSlot[]) {
   return rules.map((rule) => ({ ...rule }));
 }
 
-function buildBattlePlanFromRules(rules: RuleSlot[]): PreparationBattlePlan {
-  const planCards = getCompleteRules(rules).map(ruleToPlanCard);
-  const fallbackCard = planCards[0] ?? {
-    id: "action-attack",
-    command: "攻撃する",
-  };
-
-  return buildPreparationBattlePlan(planCards, fallbackCard);
-}
-
-function ruleToPlanCard(rule: CompleteRule): PreparationPlanCard {
-  return {
-    id: `${rule.condition.id}:${rule.action.id}`,
-    command: getExecutableCommandForRule(rule),
-  };
-}
-
-function getExecutableCommandForRule(rule: CompleteRule): string {
-  const actionCommand = getExecutableActionCommand(rule.action);
-
-  switch (rule.condition.id) {
-    case "condition-always":
-      return actionCommand;
-    case "condition-enemy-low":
-      return `もし 敵HP が 少ない なら { ${actionCommand} }`;
-    case "condition-weakness-known":
-      return `もし 弱点 が 判明している なら { ${actionCommand} }`;
-  }
-}
-
-function getExecutableActionCommand(action: ActionCard): string {
-  if (action.id === "action-observe") {
-    return `${action.command}\n変数 弱点 = 判明している`;
-  }
-
-  return action.command;
-}
-
 function createPreviewRules(rules: RuleSlot[], selectedCard: PreparationCard) {
   if (getCompleteRules(rules).length > 0) {
     return rules;
@@ -1129,6 +1095,77 @@ function simulateRules(rules: RuleSlot[]): TraceStep[] {
       afterState: formatSimulationState(state),
     };
   });
+}
+
+function buildPlanFromRules(
+  rules: RuleSlot[],
+  selectedCard: PreparationCard,
+): PreparationBattlePlan {
+  const completeRules = getCompleteRules(rules);
+  const planRules =
+    completeRules.length > 0
+      ? completeRules
+      : getCompleteRules(createPreviewRules(rules, selectedCard));
+  const planCards = planRules.map(compileRuleToPlanCard);
+  const fallbackCard =
+    selectedCard.type === "action"
+      ? compileRuleToPlanCard({
+          index: 0,
+          condition: getConditionCardById("condition-always") ?? CONDITION_CARDS[0],
+          action: selectedCard,
+        })
+      : compileRuleToPlanCard({
+          index: 0,
+          condition: selectedCard,
+          action: getActionCardById("action-attack") ?? ACTION_CARDS[0],
+        });
+
+  return buildPreparationBattlePlan(planCards, fallbackCard);
+}
+
+function compileRuleToPlanCard(rule: CompleteRule): PreparationPlanCard {
+  return {
+    id: `${rule.condition.id}-${rule.action.id}`,
+    command: compileRuleToCode(rule.condition, rule.action),
+  };
+}
+
+function compileRuleToCode(condition: ConditionCard, action: ActionCard) {
+  const actionCode = getActionBattleCode(action.id);
+  if (condition.id === "condition-always") {
+    return actionCode;
+  }
+
+  return `もし(${getConditionExpression(condition.id)}) {\n${indentCode(actionCode)}\n}`;
+}
+
+function getConditionExpression(conditionId: ConditionCardId) {
+  switch (conditionId) {
+    case "condition-enemy-low":
+      return "敵の体力 <= 30";
+    case "condition-weakness-known":
+      return "弱点 == 1";
+    case "condition-always":
+      return "1 == 1";
+  }
+}
+
+function getActionBattleCode(actionId: ActionCardId) {
+  switch (actionId) {
+    case "action-observe":
+      return "変数 弱点 = 1";
+    case "action-attack":
+      return '攻撃("ファイア")';
+    case "action-heal":
+      return "回復(20)";
+  }
+}
+
+function indentCode(code: string) {
+  return code
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
 }
 
 function formatSimulationState(state: SimulationState) {
