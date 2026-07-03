@@ -1,0 +1,141 @@
+/* Reduce reading fatigue and make card effects easier to scan. */
+.logic-feedback-panel {
+  width: min(292px, calc(100vw - 64px));
+  max-height: min(270px, calc(100vh - 360px));
+  padding: 0.82rem;
+}
+
+.logic-feedback-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logic-feedback-label::after {
+  content: "左→右";
+  padding: 0.18rem 0.42rem;
+  border: 1px solid rgba(244, 183, 96, 0.28);
+  border-radius: 999px;
+  color: rgba(255, 229, 175, 0.74);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.logic-feedback-note,
+.sequence-tip,
+.trace-step p,
+.trace-step code,
+.selected-card-panel code,
+.selected-card-panel p {
+  display: none;
+}
+
+.trace-list {
+  gap: 0.42rem;
+  margin-top: 0.58rem;
+}
+
+.trace-step {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.34rem 0.48rem;
+  padding: 0.52rem 0.6rem;
+}
+
+.trace-step.is-passed::after {
+  content: "✓";
+  top: 50%;
+  right: 0.62rem;
+  color: rgba(255, 223, 168, 0.72);
+  font-size: 0.86rem;
+  transform: translateY(-50%);
+}
+
+.trace-step-header {
+  display: contents;
+  padding-right: 0;
+}
+
+.trace-order {
+  width: 22px;
+  height: 22px;
+  font-size: 0.72rem;
+}
+
+.trace-step strong {
+  overflow: hidden;
+  padding-right: 0.3rem;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-result {
+  margin-left: 0;
+  padding: 0.16rem 0.36rem;
+  font-size: 0.62rem;
+}
+
+.trace-step small {
+  grid-column: 2 / 4;
+  overflow: hidden;
+  padding-right: 1.2rem;
+  color: rgba(255, 229, 175, 0.84);
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-card-panel {
+  width: min(268px, calc(100vw - 64px));
+  padding: 0.88rem;
+}
+
+.selected-card-title-row {
+  margin-bottom: 0.7rem;
+}
+
+.selected-card-label {
+  margin-bottom: 0.26rem;
+}
+
+.selected-card-panel small {
+  display: block;
+  margin-top: 0;
+  padding: 0.62rem 0.68rem;
+  border: 1px solid rgba(244, 183, 96, 0.28);
+  border-radius: 13px;
+  color: #ffe1a8;
+  background:
+    radial-gradient(circle at 12% 28%, rgba(255, 203, 115, 0.18), transparent 48%),
+    rgba(0, 0, 0, 0.3);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.rule-pocket {
+  min-height: 31px;
+  padding: 0.3rem 0.38rem;
+}
+
+.rule-pocket-prefix,
+.rule-then-label {
+  font-size: 0.6rem;
+}
+
+.rule-pocket strong {
+  font-size: 0.74rem;
+}
+
+.syntax-builder-caption {
+  opacity: 0.66;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .selected-card-panel {
+    bottom: 92px;
+  }
+}
