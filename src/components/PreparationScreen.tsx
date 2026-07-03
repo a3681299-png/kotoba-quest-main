@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import * as THREE from "three";
 import attackCardTextureUrl from "../assets/UI/card/attack.png";
 import branchCardTextureUrl from "../assets/UI/card/branch.png";
@@ -34,6 +35,7 @@ type PreparationScreenProps = {
 type PreparationThreeSceneProps = {
   selectedCardId: PreparationCardId;
   onCardSelect: (cardId: PreparationCardId) => void;
+  onCardHover: (hover: CardHoverState) => void;
 };
 
 type ActionPreviewProps = {
@@ -51,9 +53,14 @@ type SyntaxBuilderProps = {
   onClear: () => void;
 };
 
-type CausalityPanelProps = {
+type CausalityAnimationProps = {
   traceSteps: TraceStep[];
   isDraftPreview: boolean;
+};
+
+type CardTooltipProps = {
+  hover: CardHoverState;
+  card: PreparationCard | null;
 };
 
 type CardMeshEntry = {
@@ -64,6 +71,12 @@ type CardMeshEntry = {
   baseRotationY: number;
   baseRenderOrder: number;
 };
+
+type CardHoverState = {
+  cardId: PreparationCardId;
+  x: number;
+  y: number;
+} | null;
 
 type RulePart = "condition" | "action";
 type ConditionCardId =
@@ -271,12 +284,14 @@ export function PreparationScreen({
   onStartBattle,
 }: PreparationScreenProps) {
   const [selectedCardId, setSelectedCardId] = useState<PreparationCardId>("action-attack");
+  const [hoveredCard, setHoveredCard] = useState<CardHoverState>(null);
   const [rules, setRules] = useState<RuleSlot[]>(createEmptyRuleSlots);
   const [activeTarget, setActiveTarget] = useState<RuleTarget>({
     ruleIndex: 0,
     part: "condition",
   });
   const selectedCard = getPreparationCardById(selectedCardId);
+  const tooltipCard = hoveredCard ? getPreparationCardById(hoveredCard.cardId) : null;
   const previewRules = useMemo(
     () => createPreviewRules(rules, selectedCard),
     [rules, selectedCard],
@@ -351,11 +366,12 @@ export function PreparationScreen({
         <PreparationThreeScene
           selectedCardId={selectedCardId}
           onCardSelect={handleCardSelect}
+          onCardHover={setHoveredCard}
         />
 
         <header className="preparation-overlay preparation-header">
           <div>
-            <p className="phase-label">PREPARATION PHASE · STAGE {stageId}</p>
+            <p className="phase-label">PREPARATION · STAGE {stageId}</p>
             <h1>作戦を組む</h1>
           </div>
           <button
@@ -373,7 +389,7 @@ export function PreparationScreen({
           isDraftPreview={isDraftPreview}
         />
 
-        <CausalityPanel traceSteps={traceSteps} isDraftPreview={isDraftPreview} />
+        <CausalityAnimation traceSteps={traceSteps} isDraftPreview={isDraftPreview} />
 
         <SyntaxBuilder
           rules={rules}
@@ -384,30 +400,7 @@ export function PreparationScreen({
           onClear={handleClearSequence}
         />
 
-        <aside className="preparation-overlay selected-card-panel" aria-live="polite">
-          <span className="selected-card-label">選択中</span>
-          <div className="selected-card-title-row">
-            <span
-              className={`selected-card-glyph is-${selectedCard.id}`}
-              aria-hidden="true"
-            >
-              {selectedCard.glyph}
-            </span>
-            <div>
-              <span className={`selected-card-kind is-${selectedCard.type}`}>
-                {selectedCard.kind}
-              </span>
-              <strong>{selectedCard.title}</strong>
-            </div>
-          </div>
-          <code>{selectedCard.command}</code>
-          <p>{selectedCard.description}</p>
-          <small>
-            {selectedCard.type === "condition"
-              ? `判定: ${selectedCard.definition}`
-              : `効果: ${selectedCard.effectText}`}
-          </small>
-        </aside>
+        <CardTooltip hover={hoveredCard} card={tooltipCard} />
       </section>
     </main>
   );
@@ -530,48 +523,58 @@ function ActionPreview({
   );
 }
 
-function CausalityPanel({ traceSteps, isDraftPreview }: CausalityPanelProps) {
-  const passedCount = traceSteps.filter((step) => step.passed).length;
-  const summary = traceSteps.length > 0 ? `${passedCount}/${traceSteps.length}` : "0/0";
+function CausalityAnimation({ traceSteps, isDraftPreview }: CausalityAnimationProps) {
+  return (
+    <aside
+      className={`preparation-overlay logic-animation-panel ${isDraftPreview ? "is-draft-preview" : ""}`}
+      aria-label="因果関係のアニメーション"
+    >
+      <div className="logic-animation-orbit" aria-hidden="true">
+        {traceSteps.slice(0, PREPARATION_RULE_SLOT_COUNT).map((step, index) => (
+          <div
+            className={`logic-rune ${step.passed ? "is-passed" : "is-skipped"}`}
+            key={`logic-rune-${step.ruleIndex}`}
+            style={{ animationDelay: `${index * 0.32}s` }}
+            title={`${step.conditionDetail} / ${step.actionDetail ?? "発動せず"}`}
+          >
+            <span className="logic-rune-order">{step.ruleIndex + 1}</span>
+            <span className="logic-rune-condition">{step.conditionGlyph}</span>
+            <span className="logic-rune-arrow">→</span>
+            <span className="logic-rune-action">{step.actionGlyph}</span>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function CardTooltip({ hover, card }: CardTooltipProps) {
+  const style: CSSProperties | undefined = hover
+    ? {
+        left: hover.x,
+        top: hover.y,
+      }
+    : undefined;
 
   return (
-    <aside className="preparation-overlay logic-feedback-panel" aria-live="polite">
-      <span className="logic-feedback-label">
-        実行プレビュー
-        <span className="logic-feedback-count">{summary}</span>
-      </span>
-      <p className="logic-feedback-note">
-        {isDraftPreview ? "仮プレビュー" : "敵HP45%から判定"}
-      </p>
-
-      {traceSteps.length > 0 ? (
-        <ol className="trace-list">
-          {traceSteps.map((step) => (
-            <li
-              className={`trace-step ${step.passed ? "is-passed" : "is-skipped"}`}
-              key={`trace-${step.ruleIndex}`}
-              title={`${step.conditionDetail}${step.actionDetail ? ` / ${step.actionDetail}` : ""}`}
-            >
-              <div className="trace-step-header">
-                <span className="trace-order">{step.ruleIndex + 1}</span>
-                <strong>
-                  {step.conditionGlyph}→{step.actionGlyph} {step.conditionTitle}→{step.actionTitle}
-                </strong>
-                <span className="trace-result">{step.passed ? "成立" : "不成立"}</span>
-              </div>
-              <p>{step.conditionDetail}</p>
-              <small>{step.passed ? step.actionDetail : "発動せず"}</small>
-              <code>
-                {step.beforeState} → {step.afterState}
-              </code>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="empty-trace">条件札と行動札を入れると表示されます。</p>
+    <aside
+      className={`card-effect-tooltip ${hover && card ? "is-visible" : ""}`}
+      style={style}
+      aria-hidden={!hover || !card}
+    >
+      {card && (
+        <>
+          <div className="tooltip-title-row">
+            <span className={`tooltip-glyph is-${card.id}`}>{card.glyph}</span>
+            <div>
+              <span className={`tooltip-kind is-${card.type}`}>{card.kind}</span>
+              <strong>{card.title}</strong>
+            </div>
+          </div>
+          <p>{card.type === "condition" ? card.definition : card.effectText}</p>
+          <small>{card.description}</small>
+        </>
       )}
-
-      <div className="sequence-tip">左から順に判定。</div>
     </aside>
   );
 }
@@ -675,6 +678,7 @@ function SyntaxBuilder({
 function PreparationThreeScene({
   selectedCardId,
   onCardSelect,
+  onCardHover,
 }: PreparationThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedCardIdRef = useRef(selectedCardId);
@@ -776,7 +780,17 @@ function PreparationThreeScene({
     };
 
     const handlePointerMove = (event: PointerEvent) => {
-      canvas.style.cursor = getPointedCardId(event) ? "pointer" : "default";
+      const cardId = getPointedCardId(event);
+      canvas.style.cursor = cardId ? "pointer" : "default";
+      onCardHover(
+        cardId
+          ? {
+              cardId,
+              x: event.clientX + 18,
+              y: event.clientY + 18,
+            }
+          : null,
+      );
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -784,6 +798,11 @@ function PreparationThreeScene({
       if (cardId) {
         onCardSelect(cardId);
       }
+    };
+
+    const handlePointerLeave = () => {
+      canvas.style.cursor = "default";
+      onCardHover(null);
     };
 
     const resize = () => {
@@ -826,18 +845,20 @@ function PreparationThreeScene({
     window.addEventListener("resize", resize);
     canvas.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointerleave", handlePointerLeave);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointermove", handlePointerMove);
       canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointerleave", handlePointerLeave);
       geometries.forEach((geometry) => geometry.dispose());
       materials.forEach((material) => material.dispose());
       textures.forEach((texture) => texture.dispose());
       renderer.dispose();
     };
-  }, [onCardSelect, sceneSetupKey]);
+  }, [onCardSelect, onCardHover, sceneSetupKey]);
 
   return <canvas ref={canvasRef} className="preparation-three-canvas" />;
 }
