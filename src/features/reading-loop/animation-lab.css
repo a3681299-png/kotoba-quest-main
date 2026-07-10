@@ -1,0 +1,154 @@
+.reading-animation-lab {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  color: #f8edda;
+  background: #0d0b0c;
+  color-scheme: dark;
+}
+
+.reading-animation-lab button,
+.reading-animation-lab input {
+  font: inherit;
+}
+
+.reading-animation-lab button:focus-visible,
+.reading-animation-lab input:focus-visible {
+  outline: 3px solid #fff0ab;
+  outline-offset: 2px;
+}
+
+.reading-animation-lab__toolbar {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) auto auto minmax(250px, 1fr);
+  align-items: center;
+  gap: 0.55rem 0.8rem;
+  min-height: 96px;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid rgba(230, 185, 95, 0.3);
+  background: linear-gradient(90deg, #120e0f, #251817, #120e0f);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+}
+
+.reading-animation-lab__toolbar > div:first-child span {
+  color: #d7a95a;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.reading-animation-lab__toolbar h1 {
+  margin: 0.08rem 0 0;
+  color: #fff0c9;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.reading-animation-lab__controls,
+.reading-animation-lab__outcomes,
+.reading-animation-lab__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.reading-animation-lab__toolbar button {
+  min-height: 30px;
+  padding: 0.26rem 0.48rem;
+  border: 1px solid rgba(231, 193, 117, 0.3);
+  border-radius: 6px;
+  color: rgba(255, 237, 202, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.61rem;
+  cursor: pointer;
+}
+
+.reading-animation-lab__toolbar button:hover:not(:disabled),
+.reading-animation-lab__toolbar button.is-selected {
+  border-color: rgba(255, 222, 153, 0.74);
+  color: #fff0bd;
+  background: rgba(115, 42, 33, 0.82);
+}
+
+.reading-animation-lab__toolbar button:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.reading-animation-lab__seek {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.reading-animation-lab__seek label {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(244, 222, 183, 0.66);
+  font-size: 0.6rem;
+}
+
+.reading-animation-lab__seek input {
+  width: 100%;
+  accent-color: #d55544;
+}
+
+.reading-animation-lab__seek output {
+  min-width: 80px;
+  color: #efc773;
+  font-family: ui-monospace, monospace;
+  font-size: 0.58rem;
+}
+
+.reading-animation-lab__labels {
+  grid-column: 2 / -1;
+  justify-content: flex-end;
+}
+
+.reading-animation-lab__labels button {
+  min-height: 24px;
+  padding-block: 0.18rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.55rem;
+}
+
+.reading-animation-lab__viewport {
+  height: auto;
+  min-height: 0;
+}
+
+.reading-animation-lab__viewport .reading-live-stage {
+  height: 100%;
+}
+
+.reading-animation-lab__viewport .reading-live-stage__header p:not(.reading-stage__eyebrow) {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .reading-animation-lab__toolbar {
+    grid-template-columns: minmax(210px, 0.7fr) 1fr 1fr;
+    min-height: 112px;
+  }
+
+  .reading-animation-lab__seek {
+    grid-column: 1 / -1;
+  }
+
+  .reading-animation-lab__labels {
+    grid-column: 1 / -1;
+  }
+
+  .reading-animation-lab__viewport {
+    height: auto;
+  }
+}
