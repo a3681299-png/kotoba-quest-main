@@ -27,3 +27,5 @@ andrej-karpathy-skills/
 .codegraph/
 .agents/
 CLAUDE.md
+.env
+.env.local
