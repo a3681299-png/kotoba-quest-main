@@ -192,9 +192,16 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     );
     updateStrategies(next);
     const nextSlot = getNextEmptySlot(nextSentence);
-    setActiveSlot(nextSlot);
-    setActiveCategory(categoryForSlot(nextSlot));
-    setNotice(`「${word.label}」を作戦文${activeSentenceIndex + 1}へ置きました。`);
+    if (nextSlot) {
+      // 次の空きスロットへ順に進める（完成後にスロット2へ戻さない）。
+      setActiveSlot(nextSlot);
+      setActiveCategory(categoryForSlot(nextSlot));
+    }
+    setNotice(
+      nextSlot
+        ? `「${word.label}」を作戦文${activeSentenceIndex + 1}へ置きました。`
+        : `作戦文${activeSentenceIndex + 1}が完成。「作戦を実行する」で実行できます。`,
+    );
   };
 
   const clearModifier = () => {

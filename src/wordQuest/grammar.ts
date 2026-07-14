@@ -172,10 +172,14 @@ export function validatePlan(
   );
 }
 
-export function getNextEmptySlot(sentence: StrategySentence): SentenceSlot {
+export function getNextEmptySlot(
+  sentence: StrategySentence,
+): SentenceSlot | null {
+  // 必須スロットのうち最初の空欄。すべて埋まっていれば修飾スロット、
+  // それも埋まっていれば null（文が完成＝カーソルを動かさない）。
   return (
     REQUIRED_SLOTS.find((slot) => !sentence[slot]) ??
-    (sentence.modifier ? "condition" : "modifier")
+    (sentence.modifier ? null : "modifier")
   );
 }
 
