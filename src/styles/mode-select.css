@@ -1,0 +1,161 @@
+.mode-select {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  max-height: 100vh;
+  width: 100%;
+  padding: 24px;
+  overflow-y: auto;
+  color: #eee7d8;
+  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(221, 168, 92, 0.14), transparent 60%),
+    linear-gradient(160deg, #0c0805 0%, #17100a 55%, #0c0805 100%);
+}
+
+.mode-select__inner {
+  margin: auto;
+  width: 100%;
+  max-width: 760px;
+  text-align: center;
+}
+
+.mode-select__header {
+  margin-bottom: 32px;
+}
+
+.mode-select__eyebrow {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: rgba(221, 168, 92, 0.85);
+  text-transform: uppercase;
+}
+
+.mode-select__title {
+  margin: 8px 0 10px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #f3d79a 0%, #dd9c4c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.mode-select__lead {
+  font-size: 14px;
+  color: #b8ad98;
+}
+
+.mode-select__cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 320px;
+  padding: 32px 22px;
+  font-family: inherit;
+  color: #eee7d8;
+  text-align: center;
+  cursor: pointer;
+  border: 1.5px solid rgba(221, 168, 92, 0.4);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(46, 33, 20, 0.55), rgba(24, 16, 10, 0.75));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(221, 168, 92, 0.05);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mode-card:hover,
+.mode-card:focus-visible {
+  transform: translateY(-6px);
+  border-color: #f0c780;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 18px rgba(233, 178, 96, 0.28);
+  outline: none;
+}
+
+.mode-card__glyph {
+  font-size: 46px;
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(233, 178, 96, 0.35));
+}
+
+.mode-card__name {
+  font-size: 21px;
+  font-weight: 700;
+  color: #f3d79a;
+}
+
+.mode-card__desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #c7bca6;
+}
+
+.mode-card__go {
+  margin-top: auto;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1206;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f3d79a 0%, #dd9c4c 100%);
+  box-shadow: 0 4px 14px rgba(221, 152, 80, 0.3);
+}
+
+.mode-card--combine {
+  border-color: rgba(120, 170, 140, 0.4);
+}
+
+.mode-card--combine .mode-card__name {
+  color: #bfe0c6;
+}
+
+.mode-card--combine:hover,
+.mode-card--combine:focus-visible {
+  border-color: #9fd0ad;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 18px rgba(120, 200, 150, 0.24);
+}
+
+/* ゲーム中に「モード選択へ」戻るためのボタン（ログアウトの下） */
+.mode-select-return-global {
+  position: fixed;
+  top: 52px;
+  left: 15px;
+  z-index: 9999;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f0c780;
+  background: rgba(13, 9, 5, 0.75);
+  border: 1px solid rgba(221, 168, 92, 0.45);
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s ease;
+}
+
+.mode-select-return-global:hover {
+  background: rgba(221, 168, 92, 0.16);
+  border-color: #f0c780;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .mode-select__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-card {
+    min-height: 0;
+    padding: 24px 20px;
+  }
+}

@@ -11,6 +11,7 @@ import {
   startPreparedBattle,
 } from "./components/battleFlow";
 import { PreparationScreen } from "./components/PreparationScreen";
+import { ModeSelectScreen, type GameMode } from "./components/ModeSelectScreen";
 import { STAGES } from "./data/stages";
 import "./styles/preparation-readable.css";
 import "./styles/reading-loop-entry.css";
@@ -58,6 +59,9 @@ function App() {
   const [isReadingLoopMode, setIsReadingLoopMode] = useState(
     isReadingLoopLocation,
   );
+  // ログイン後は最初にモード選択画面を出す。カードモードを選んだら true。
+  // 組み合わせモード(語彙遠征)は isReadingLoopMode 側で管理する。
+  const [hasChosenCardMode, setHasChosenCardMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -157,6 +161,14 @@ function App() {
     setIsReadingLoopMode(false);
   };
 
+  const handleSelectMode = (mode: GameMode) => {
+    if (mode === "combine") {
+      openReadingLoop();
+    } else {
+      setHasChosenCardMode(true);
+    }
+  };
+
   const logoutButton = (
     <button
       className="logout-button-global"
@@ -164,6 +176,16 @@ function App() {
       onClick={() => auth.signOut()}
     >
       🚪 ログアウト
+    </button>
+  );
+
+  const modeSelectButton = (
+    <button
+      className="mode-select-return-global"
+      type="button"
+      onClick={() => setHasChosenCardMode(false)}
+    >
+      ◀ モード選択
     </button>
   );
 
@@ -182,6 +204,10 @@ function App() {
         {logoutButton}
       </>
     );
+  }
+
+  if (!hasChosenCardMode) {
+    return <ModeSelectScreen onSelect={handleSelectMode} />;
   }
 
   const readingLoopEntry = (
@@ -205,6 +231,7 @@ function App() {
             setBattleFlow((current) => startPreparedBattle(current, battlePlan));
           }}
         />
+        {modeSelectButton}
         {logoutButton}
       </>
     );
@@ -221,6 +248,7 @@ function App() {
           }}
         />
         {readingLoopEntry}
+        {modeSelectButton}
         {logoutButton}
       </>
     );
@@ -239,6 +267,7 @@ function App() {
           setBattleFlow((current) => returnToPreparation(current));
         }}
       />
+      {modeSelectButton}
       {logoutButton}
     </>
   );
