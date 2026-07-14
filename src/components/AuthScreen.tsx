@@ -12,13 +12,25 @@ export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const switchMode = (login: boolean) => {
+    setIsLogin(login);
+    setError(null);
+    setConfirmPassword("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError("すべての項目を入力してください。");
+      return;
+    }
+
+    if (!isLogin && password !== confirmPassword) {
+      setError("確認用パスワードが一致しません。");
       return;
     }
 
@@ -74,21 +86,53 @@ export function AuthScreen() {
         return "サインインのポップアップウィンドウが閉じられました。再度お試しください。";
       case "auth/cancelled-popup-request":
         return "ポップアップの接続がキャンセルされました。";
+      case "auth/operation-not-allowed":
+        return "メール/パスワードでのログインが有効化されていません。Firebaseコンソールで「Authentication → Sign-in method → メール/パスワード」を有効にしてください。";
+      case "auth/network-request-failed":
+        return "ネットワークエラーです。通信環境を確認してください。";
       default:
-        return "認証エラーが発生しました。時間をおいて再度お試しください。";
+        // 想定外のエラーコードは原因特定のためそのまま表示する（開発中のみ）
+        return import.meta.env.DEV
+          ? `認証エラー（${code}）`
+          : "認証エラーが発生しました。時間をおいて再度お試しください。";
     }
   };
 
   return (
     <div className="auth-screen-container">
-      <div className="auth-card">
+      <div className={`auth-card ${isLogin ? "auth-card--login" : "auth-card--signup"}`}>
         <header className="auth-header">
           <span className="auth-logo-glyph" aria-hidden="true">🔮</span>
           <h1 className="auth-title">KOTOBA QUEST</h1>
           <p className="auth-subtitle">
-            コトバ of 力でプログラミングの論理を学ぶ
+            {isLogin
+              ? "おかえりなさい。ギルドにログインしましょう"
+              : "はじめての方はこちらでアカウントを作成"}
           </p>
         </header>
+
+        <div className="auth-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isLogin}
+            className={`auth-tab ${isLogin ? "auth-tab--active" : ""}`}
+            onClick={() => switchMode(true)}
+            disabled={isLoading}
+          >
+            ログイン
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isLogin}
+            className={`auth-tab ${!isLogin ? "auth-tab--active" : ""}`}
+            onClick={() => switchMode(false)}
+            disabled={isLoading}
+          >
+            新規登録
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           {error && (
@@ -123,11 +167,29 @@ export function AuthScreen() {
               className="auth-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="パスワードを入力"
+              placeholder={isLogin ? "パスワードを入力" : "6文字以上で設定"}
               disabled={isLoading}
               required
             />
           </div>
+
+          {!isLogin && (
+            <div className="auth-input-group">
+              <label className="auth-label" htmlFor="confirm-password-input">
+                パスワード（確認）
+              </label>
+              <input
+                id="confirm-password-input"
+                type="password"
+                className="auth-input"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="もう一度入力"
+                disabled={isLoading}
+                required
+              />
+            </div>
+          )}
 
           <button
             type="submit"
@@ -156,21 +218,6 @@ export function AuthScreen() {
           </svg>
           Googleでログイン
         </button>
-
-        <p className="auth-toggle-text">
-          {isLogin ? "初めてですか？" : "既にアカウントをお持ちですか？"}
-          <button
-            type="button"
-            className="auth-toggle-link"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-            }}
-            disabled={isLoading}
-          >
-            {isLogin ? "新規登録はこちら" : "ログインはこちら"}
-          </button>
-        </p>
       </div>
     </div>
   );
