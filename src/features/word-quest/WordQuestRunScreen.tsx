@@ -35,6 +35,7 @@ import {
   type WordQuestRunState,
 } from "../../wordQuest";
 import { LiveBattlefield } from "../reading-loop/LiveBattlefield";
+import { auth, saveStageCode, saveUserProgress } from "../../lib/firebase"; // FirebaseとローカルAPI連携用
 import "./word-quest-run.css";
 
 interface WordQuestRunScreenProps {
@@ -234,6 +235,18 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
   const executePlan = () => {
     if (!run || run.phase !== "battle" || isResolving) return;
     setIsResolving(true);
+
+    // 攻撃コードと選択されたルール（作戦文の履歴）をローカルデータベースに保存する
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const code = run.strategies.map((sentence) => formatSentence(sentence)).join("\n");
+      const stageId = run.battleIndex + 1;
+      
+      // バックエンドAPIを介してSQLiteへ攻撃コードおよび履歴を保存
+      void saveStageCode(currentUser.uid, stageId, code, run.strategies);
+      void saveUserProgress(currentUser.uid, stageId);
+    }
+
     setRun(executeRunBattle(run));
     executionTimerRef.current = window.setTimeout(() => {
       setIsResolving(false);
