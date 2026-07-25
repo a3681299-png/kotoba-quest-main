@@ -1,17 +1,48 @@
-import express from "express";
+import "dotenv/config";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
+initializeApp({
+  projectId: process.env.FIREBASE_PROJECT_ID,
+});
+
+// Authorizationヘッダーの Firebase IDトークンを検証し、req.uid にセットするミドルウェア
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing or invalid Authorization header" });
+  }
+
+  const idToken = authHeader.slice("Bearer ".length);
+
+  try {
+    const decoded = await getAuth().verifyIdToken(idToken);
+    (req as Request & { uid: string }).uid = decoded.uid;
+    next();
+  } catch (error) {
+    console.error("Failed to verify ID token:", error);
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
+
 app.use(cors());
 app.use(express.json());
 
 // ユーザーの進行状況と保存されたコード履歴を取得するエンドポイント
-app.get("/api/progress/:uid", async (req, res) => {
-  const { uid } = req.params;
+app.get("/api/progress/:uid", requireAuth, async (req, res) => {
+  const uid = (req as Request & { uid: string }).uid;
+
+  // トークンの持ち主本人以外のデータへのアクセスを拒否
+  if (req.params.uid !== uid) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   try {
     let user = await prisma.user.findUnique({
@@ -53,10 +84,11 @@ app.get("/api/progress/:uid", async (req, res) => {
 });
 
 // ユーザーのステージ進行度 (stageIndex) を保存するエンドポイント
-app.post("/api/progress", async (req, res) => {
-  const { uid, stageIndex } = req.body;
+app.post("/api/progress", requireAuth, async (req, res) => {
+  const uid = (req as Request & { uid: string }).uid;
+  const { stageIndex } = req.body;
 
-  if (!uid || typeof stageIndex !== "number") {
+  if (!Number.isInteger(stageIndex) || stageIndex < 0) {
     return res.status(400).json({ error: "Invalid parameters" });
   }
 
@@ -74,10 +106,11 @@ app.post("/api/progress", async (req, res) => {
 });
 
 // ステージの攻撃コードおよび作成したルール設定を保存するエンドポイント
-app.post("/api/stage-code", async (req, res) => {
-  const { uid, stageId, code, rules } = req.body;
+app.post("/api/stage-code", requireAuth, async (req, res) => {
+  const uid = (req as Request & { uid: string }).uid;
+  const { stageId, code, rules } = req.body;
 
-  if (!uid || typeof stageId !== "number" || typeof code !== "string") {
+  if (!Number.isInteger(stageId) || stageId < 0 || typeof code !== "string") {
     return res.status(400).json({ error: "Invalid parameters" });
   }
 
