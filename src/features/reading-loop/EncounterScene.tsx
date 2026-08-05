@@ -1,7 +1,5 @@
 import type { CSSProperties } from "react";
-import tutorialGroundUrl from "../../assets/backgrounds/チュートリアル/ground.png";
-import tutorialPillarUrl from "../../assets/backgrounds/チュートリアル/pillar.png";
-import tutorialWallUrl from "../../assets/backgrounds/チュートリアル/wall.png";
+import stageBackdropUrl from "../../assets/backgrounds/チュートリアル/test-resized.png";
 import { ENEMY_SHEETS, PLAYER_SHEETS } from "../../game/characterAssets";
 import type { PlayerActionSemanticId } from "../../readingLoop/types";
 import type { EncounterVisualState } from "./types";
@@ -15,9 +13,7 @@ interface EncounterSceneProps {
 }
 
 const SCENE_STYLE = {
-  "--reading-wall": `url("${tutorialWallUrl}")`,
-  "--reading-pillar": `url("${tutorialPillarUrl}")`,
-  "--reading-ground": `url("${tutorialGroundUrl}")`,
+  "--reading-stage": `url("${stageBackdropUrl}")`,
   "--reading-enemy": `url("${ENEMY_SHEETS.idle.src}")`,
 } as CSSProperties;
 

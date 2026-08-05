@@ -6,6 +6,7 @@ import type { StageDialogueLine } from "../data/stages";
 interface IntroDialogueProps {
   line: StageDialogueLine;
   playerPortraitUrl: string;
+  enemyPortraitUrl: string;
   isLastLine: boolean;
   lastLineActionLabel?: string;
   onNext: () => void;
@@ -15,6 +16,7 @@ interface IntroDialogueProps {
 export function IntroDialogue({
   line,
   playerPortraitUrl,
+  enemyPortraitUrl,
   isLastLine,
   lastLineActionLabel = "戦闘へ",
   onNext,
@@ -35,9 +37,10 @@ export function IntroDialogue({
       <div
         className={`intro-portrait enemy ${
           line.speaker === "enemy" ? "active" : "inactive"
-        }`}
+        } has-image`}
         aria-hidden="true"
       >
+        <img className="intro-portrait-image" src={enemyPortraitUrl} alt="" />
         <span>{line.speaker === "enemy" ? line.name : "影"}</span>
       </div>
       <div

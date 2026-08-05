@@ -32,6 +32,11 @@ import {
   decideEnemyIntent,
   calculateDamage,
 } from "../engine/EnemyAI";
+import {
+  ENEMY_SHEETS,
+  PLAYER_SHEETS,
+  STAGE_PLAYER_SHEETS,
+} from "../game/characterAssets";
 import "../styles/battle.css";
 
 type BattleScreenProps = {
@@ -186,7 +191,10 @@ export function BattleScreen({
 
     const init = async () => {
       if (canvasRef.current && mounted) {
-        await initBattleScene(canvasRef.current);
+        await initBattleScene(
+          canvasRef.current,
+          STAGE_PLAYER_SHEETS[stage.id] ?? PLAYER_SHEETS,
+        );
         if (mounted) {
           setIsBattleSceneReady(true);
         }
@@ -200,7 +208,7 @@ export function BattleScreen({
       setIsBattleSceneReady(false);
       destroyBattleScene();
     };
-  }, [currentStageIndex]);
+  }, [currentStageIndex, stage.id]);
 
   useEffect(() => {
     if (
@@ -693,6 +701,7 @@ export function BattleScreen({
           <IntroDialogue
             line={activeIntroLine}
             playerPortraitUrl={stage.mentorPortraitUrl}
+            enemyPortraitUrl={ENEMY_SHEETS.idle.src}
             isLastLine={introDialogueIndex === stage.introDialogue.length - 1}
             lastLineActionLabel={onPreparationReady ? "準備へ" : "戦闘へ"}
             onNext={advanceIntroDialogue}

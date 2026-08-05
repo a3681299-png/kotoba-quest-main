@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import * as THREE from "three";
-import attackCardTextureUrl from "../assets/UI/card/attack.png";
-import branchCardTextureUrl from "../assets/UI/card/branch.png";
-import healCardTextureUrl from "../assets/UI/card/heal.png";
-import observationCardTextureUrl from "../assets/UI/card/observation.png";
-import recordCardTextureUrl from "../assets/UI/card/record.png";
+import cardTextureUrl from "../assets/UI/card/card.png";
 import tableTextureUrl from "../assets/UI/table/table.png";
 import booksDecorTextureUrl from "../assets/UI/table/decor/books.png";
 import candleDecorTextureUrl from "../assets/UI/table/decor/candle.png";
@@ -178,7 +174,7 @@ const CONDITION_CARDS: ConditionCard[] = [
     definition: "常に成立",
     description: "必ず行動する。",
     glyph: "○",
-    textureUrl: recordCardTextureUrl,
+    textureUrl: cardTextureUrl,
     evaluate: () => ({
       passed: true,
       detail: "常に成立",
@@ -194,7 +190,7 @@ const CONDITION_CARDS: ConditionCard[] = [
     definition: "敵HP≤30%",
     description: "攻撃後に成立しやすい。",
     glyph: "Y",
-    textureUrl: branchCardTextureUrl,
+    textureUrl: cardTextureUrl,
     evaluate: (state) => {
       const percent = getEnemyHpPercent(state);
       return {
@@ -213,7 +209,7 @@ const CONDITION_CARDS: ConditionCard[] = [
     definition: "観察後に成立",
     description: "観察の後に使う。",
     glyph: "目",
-    textureUrl: observationCardTextureUrl,
+    textureUrl: cardTextureUrl,
     evaluate: (state) => ({
       passed: state.weaknessKnown,
       detail: state.weaknessKnown ? "弱点判明済み" : "弱点はまだ不明",
@@ -232,7 +228,7 @@ const ACTION_CARDS: ActionCard[] = [
     effectText: "弱点判明",
     description: "後ろの弱点条件を通す。",
     glyph: "◎",
-    textureUrl: observationCardTextureUrl,
+    textureUrl: cardTextureUrl,
     apply: (state) => {
       state.weaknessKnown = true;
       return { message: "弱点判明" };
@@ -248,7 +244,7 @@ const ACTION_CARDS: ActionCard[] = [
     effectText: "敵HP -20% / 弱点後 -30%",
     description: "敵HPを下げる。",
     glyph: "╱",
-    textureUrl: attackCardTextureUrl,
+    textureUrl: cardTextureUrl,
     apply: (state) => {
       const before = state.enemyHp;
       const damage = state.weaknessKnown ? 30 : 20;
@@ -268,7 +264,7 @@ const ACTION_CARDS: ActionCard[] = [
     effectText: "自分HP +18%",
     description: "自分HPを戻す。",
     glyph: "✚",
-    textureUrl: healCardTextureUrl,
+    textureUrl: cardTextureUrl,
     apply: (state) => {
       const before = state.playerHp;
       state.playerHp = Math.min(state.maxPlayerHp, state.playerHp + 18);

@@ -1,0 +1,1925 @@
+/*
+ * Contextual grammar workbench
+ *
+ * This layer deliberately scopes every rule to the redesigned Word Quest screen.
+ * The older battle styles remain available to the start/reward flows and to any
+ * unfinished work already present in the checkout.
+ */
+
+.word-game--contextual-tray {
+  --subject: #8c6045;
+  --subject-light: #b98a67;
+  --condition: #79558e;
+  --condition-light: #aa80be;
+  --connector: #b5a174;
+  --connector-light: #ddc995;
+  --action: #a43f36;
+  --action-light: #d56b5f;
+  --modifier: #74777b;
+  --modifier-light: #aeb1b4;
+  --workbench-open-height: clamp(286px, 27vh, 310px);
+  --workbench-closed-height: clamp(154px, 15.5vh, 174px);
+  --workbench-height: var(--workbench-open-height);
+  display: block;
+  min-height: 640px;
+  background: #050505;
+}
+
+.word-game--contextual-tray.is-lexicon-collapsed {
+  --workbench-height: var(--workbench-closed-height);
+}
+
+.word-game--contextual-tray .word-game__scene {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  border-bottom: 0;
+}
+
+.word-game--contextual-tray .word-game__print-veil {
+  box-shadow:
+    inset 0 0 108px 34px rgba(0, 0, 0, 0.58),
+    inset 0 -92px 84px rgba(0, 0, 0, 0.86);
+  transition: box-shadow 220ms ease;
+}
+
+.word-game--contextual-tray .word-game__combat-band {
+  position: absolute;
+  z-index: 12;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  width: 100%;
+  height: var(--workbench-height);
+  min-height: 0;
+  grid-template-columns:
+    minmax(172px, 13.5vw)
+    minmax(0, 1fr)
+    minmax(190px, 15.5vw);
+  grid-template-rows: minmax(0, 1fr) 140px;
+  grid-template-areas:
+    "intel tactics command"
+    "lexicon lexicon lexicon";
+  border-top: 1px solid var(--gold-bright);
+  padding: 7px 10px 8px;
+  background:
+    url("../../assets/UI/table/table.png") center 44% / cover,
+    #12100d;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 3px #050505,
+    inset 0 0 0 1px rgba(195, 173, 117, 0.2),
+    inset 0 0 42px rgba(0, 0, 0, 0.88),
+    0 -9px 24px rgba(0, 0, 0, 0.72);
+  transition: height 220ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.word-game--contextual-tray.is-lexicon-collapsed .word-game__combat-band {
+  grid-template-rows: minmax(0, 1fr) 40px;
+}
+
+.word-game--contextual-tray.is-lexicon-collapsed .word-game__composer {
+  grid-template-rows: 24px 22px minmax(0, 1fr);
+}
+
+.word-game--contextual-tray .word-game__combat-band::before {
+  inset: 4px;
+  border-color: rgba(181, 161, 116, 0.36);
+}
+
+.word-game--contextual-tray .word-game__enemy-vitals {
+  top: auto;
+  bottom: calc(var(--workbench-height) + 11px);
+  transition: bottom 220ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.word-game--contextual-tray .word-game__stage-marks {
+  bottom: calc(var(--workbench-height) + 14px);
+  transition: bottom 220ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+/* Compact supporting rails: readable, but never louder than the sentence. */
+
+.word-game--contextual-tray .word-game__enemy-dossier {
+  overflow: hidden auto;
+  padding: 6px 10px 4px 4px;
+}
+
+.word-game--contextual-tray .word-game__enemy-heading {
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.word-game--contextual-tray .word-game__enemy-heading > span {
+  width: 25px;
+  height: 25px;
+  font-size: 13px;
+}
+
+.word-game--contextual-tray .word-game__enemy-heading h1 {
+  font-size: clamp(12px, 0.95vw, 16px);
+}
+
+.word-game--contextual-tray .word-game__enemy-heading small {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__clue {
+  margin-top: 5px;
+  padding: 4px 5px 4px 7px;
+}
+
+.word-game--contextual-tray .word-game__clue > span {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__clue blockquote {
+  display: -webkit-box;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: clamp(9px, 0.66vw, 11px);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.word-game--contextual-tray .word-game__enemy-details {
+  margin-top: 4px;
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__enemy-details summary {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__command-rail {
+  gap: 4px;
+  padding: 5px 3px 4px 10px;
+}
+
+.word-game--contextual-tray .word-game__command-actions {
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+}
+
+.word-game--contextual-tray .word-game__execute {
+  min-height: 40px;
+  padding: 4px 8px;
+}
+
+.word-game--contextual-tray .word-game__execute span {
+  font-size: clamp(12px, 0.9vw, 15px);
+}
+
+.word-game--contextual-tray .word-game__execute small {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__add-sentence {
+  display: grid;
+  min-width: 39px;
+  min-height: 40px;
+  place-items: center;
+  padding: 3px 5px;
+}
+
+.word-game--contextual-tray .word-game__add-sentence img {
+  width: 27px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.78;
+}
+
+.word-game--contextual-tray .word-game__add-sentence span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__chronicle {
+  padding-top: 4px;
+}
+
+.word-game--contextual-tray .word-game__chronicle-heading h2 {
+  font-size: 10px;
+}
+
+.word-game--contextual-tray .word-game__chronicle-empty {
+  margin-top: 4px;
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__chronicle ol {
+  margin-top: 3px;
+}
+
+.word-game--contextual-tray .word-game__chronicle li {
+  grid-template-columns: 20px minmax(0, 1fr);
+  padding: 2px 3px;
+}
+
+/* The sentence altar: one sentence is handled at a time. */
+
+.word-game--contextual-tray .word-game__composer {
+  display: grid;
+  grid-template-rows: 28px 25px minmax(0, 1fr);
+  overflow: visible;
+  padding: 4px 9px 3px;
+}
+
+.word-game--contextual-tray .word-game__composer-heading {
+  min-height: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  padding: 0 1px 3px;
+}
+
+.word-game--contextual-tray .word-game__composer-title {
+  gap: 6px;
+}
+
+.word-game--contextual-tray .word-game__composer-title small {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__composer h2 {
+  font-size: clamp(14px, 1vw, 18px);
+}
+
+.word-game--contextual-tray .word-game__compression {
+  grid-template-columns: auto auto auto;
+  gap: 4px;
+}
+
+.word-game--contextual-tray .word-game__compression span,
+.word-game--contextual-tray .word-game__compression strong,
+.word-game--contextual-tray .word-game__compression small {
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  padding: 3px 0 2px;
+  overflow: hidden;
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs button {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 0;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(141, 137, 126, 0.38);
+  padding: 2px 5px;
+  background: rgba(11, 10, 9, 0.72);
+  color: var(--ash);
+  cursor: pointer;
+  text-align: left;
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs button > span {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid var(--ash-dark);
+  color: var(--ash);
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs strong,
+.word-game--contextual-tray .word-game__sentence-tabs small {
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs button.is-active {
+  border-color: var(--gold);
+  background: rgba(53, 47, 35, 0.82);
+  color: var(--bone);
+}
+
+.word-game--contextual-tray .word-game__sentence-tabs button.is-active > span,
+.word-game--contextual-tray .word-game__sentence-tabs button.is-valid > span {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.word-game--contextual-tray .word-game__sentence-stack {
+  max-height: none;
+  padding-top: 3px;
+  overflow: visible;
+}
+
+.word-game--contextual-tray .word-game__sentence {
+  grid-template-columns: 24px minmax(0, 1fr) 25px;
+  grid-template-rows: minmax(42px, 1fr) 15px;
+  min-height: 61px;
+  background:
+    url("../../assets/UI/table/table.png") center / 420px auto,
+    #24211b;
+  background-blend-mode: multiply;
+}
+
+.word-game--contextual-tray .word-game__sentence-index span {
+  font-size: 13px;
+}
+
+.word-game--contextual-tray .word-game__sentence-index small {
+  font-size: 6px;
+}
+
+.word-game--contextual-tray .word-game__slots {
+  grid-template-columns:
+    minmax(68px, 1.03fr)
+    minmax(78px, 1.14fr)
+    minmax(66px, 0.86fr)
+    minmax(72px, 1fr)
+    minmax(68px, 0.94fr)
+    minmax(68px, 0.92fr);
+  gap: 4px;
+  padding: 3px 5px 2px;
+}
+
+.word-game--contextual-tray .word-game__slot {
+  min-height: 38px;
+  grid-template-columns: 19px minmax(0, 1fr);
+  border: 1px solid var(--category-color);
+  border-top-width: 2px;
+  background:
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #28251f;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 2px 3px rgba(0, 0, 0, 0.55);
+}
+
+.word-game--contextual-tray .word-game__slot.is-subject {
+  --category-color: var(--subject);
+  border-radius: 12px 12px 2px 2px;
+}
+
+.word-game--contextual-tray .word-game__slot.is-condition {
+  --category-color: var(--condition);
+  border-style: solid;
+  clip-path: polygon(
+    7px 0,
+    calc(100% - 7px) 0,
+    100% 50%,
+    calc(100% - 7px) 100%,
+    7px 100%,
+    0 50%
+  );
+}
+
+.word-game--contextual-tray .word-game__slot.is-connector {
+  --category-color: var(--connector);
+  border-radius: 0;
+  clip-path: polygon(
+    0 0,
+    42% 0,
+    50% 12%,
+    58% 0,
+    100% 0,
+    100% 100%,
+    58% 100%,
+    50% 88%,
+    42% 100%,
+    0 100%
+  );
+}
+
+.word-game--contextual-tray .word-game__slot.is-action {
+  --category-color: var(--action);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%, 5px 50%);
+}
+
+.word-game--contextual-tray .word-game__slot.is-modifier {
+  --category-color: var(--modifier);
+  border-style: solid;
+  clip-path: polygon(
+    5px 0,
+    calc(50% - 6px) 0,
+    50% 5px,
+    calc(50% + 6px) 0,
+    calc(100% - 5px) 0,
+    100% 5px,
+    100% calc(100% - 5px),
+    calc(100% - 5px) 100%,
+    calc(50% + 6px) 100%,
+    50% calc(100% - 5px),
+    calc(50% - 6px) 100%,
+    5px 100%,
+    0 calc(100% - 5px),
+    0 5px
+  );
+}
+
+.word-game--contextual-tray .word-game__slot.is-selected {
+  border-color: var(--category-color);
+  background:
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #44382d;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 1px var(--gold-bright),
+    0 0 0 1px rgba(0, 0, 0, 0.92),
+    0 0 13px color-mix(in srgb, var(--category-color) 68%, transparent);
+  filter: brightness(1.16);
+  transform: translateY(-2px);
+}
+
+.word-game--contextual-tray .word-game__slot.is-empty strong {
+  color: color-mix(in srgb, var(--category-color) 48%, #8d897e);
+}
+
+.word-game--contextual-tray .word-game__slot.is-empty {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 7%, transparent),
+      transparent 64%
+    ),
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #211f1a;
+  background-blend-mode: normal, multiply;
+  color: var(--ash-dark);
+}
+
+.word-game--contextual-tray .word-game__slot:hover:not(:disabled) {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 15%, transparent),
+      transparent 64%
+    ),
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #373128;
+  background-blend-mode: normal, multiply;
+}
+
+.word-game--contextual-tray .word-game__role-mark {
+  border-right-color: var(--category-color);
+  color: var(--category-color);
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__slot-copy {
+  padding: 2px 4px;
+}
+
+.word-game--contextual-tray .word-game__slot-copy small {
+  font-size: 7px;
+}
+
+.word-game--contextual-tray .word-game__slot-copy strong {
+  font-size: clamp(10px, 0.7vw, 12px);
+}
+
+.word-game--contextual-tray .word-game__sentence-reading {
+  gap: 5px;
+  padding-right: 4px;
+}
+
+.word-game--contextual-tray .word-game__sentence-reading strong,
+.word-game--contextual-tray .word-game__sentence-reading small,
+.word-game--contextual-tray .word-game__sentence-reading span {
+  font-size: 7px;
+}
+
+.word-game--contextual-tray .word-game__remove-sentence {
+  font-size: 7px;
+}
+
+.word-game--contextual-tray .word-game__compression-trace {
+  position: absolute;
+  z-index: 6;
+  top: 31px;
+  right: 10px;
+  padding: 2px 5px;
+}
+
+.word-game--contextual-tray .word-game__compression-trace small,
+.word-game--contextual-tray .word-game__compression-trace > div {
+  display: none;
+}
+
+/* The role rail is permanent; only its matching vocabulary shelf unfolds. */
+
+.word-game--contextual-tray .word-game__lexicon {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-area: lexicon;
+  min-height: 0;
+  grid-template-columns: minmax(342px, auto) minmax(155px, 1fr) auto;
+  grid-template-rows: 36px minmax(0, 1fr);
+  column-gap: 10px;
+  overflow: visible;
+  border-top: 1px solid rgba(181, 161, 116, 0.52);
+  padding: 4px 5px 0;
+  background: rgba(6, 6, 5, 0.42);
+  box-shadow: inset 0 1px rgba(0, 0, 0, 0.85);
+}
+
+.word-game--contextual-tray .word-game__lexicon-heading {
+  display: contents;
+}
+
+.word-game--contextual-tray .word-game__role-tabs {
+  display: flex;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  align-items: end;
+  gap: 4px;
+}
+
+.word-game--contextual-tray .word-game__role-tab {
+  --category-color: var(--ash);
+  display: grid;
+  min-width: 58px;
+  height: 30px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(141, 137, 126, 0.42);
+  padding: 2px 5px 2px 3px;
+  background:
+    url("../../assets/UI/table/table.png") center / 260px auto,
+    #1b1916;
+  background-blend-mode: multiply;
+  color: var(--ash);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 180ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-subject {
+  --category-color: var(--subject);
+  border-radius: 9px 9px 1px 1px;
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-condition {
+  --category-color: var(--condition);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 5px 100%, 0 50%);
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-connector {
+  --category-color: var(--connector);
+  border-radius: 8px 0 8px 0;
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-action {
+  --category-color: var(--action);
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 4px 50%);
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-modifier {
+  --category-color: var(--modifier);
+  border-style: dashed;
+}
+
+.word-game--contextual-tray .word-game__role-tab.is-active {
+  height: 34px;
+  border-color: var(--category-color);
+  background:
+    url("../../assets/UI/table/table.png") center / 260px auto,
+    #393028;
+  background-blend-mode: multiply;
+  color: var(--bone);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--category-color) 58%, transparent),
+    0 -3px 10px color-mix(in srgb, var(--category-color) 30%, transparent);
+  transform: translateY(-2px);
+}
+
+.word-game--contextual-tray .word-game__role-tab-mark {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.word-game--contextual-tray .is-subject .word-game__role-tab-mark {
+  border-radius: 9px 9px 2px 2px;
+}
+
+.word-game--contextual-tray .is-condition .word-game__role-tab-mark {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.word-game--contextual-tray .is-connector .word-game__role-tab-mark {
+  border-radius: 7px 0 7px 0;
+}
+
+.word-game--contextual-tray .is-action .word-game__role-tab-mark {
+  clip-path: polygon(0 0, 72% 0, 100% 50%, 72% 100%, 0 100%, 18% 50%);
+}
+
+.word-game--contextual-tray .is-modifier .word-game__role-tab-mark {
+  border-style: dashed;
+  border-radius: 50%;
+}
+
+.word-game--contextual-tray .word-game__role-tab-label {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.word-game--contextual-tray .word-game__role-tab-label strong {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.word-game--contextual-tray .word-game__role-tab-label small {
+  color: var(--category-color);
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__active-prompt {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  gap: 6px;
+}
+
+.word-game--contextual-tray .word-game__active-prompt > span {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 9px;
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-subject {
+  --category-color: var(--subject);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-condition {
+  --category-color: var(--condition);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-connector {
+  --category-color: var(--connector);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-action {
+  --category-color: var(--action);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-modifier {
+  --category-color: var(--modifier);
+}
+
+.word-game--contextual-tray .word-game__active-prompt small {
+  display: block;
+  color: var(--ash);
+  font-size: 7px;
+  line-height: 1;
+}
+
+.word-game--contextual-tray .word-game__active-prompt h2 {
+  margin: 2px 0 0;
+  color: var(--bone);
+  font-size: clamp(12px, 0.82vw, 15px);
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.word-game--contextual-tray .word-game__lexicon-controls {
+  display: flex;
+  grid-column: 3;
+  grid-row: 1;
+  align-items: center;
+  justify-content: end;
+  gap: 5px;
+}
+
+.word-game--contextual-tray .word-game__tray-toggle,
+.word-game--contextual-tray .word-game__clear-modifier {
+  position: static;
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(181, 161, 116, 0.62);
+  padding: 3px 7px;
+  background: #171512;
+  color: var(--gold-bright) !important;
+  cursor: pointer;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__tray-toggle img {
+  width: 20px;
+  height: 11px;
+  object-fit: contain;
+  opacity: 0.72;
+  transition: transform 180ms ease;
+}
+
+.word-game--contextual-tray .word-game__tray-toggle img[data-direction="up"] {
+  transform: rotate(180deg);
+}
+
+.word-game--contextual-tray .word-game__lexicon-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: minmax(0, 1fr) minmax(176px, 14vw);
+  gap: 8px;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--category-color) 42%, transparent);
+  opacity: 1;
+  transform-origin: bottom center;
+  animation: word-game-tray-open 220ms cubic-bezier(0.22, 0.75, 0.2, 1) backwards;
+  transition:
+    opacity 150ms ease,
+    transform 180ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-collapsed .word-game__lexicon-stage {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(34px) scaleY(0.68);
+}
+
+.word-game--contextual-tray .word-game__lexemes {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: end;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 14px 9px 5px 4px;
+  scrollbar-color: var(--category-color) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game--contextual-tray .word-game__lexeme {
+  --category-color: var(--ash);
+  --card-tilt: 0deg;
+  position: relative;
+  display: grid;
+  width: clamp(118px, 8.5vw, 156px);
+  min-width: clamp(118px, 8.5vw, 156px);
+  max-width: none;
+  height: 84px;
+  flex: 0 0 auto;
+  grid-template-columns: 25px minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  overflow: hidden;
+  border: 2px solid #070706;
+  border-top-color: var(--category-color);
+  padding: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 17%, transparent),
+      transparent 58%
+    ),
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #3a332a;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--category-color) 34%, transparent),
+    0 6px 9px rgba(0, 0, 0, 0.68);
+  cursor: pointer;
+  text-align: left;
+  transform: translateY(4px) rotate(var(--card-tilt));
+  transform-origin: bottom center;
+  animation: word-game-card-rise 280ms cubic-bezier(0.18, 0.82, 0.25, 1) backwards;
+  animation-delay: calc(var(--word-index) * 32ms);
+  transition:
+    border-color 140ms ease,
+    filter 140ms ease,
+    transform 180ms cubic-bezier(0.18, 0.82, 0.25, 1);
+}
+
+.word-game--contextual-tray .word-game__lexeme + .word-game__lexeme {
+  margin-left: -8px;
+}
+
+.word-game--contextual-tray .word-game__lexeme:nth-child(2n) {
+  --card-tilt: -0.7deg;
+}
+
+.word-game--contextual-tray .word-game__lexeme:nth-child(3n) {
+  --card-tilt: 0.65deg;
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-subject {
+  --category-color: var(--subject);
+  border-radius: 15px 15px 2px 2px;
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-condition {
+  --category-color: var(--condition);
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%);
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-connector {
+  --category-color: var(--connector);
+  border-radius: 13px 1px 13px 1px;
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-action {
+  --category-color: var(--action);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 6px 50%);
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-modifier {
+  --category-color: var(--modifier);
+  border-right-style: dashed;
+  border-left-style: dashed;
+}
+
+.word-game--contextual-tray .word-game__lexeme:hover:not(:disabled),
+.word-game--contextual-tray .word-game__lexeme:focus-visible {
+  z-index: 4;
+  border-color: var(--category-color);
+  filter: brightness(1.22);
+  transform: translateY(-9px) rotate(0) scale(1.025);
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-imprinted {
+  opacity: 0.76;
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-fit {
+  border-color: #070706;
+  border-top-color: var(--category-color);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 17%, transparent),
+      transparent 58%
+    ),
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #3a332a;
+  background-blend-mode: normal, multiply;
+  color: var(--bone);
+  filter: none;
+  opacity: 1;
+  transform: translateY(4px) rotate(var(--card-tilt));
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-imprinted.is-fit {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 13%, transparent),
+      transparent 58%
+    ),
+    url("../../assets/UI/table/table.png") center / 310px auto,
+    #29251f;
+  background-blend-mode: normal, multiply;
+  filter: saturate(0.76);
+  opacity: 0.72;
+}
+
+.word-game--contextual-tray .word-game__lexeme.is-fit:hover:not(:disabled),
+.word-game--contextual-tray .word-game__lexeme.is-fit:focus-visible {
+  z-index: 4;
+  border-color: var(--category-color);
+  filter: brightness(1.22);
+  opacity: 1;
+  transform: translateY(-9px) rotate(0) scale(1.025);
+}
+
+.word-game--contextual-tray .word-game__lexeme-role {
+  grid-row: auto;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.word-game--contextual-tray .word-game__lexeme-copy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  padding: 6px 7px;
+}
+
+.word-game--contextual-tray .word-game__lexeme-copy strong,
+.word-game--contextual-tray .word-game__lexeme-copy small {
+  align-self: auto;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__lexeme-copy strong {
+  color: var(--bone);
+  font-size: clamp(12px, 0.82vw, 15px);
+}
+
+.word-game--contextual-tray .word-game__lexeme-copy small {
+  margin-top: 4px;
+  color: var(--ash);
+  font-size: 8px;
+}
+
+.word-game--contextual-tray .word-game__lexeme em {
+  top: 4px;
+  right: 7px;
+}
+
+.word-game--contextual-tray .word-game__lexicon-guide {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  border-left: 1px solid rgba(181, 161, 116, 0.42);
+  padding: 6px 7px 5px 10px;
+  background: rgba(9, 8, 7, 0.42);
+}
+
+.word-game--contextual-tray .word-game__lexicon-guide > span {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 11px;
+}
+
+.word-game--contextual-tray .word-game__lexicon-guide div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.word-game--contextual-tray .word-game__lexicon-guide strong {
+  overflow: hidden;
+  color: var(--bone);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__lexicon-guide small {
+  color: var(--ash);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.word-game--contextual-tray .word-game__lexicon-empty {
+  align-self: center;
+  margin: 0 8px;
+  color: var(--ash);
+  font-size: 9px;
+}
+
+.word-game--contextual-tray .word-game__lexeme-detail {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-subject
+  .word-game__active-prompt > span,
+.word-game--contextual-tray .word-game__lexicon-guide > span.is-subject {
+  border-radius: 12px 12px 2px 2px;
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-condition
+  .word-game__active-prompt > span,
+.word-game--contextual-tray .word-game__lexicon-guide > span.is-condition {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-connector
+  .word-game__active-prompt > span,
+.word-game--contextual-tray .word-game__lexicon-guide > span.is-connector {
+  border-radius: 9px 1px 9px 1px;
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-action
+  .word-game__active-prompt > span,
+.word-game--contextual-tray .word-game__lexicon-guide > span.is-action {
+  clip-path: polygon(0 0, 72% 0, 100% 50%, 72% 100%, 0 100%, 18% 50%);
+}
+
+.word-game--contextual-tray .word-game__lexicon.is-modifier
+  .word-game__active-prompt > span,
+.word-game--contextual-tray .word-game__lexicon-guide > span.is-modifier {
+  border-style: dashed;
+  border-radius: 50%;
+}
+
+.word-game--contextual-tray .word-game__grammar-note {
+  right: max(188px, calc(14vw + 12px));
+  bottom: 5px;
+  max-width: 33%;
+  border-left-color: var(--category-color);
+}
+
+.word-game--contextual-tray.is-plan-ready .word-game__execute:not(:disabled) {
+  border-top-color: var(--gold-bright);
+  background-color: #8f2b22;
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 167, 119, 0.45),
+    0 0 13px rgba(164, 63, 54, 0.38);
+}
+
+.word-game--contextual-tray .word-game__slot.is-settling {
+  animation: word-game-card-settle 440ms cubic-bezier(0.18, 0.82, 0.25, 1) both;
+}
+
+@keyframes word-game-tray-open {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scaleY(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes word-game-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(50px) rotate(var(--card-tilt)) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(4px) rotate(var(--card-tilt));
+  }
+}
+
+@keyframes word-game-card-settle {
+  0% {
+    opacity: 0.48;
+    transform: translateY(38px) scale(1.1);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(-3px) scale(0.98);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .word-game--contextual-tray .word-game__combat-band {
+    grid-template-columns: 176px minmax(0, 1fr) 190px;
+  }
+
+  .word-game--contextual-tray .word-game__composer-title small,
+  .word-game--contextual-tray .word-game__compression small,
+  .word-game--contextual-tray .word-game__lexicon-guide small {
+    display: none;
+  }
+
+  .word-game--contextual-tray .word-game__slots {
+    grid-template-columns: repeat(6, minmax(68px, 1fr));
+    overflow-x: auto;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon {
+    grid-template-columns: minmax(320px, auto) minmax(130px, 1fr) auto;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 901px) {
+  .word-game--contextual-tray {
+    --workbench-open-height: 274px;
+    --workbench-closed-height: 168px;
+  }
+
+  .word-game--contextual-tray .word-game__combat-band {
+    grid-template-rows: minmax(0, 1fr) 116px;
+    padding-top: 6px;
+  }
+
+  .word-game--contextual-tray.is-lexicon-collapsed .word-game__combat-band {
+    grid-template-rows: minmax(0, 1fr) 40px;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme {
+    height: 74px;
+  }
+
+  .word-game--contextual-tray .word-game__sentence-reading {
+    display: flex;
+  }
+}
+
+@media (max-width: 900px) {
+  .word-game--contextual-tray {
+    display: block;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .word-game--contextual-tray .word-game__scene {
+    position: relative;
+    height: 62vh;
+    height: 62svh;
+    min-height: 430px;
+  }
+
+  .word-game--contextual-tray .word-game__enemy-vitals {
+    top: auto;
+    bottom: 9px;
+  }
+
+  .word-game--contextual-tray .word-game__stage-marks {
+    bottom: 13px;
+  }
+
+  .word-game--contextual-tray .word-game__combat-band,
+  .word-game--contextual-tray.is-lexicon-collapsed .word-game__combat-band {
+    position: relative;
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 200px;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "tactics tactics"
+      "lexicon lexicon"
+      "intel command";
+    padding: 8px;
+  }
+
+  .word-game--contextual-tray .word-game__composer {
+    min-height: 142px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(181, 161, 116, 0.36);
+  }
+
+  .word-game--contextual-tray .word-game__lexicon {
+    min-height: 112px;
+    grid-template-columns: minmax(300px, auto) minmax(120px, 1fr) auto;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon.is-collapsed {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    grid-template-rows: 36px 0;
+    overflow: hidden;
+  }
+
+  .word-game--contextual-tray .word-game__enemy-dossier,
+  .word-game--contextual-tray .word-game__command-rail {
+    min-height: 150px;
+    border-top: 1px solid rgba(181, 161, 116, 0.36);
+  }
+}
+
+@media (max-width: 620px) {
+  .word-game--contextual-tray .word-game__scene {
+    height: 60svh;
+    min-height: 380px;
+  }
+
+  .word-game--contextual-tray .word-game__combat-band,
+  .word-game--contextual-tray.is-lexicon-collapsed .word-game__combat-band {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "tactics"
+      "lexicon"
+      "command"
+      "intel";
+  }
+
+  .word-game--contextual-tray .word-game__composer {
+    min-height: 166px;
+    grid-template-rows: 28px 27px minmax(0, 1fr);
+    padding-right: 3px;
+    padding-left: 3px;
+  }
+
+  .word-game--contextual-tray .word-game__compression small,
+  .word-game--contextual-tray .word-game__compression span {
+    display: none;
+  }
+
+  .word-game--contextual-tray .word-game__sentence-tabs button {
+    min-width: 70px;
+  }
+
+  .word-game--contextual-tray .word-game__sentence-tabs button:not(.is-active) strong {
+    display: none;
+  }
+
+  .word-game--contextual-tray .word-game__slots {
+    grid-template-columns: repeat(6, minmax(92px, 1fr));
+  }
+
+  .word-game--contextual-tray .word-game__lexicon {
+    min-height: 152px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 36px 31px minmax(78px, auto);
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon.is-collapsed {
+    height: 72px;
+    min-height: 69px;
+    max-height: 72px;
+    grid-template-rows: 36px 31px 0;
+    overflow: hidden;
+  }
+
+  .word-game--contextual-tray .word-game__role-tabs {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .word-game--contextual-tray .word-game__role-tab {
+    min-width: 54px;
+    flex: 1 0 auto;
+  }
+
+  .word-game--contextual-tray .word-game__active-prompt {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-controls {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .word-game--contextual-tray .word-game__tray-toggle {
+    font-size: 0;
+  }
+
+  .word-game--contextual-tray .word-game__tray-toggle img {
+    width: 27px;
+    height: 15px;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-stage {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-template-columns: 1fr;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-guide {
+    display: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexemes {
+    padding-top: 7px;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme {
+    width: 122px;
+    min-width: 122px;
+    height: 68px;
+  }
+
+  .word-game--contextual-tray .word-game__grammar-note {
+    right: 7px;
+    bottom: 4px;
+    max-width: 54%;
+  }
+
+  .word-game--contextual-tray .word-game__command-rail,
+  .word-game--contextual-tray .word-game__enemy-dossier {
+    min-height: 170px;
+    border-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-game--contextual-tray .word-game__combat-band,
+  .word-game--contextual-tray .word-game__enemy-vitals,
+  .word-game--contextual-tray .word-game__stage-marks,
+  .word-game--contextual-tray .word-game__lexicon-stage,
+  .word-game--contextual-tray .word-game__lexeme,
+  .word-game--contextual-tray .word-game__role-tab,
+  .word-game--contextual-tray .word-game__slot {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/*
+ * PC hand fan
+ *
+ * The vocabulary no longer consumes a permanent second panel. The role rail
+ * stays docked at the bottom while the matching cards deal upward over the
+ * battlefield, leaving the sentence slots visible beneath the hand.
+ */
+
+@media (min-width: 901px) {
+  .word-game--contextual-tray {
+    --workbench-open-height: clamp(198px, 18.8vh, 212px);
+    --workbench-closed-height: clamp(150px, 14.6vh, 164px);
+  }
+
+  .word-game--contextual-tray .word-game__combat-band {
+    grid-template-rows: minmax(0, 1fr) 48px;
+    overflow: visible;
+    padding-bottom: 6px;
+  }
+
+  .word-game--contextual-tray.is-lexicon-collapsed .word-game__combat-band {
+    grid-template-rows: minmax(0, 1fr) 42px;
+  }
+
+  .word-game--contextual-tray .word-game__composer {
+    grid-template-rows: 27px 24px minmax(0, 1fr);
+  }
+
+  .word-game--contextual-tray.is-lexicon-collapsed .word-game__composer {
+    grid-template-rows: 25px 22px minmax(0, 1fr);
+  }
+
+  .word-game--contextual-tray .word-game__lexicon {
+    position: relative;
+    z-index: 40;
+    display: block;
+    min-height: 48px;
+    overflow: visible;
+    border-top-color: rgba(195, 173, 117, 0.64);
+    padding: 0;
+    background:
+      linear-gradient(180deg, rgba(40, 34, 27, 0.86), rgba(7, 7, 6, 0.97)),
+      url("../../assets/UI/table/table.png") center / 520px auto;
+    background-blend-mode: normal, multiply;
+    box-shadow:
+      inset 0 1px rgba(0, 0, 0, 0.92),
+      inset 0 2px rgba(195, 173, 117, 0.13),
+      0 -5px 15px rgba(0, 0, 0, 0.54);
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-heading {
+    position: absolute;
+    z-index: 80;
+    inset: 0;
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 5px 12px 3px;
+  }
+
+  .word-game--contextual-tray .word-game__active-prompt {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 8px;
+  }
+
+  .word-game--contextual-tray .word-game__active-prompt > span {
+    width: 28px;
+    height: 28px;
+    background: rgba(5, 5, 5, 0.54);
+    box-shadow: inset 0 0 9px color-mix(in srgb, var(--category-color) 18%, transparent);
+    font-size: 10px;
+  }
+
+  .word-game--contextual-tray .word-game__active-prompt small {
+    color: color-mix(in srgb, var(--category-color) 60%, var(--ash));
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .word-game--contextual-tray .word-game__active-prompt h2 {
+    margin-top: 3px;
+    font-size: clamp(13px, 0.86vw, 16px);
+  }
+
+  .word-game--contextual-tray .word-game__role-tabs {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: end;
+    justify-content: center;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .word-game--contextual-tray .word-game__role-tabs::after {
+    position: absolute;
+    z-index: -1;
+    right: 3px;
+    bottom: -2px;
+    left: 3px;
+    height: 4px;
+    border-top: 1px solid rgba(195, 173, 117, 0.5);
+    background: #080807;
+    content: "";
+  }
+
+  .word-game--contextual-tray .word-game__role-tab {
+    width: clamp(72px, 4.7vw, 90px);
+    min-width: clamp(72px, 4.7vw, 90px);
+    height: 32px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 5px;
+    border-color: color-mix(in srgb, var(--category-color) 48%, #26231f);
+    padding: 3px 7px 3px 4px;
+    background:
+      linear-gradient(180deg, rgba(63, 53, 43, 0.92), rgba(13, 12, 10, 0.96)),
+      url("../../assets/UI/table/table.png") center / 240px auto;
+    background-blend-mode: normal, multiply;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+      0 3px 6px rgba(0, 0, 0, 0.68);
+  }
+
+  .word-game--contextual-tray .word-game__role-tab.is-active {
+    height: 39px;
+    border-color: var(--category-color);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--category-color) 34%, #453a30),
+        #181511 80%
+      ),
+      url("../../assets/UI/table/table.png") center / 240px auto;
+    background-blend-mode: normal, multiply;
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--category-color) 58%, transparent),
+      0 -7px 17px color-mix(in srgb, var(--category-color) 30%, transparent),
+      0 4px 8px rgba(0, 0, 0, 0.72);
+    transform: translateY(-4px);
+  }
+
+  .word-game--contextual-tray .word-game__role-tab-mark {
+    width: 22px;
+    height: 22px;
+    background: rgba(4, 4, 4, 0.38);
+    font-size: 9px;
+  }
+
+  .word-game--contextual-tray .word-game__role-tab-label strong {
+    font-size: 10px;
+  }
+
+  .word-game--contextual-tray .word-game__role-tab-label small {
+    font-size: 8px;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-controls {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .word-game--contextual-tray .word-game__tray-toggle,
+  .word-game--contextual-tray .word-game__clear-modifier {
+    min-height: 29px;
+    border-color: color-mix(in srgb, var(--category-color) 45%, var(--gold));
+    background: rgba(10, 9, 8, 0.82);
+    font-size: 9px;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-stage {
+    position: absolute;
+    z-index: 50;
+    right: 0;
+    bottom: calc(100% + 104px);
+    left: 0;
+    display: block;
+    height: 272px;
+    overflow: visible;
+    border: 0;
+    opacity: 1;
+    pointer-events: none;
+    transform: none;
+    transform-origin: bottom center;
+    visibility: visible;
+    animation: none;
+    transition:
+      opacity 150ms ease,
+      transform 240ms cubic-bezier(0.22, 0.75, 0.2, 1),
+      visibility 0s;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-stage::before {
+    position: absolute;
+    z-index: 0;
+    inset: -58px 14% -34px;
+    background: radial-gradient(
+      ellipse at 50% 92%,
+      rgba(0, 0, 0, 0.88) 0,
+      rgba(0, 0, 0, 0.62) 38%,
+      rgba(0, 0, 0, 0.18) 64%,
+      transparent 76%
+    );
+    content: "";
+    filter: blur(4px);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon.is-collapsed .word-game__lexicon-stage {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(210px) scale(0.86);
+    visibility: hidden;
+    transition:
+      opacity 150ms ease,
+      transform 220ms cubic-bezier(0.4, 0, 0.7, 0.2),
+      visibility 0s 220ms;
+  }
+
+  .word-game--contextual-tray .word-game__lexemes {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    display: block;
+    overflow: visible;
+    padding: 0;
+    scrollbar-width: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme,
+  .word-game--contextual-tray .word-game__lexeme.is-fit {
+    --category-color: var(--ash);
+    position: absolute;
+    z-index: var(--fan-z);
+    bottom: 0;
+    left: 50%;
+    display: block;
+    width: 180px;
+    min-width: 180px;
+    height: 270px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #2b2119;
+    cursor: pointer;
+    filter: drop-shadow(0 13px 11px rgba(0, 0, 0, 0.78));
+    opacity: 1;
+    pointer-events: auto;
+    text-align: center;
+    transform: translate3d(calc(-50% + var(--fan-x)), var(--fan-drop), 0)
+      rotate(var(--fan-angle));
+    transform-origin: 50% 92%;
+    animation: none;
+    transition:
+      filter 150ms ease,
+      opacity 150ms ease,
+      transform 190ms cubic-bezier(0.18, 0.82, 0.25, 1);
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-subject {
+    --category-color: var(--subject);
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-condition {
+    --category-color: var(--condition);
+    clip-path: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-connector {
+    --category-color: var(--connector);
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-action {
+    --category-color: var(--action);
+    clip-path: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-modifier {
+    --category-color: var(--modifier);
+    border: 0;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon.is-open .word-game__lexeme {
+    animation: word-game-hand-deal 380ms cubic-bezier(0.16, 0.86, 0.24, 1.04) backwards;
+    animation-delay: calc(var(--word-index) * 48ms);
+  }
+
+  .word-game--contextual-tray .word-game__lexicon.is-collapsed .word-game__lexeme {
+    animation: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-card-art {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    filter: sepia(0.17) saturate(0.72) brightness(0.78) contrast(1.08);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-tint {
+    position: absolute;
+    z-index: 1;
+    inset: 18px 17px 17px;
+    border-top: 4px solid var(--category-color);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--category-color) 25%, transparent),
+        transparent 35%,
+        rgba(12, 9, 7, 0.08)
+      );
+    box-shadow:
+      inset 0 0 24px color-mix(in srgb, var(--category-color) 9%, transparent),
+      inset 0 -1px rgba(39, 29, 22, 0.36);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-head {
+    position: absolute;
+    z-index: 3;
+    top: 28px;
+    right: 29px;
+    left: 29px;
+    display: grid;
+    height: 31px;
+    grid-template-columns: 27px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--category-color) 72%, #30251d);
+    text-align: left;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-head > small {
+    overflow: hidden;
+    color: #382820;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-role {
+    position: static;
+    display: grid;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    border: 1px solid var(--category-color);
+    background: color-mix(in srgb, var(--category-color) 18%, rgba(242, 222, 197, 0.7));
+    color: color-mix(in srgb, var(--category-color) 76%, #241913);
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-head em {
+    position: static;
+    align-self: center;
+    border: 1px solid var(--category-color);
+    padding: 1px 3px;
+    background: rgba(242, 222, 197, 0.72);
+    color: #30221b;
+    font-size: 8px;
+    font-style: normal;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-copy {
+    position: absolute;
+    z-index: 3;
+    top: 76px;
+    right: 31px;
+    bottom: 57px;
+    left: 31px;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    align-content: normal;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0;
+    color: #2c211a;
+    text-align: center;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-copy > small {
+    width: 100%;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--category-color) 78%, #34251c);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-copy > strong {
+    display: -webkit-box;
+    width: 100%;
+    margin-top: 11px;
+    overflow: hidden;
+    color: #251a14;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.28;
+    text-wrap: balance;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-copy > span {
+    display: -webkit-box;
+    width: 100%;
+    margin-top: 13px;
+    overflow: hidden;
+    color: #45372d;
+    font-size: 9px;
+    line-height: 1.52;
+    text-align: left;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme-foot {
+    position: absolute;
+    z-index: 3;
+    right: 31px;
+    bottom: 31px;
+    left: 31px;
+    border-top: 1px solid rgba(56, 42, 31, 0.5);
+    padding-top: 6px;
+    color: #4b392d;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-align: center;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-imprinted,
+  .word-game--contextual-tray .word-game__lexeme.is-imprinted.is-fit {
+    filter: saturate(0.76) drop-shadow(0 11px 9px rgba(0, 0, 0, 0.72));
+    opacity: 0.82;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme:hover:not(:disabled),
+  .word-game--contextual-tray .word-game__lexeme:focus-visible,
+  .word-game--contextual-tray .word-game__lexeme.is-fit:hover:not(:disabled),
+  .word-game--contextual-tray .word-game__lexeme.is-fit:focus-visible,
+  .word-game--contextual-tray .word-game__lexeme.is-imprinted.is-fit:hover:not(:disabled),
+  .word-game--contextual-tray .word-game__lexeme.is-imprinted.is-fit:focus-visible {
+    z-index: 70;
+    border: 0;
+    filter:
+      brightness(1.07)
+      drop-shadow(0 19px 16px rgba(0, 0, 0, 0.86))
+      drop-shadow(0 0 10px color-mix(in srgb, var(--category-color) 38%, transparent));
+    opacity: 1;
+    transform: translate3d(
+        calc(-50% + var(--fan-x)),
+        calc(var(--fan-drop) - 39px),
+        0
+      )
+      rotate(var(--fan-hover-angle))
+      scale(1.075);
+  }
+
+  .word-game--contextual-tray .word-game__lexeme:active:not(:disabled) {
+    transform: translate3d(
+        calc(-50% + var(--fan-x)),
+        calc(var(--fan-drop) - 27px),
+        0
+      )
+      rotate(var(--fan-hover-angle))
+      scale(1.02);
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-dragging {
+    filter: grayscale(0.65) drop-shadow(0 6px 6px rgba(0, 0, 0, 0.6));
+    opacity: 0.34;
+  }
+
+  .word-game--contextual-tray .word-game__lexeme.is-rejected {
+    animation: word-game-card-reject 340ms ease both !important;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-guide {
+    display: none;
+  }
+
+  .word-game--contextual-tray .word-game__lexicon-empty {
+    position: absolute;
+    right: 0;
+    bottom: 32px;
+    left: 0;
+    margin: 0 auto;
+    color: var(--bone);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .word-game--contextual-tray .word-game__grammar-note {
+    z-index: 90;
+    right: 12px;
+    bottom: 52px;
+    max-width: 360px;
+    border-left-color: var(--category-color);
+    background: rgba(7, 7, 6, 0.9);
+  }
+}
+
+@keyframes word-game-hand-deal {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 252px, 0) rotate(0) scale(0.72);
+  }
+  66% {
+    opacity: 1;
+    transform: translate3d(
+        calc(-50% + var(--fan-x)),
+        calc(var(--fan-drop) - 13px),
+        0
+      )
+      rotate(var(--fan-angle))
+      scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(calc(-50% + var(--fan-x)), var(--fan-drop), 0)
+      rotate(var(--fan-angle));
+  }
+}
+
+@keyframes word-game-card-reject {
+  0%,
+  100% {
+    transform: translate3d(calc(-50% + var(--fan-x)), var(--fan-drop), 0)
+      rotate(var(--fan-angle));
+  }
+  30% {
+    transform: translate3d(
+        calc(-50% + var(--fan-x) - 8px),
+        var(--fan-drop),
+        0
+      )
+      rotate(var(--fan-angle));
+  }
+  65% {
+    transform: translate3d(
+        calc(-50% + var(--fan-x) + 8px),
+        var(--fan-drop),
+        0
+      )
+      rotate(var(--fan-angle));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
+  .word-game--contextual-tray .word-game__lexicon.is-open .word-game__lexeme {
+    animation-delay: 0ms !important;
+  }
+}

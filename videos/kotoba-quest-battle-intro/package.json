@@ -1,0 +1,16 @@
+{
+  "name": "kotoba-quest-battle-intro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "env LD_LIBRARY_PATH=/home/sm787/.cache/hyperframes/browser-libs/root/usr/lib/x86_64-linux-gnu hyperframes preview",
+    "check": "env LD_LIBRARY_PATH=/home/sm787/.cache/hyperframes/browser-libs/root/usr/lib/x86_64-linux-gnu hyperframes check",
+    "snapshot": "env LD_LIBRARY_PATH=/home/sm787/.cache/hyperframes/browser-libs/root/usr/lib/x86_64-linux-gnu hyperframes snapshot",
+    "render": "env LD_LIBRARY_PATH=/home/sm787/.cache/hyperframes/browser-libs/root/usr/lib/x86_64-linux-gnu hyperframes render",
+    "publish": "hyperframes publish"
+  },
+  "devDependencies": {
+    "hyperframes": "0.7.90",
+    "yauzl": "3.4.0"
+  }
+}

@@ -1,9 +1,7 @@
 import { animate } from "animejs";
 import * as PIXI from "pixi.js";
 
-import tutorialGroundUrl from "../assets/backgrounds/チュートリアル/ground.png";
-import tutorialPillarUrl from "../assets/backgrounds/チュートリアル/pillar.png";
-import tutorialWallUrl from "../assets/backgrounds/チュートリアル/wall.png";
+import stageBackdropUrl from "../assets/backgrounds/チュートリアル/background.png";
 import {
   ENEMY_SHEETS,
   PLAYER_SHEETS,
@@ -45,9 +43,7 @@ interface BackgroundLayer {
 }
 
 const BACKGROUND_LAYERS: BackgroundLayer[] = [
-  { src: tutorialWallUrl, verticalAlign: "center" },
-  { src: tutorialPillarUrl, verticalAlign: "center" },
-  { src: tutorialGroundUrl, verticalAlign: "bottom" },
+  { src: stageBackdropUrl, verticalAlign: "center" },
 ];
 
 interface CharacterAnimations {
@@ -176,6 +172,7 @@ async function loadAnimationFrames(
 // バトルシーンの初期化
 export async function initBattleScene(
   container: HTMLElement,
+  playerSheets: CharacterSheetDefinition = PLAYER_SHEETS,
 ): Promise<PIXI.Application | null> {
   // 既存のアプリがあれば先に破棄
   destroyBattleScene();
@@ -215,12 +212,12 @@ export async function initBattleScene(
 
     // チュートリアル用キャラクターアニメーションを読み込み
     [playerAnimations, enemyAnimations] = await Promise.all([
-      loadCharacterAnimations(PLAYER_SHEETS),
+      loadCharacterAnimations(playerSheets),
       loadCharacterAnimations(ENEMY_SHEETS),
     ]);
 
     // キャラクターを配置
-    createPlayerSprite();
+    createPlayerSprite(playerSheets.targetHeight);
     createEnemySprite();
     startIdleMotion();
 
@@ -271,7 +268,7 @@ function createGroundShadow(x: number, y: number, width: number): PIXI.Graphics 
 }
 
 // プレイヤースプライトの作成
-function createPlayerSprite() {
+function createPlayerSprite(targetHeight: number) {
   if (!app || !battleWorld || !playerAnimations) return;
 
   const x = app.screen.width * 0.25;
@@ -282,7 +279,7 @@ function createPlayerSprite() {
 
   playerSprite = createCharacterSprite(
     playerAnimations,
-    PLAYER_SHEETS.targetHeight,
+    targetHeight,
     x,
     y,
   );

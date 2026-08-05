@@ -5,9 +5,7 @@ import {
   useRef,
 } from "react";
 import * as PIXI from "pixi.js";
-import tutorialGroundUrl from "../../assets/backgrounds/チュートリアル/ground.png";
-import tutorialPillarUrl from "../../assets/backgrounds/チュートリアル/pillar.png";
-import tutorialWallUrl from "../../assets/backgrounds/チュートリアル/wall.png";
+import stageBackdropUrl from "../../assets/backgrounds/チュートリアル/background.png";
 import {
   ENEMY_SHEETS,
   PLAYER_SHEETS,
@@ -49,6 +47,8 @@ export interface LiveBattlefieldHandle {
 interface LiveBattlefieldProps {
   label: string;
   debugStatic?: boolean;
+  immersive?: boolean;
+  commandStage?: boolean;
   onReady?: (targets: BattlefieldMotionTargets | null) => void;
 }
 
@@ -145,10 +145,55 @@ function createDust(): PIXI.Container {
   return dust;
 }
 
-function fitCover(sprite: PIXI.Sprite, width: number, height: number) {
-  const scale = Math.max(width / sprite.texture.width, height / sprite.texture.height);
+// The bright stone surface crosses y=820 in the 1920x1080 stage artwork.
+const COMMAND_STAGE_FLOOR_SOURCE_Y_RATIO = 820 / 1080;
+const COMMAND_STAGE_FLOOR_BOTTOM_INSET = 10;
+// Use the visible soles, not each PNG's transparent bottom edge, as its origin.
+const PLAYER_COMMAND_STAGE_FOOT_ANCHOR_Y = 1335 / 1536;
+const ENEMY_COMMAND_STAGE_FOOT_ANCHOR_Y = 1479 / 1536;
+
+function getCommandStageFloorPlacement(
+  texture: PIXI.Texture,
+  width: number,
+  height: number,
+) {
+  const scale = Math.max(width / texture.width, height / texture.height);
+  const scaledHeight = texture.height * scale;
+  const overflowY = Math.max(0, scaledHeight - height);
+  const uncroppedFloorY =
+    texture.height * COMMAND_STAGE_FLOOR_SOURCE_Y_RATIO * scale;
+  const preferredFloorY = height - COMMAND_STAGE_FLOOR_BOTTOM_INSET;
+  const verticalAnchor =
+    overflowY > 0
+      ? Math.min(
+          1,
+          Math.max(0, (uncroppedFloorY - preferredFloorY) / overflowY),
+        )
+      : 0.5;
+
+  return {
+    floorY: uncroppedFloorY - overflowY * verticalAnchor,
+    verticalAnchor,
+  };
+}
+
+function fitCover(
+  sprite: PIXI.Sprite,
+  width: number,
+  height: number,
+  verticalAnchor = 0.5,
+) {
+  const scale = Math.max(
+    width / sprite.texture.width,
+    height / sprite.texture.height,
+  );
+  const scaledHeight = sprite.texture.height * scale;
+  const overflowY = Math.max(0, scaledHeight - height);
   sprite.anchor.set(0.5);
-  sprite.position.set(width / 2, height / 2);
+  sprite.position.set(
+    width / 2,
+    scaledHeight / 2 - overflowY * verticalAnchor,
+  );
   sprite.scale.set(scale);
 }
 
@@ -209,7 +254,13 @@ export const LiveBattlefield = forwardRef<
   LiveBattlefieldHandle,
   LiveBattlefieldProps
 >(function LiveBattlefield(
-  { label, debugStatic = false, onReady },
+  {
+    label,
+    debugStatic = false,
+    immersive = false,
+    commandStage = false,
+    onReady,
+  },
   forwardedRef,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -254,36 +305,40 @@ export const LiveBattlefield = forwardRef<
       nextApp.canvas.setAttribute("aria-hidden", "true");
       host.appendChild(nextApp.canvas);
 
-      const [wallTexture, pillarTexture, groundTexture, playerTexture, enemyTexture] =
-        await Promise.all([
-          PIXI.Assets.load<PIXI.Texture>(tutorialWallUrl),
-          PIXI.Assets.load<PIXI.Texture>(tutorialPillarUrl),
-          PIXI.Assets.load<PIXI.Texture>(tutorialGroundUrl),
-          PIXI.Assets.load<PIXI.Texture>(PLAYER_SHEETS.idle.src),
-          PIXI.Assets.load<PIXI.Texture>(ENEMY_SHEETS.idle.src),
-        ]);
+      const [stageTexture, playerTexture, enemyTexture] = await Promise.all([
+        PIXI.Assets.load<PIXI.Texture>(stageBackdropUrl),
+        PIXI.Assets.load<PIXI.Texture>(PLAYER_SHEETS.idle.src),
+        PIXI.Assets.load<PIXI.Texture>(ENEMY_SHEETS.idle.src),
+      ]);
 
       if (disposed) return;
 
       const world = new PIXI.Container();
       nextApp.stage.addChild(world);
 
-      const wall = new PIXI.Sprite(wallTexture);
-      const pillar = new PIXI.Sprite(pillarTexture);
-      const ground = new PIXI.Sprite(groundTexture);
-      world.addChild(wall, pillar, ground);
+      const stageBackdrop = new PIXI.Sprite(stageTexture);
+      world.addChild(stageBackdrop);
 
       const playerShadow = createShadow(64);
       const enemyShadow = createShadow(78);
       const playerAfterimage = new PIXI.Sprite(playerTexture);
-      playerAfterimage.anchor.set(0.5, 1);
+      playerAfterimage.anchor.set(
+        0.5,
+        commandStage ? PLAYER_COMMAND_STAGE_FOOT_ANCHOR_Y : 1,
+      );
       playerAfterimage.tint = 0xf5d58c;
       const player = new PIXI.Sprite(playerTexture);
-      player.anchor.set(0.5, 1);
+      player.anchor.set(
+        0.5,
+        commandStage ? PLAYER_COMMAND_STAGE_FOOT_ANCHOR_Y : 1,
+      );
 
       const enemyFrames = createFrames(enemyTexture, ENEMY_SHEETS.idle);
       const enemy = new PIXI.AnimatedSprite(enemyFrames);
-      enemy.anchor.set(0.5, 1);
+      enemy.anchor.set(
+        0.5,
+        commandStage ? ENEMY_COMMAND_STAGE_FOOT_ANCHOR_Y : 1,
+      );
       enemy.loop = true;
       enemy.animationSpeed = debugStatic ? 0 : 0.16;
       if (debugStatic) enemy.gotoAndStop(0);
@@ -335,23 +390,46 @@ export const LiveBattlefield = forwardRef<
       const layout = () => {
         const width = nextApp.screen.width;
         const height = nextApp.screen.height;
-        fitCover(wall, width, height);
-        fitCover(pillar, width, height);
-        fitCover(ground, width, height);
+        const commandStageFloor = commandStage
+          ? getCommandStageFloorPlacement(stageTexture, width, height)
+          : null;
+        fitCover(
+          stageBackdrop,
+          width,
+          height,
+          commandStageFloor?.verticalAnchor ?? 0.5,
+        );
 
-        const playerScale = Math.min(height * 0.42, PLAYER_SHEETS.targetHeight) /
+        const playerHeightRatio = immersive ? 0.27 : commandStage ? 0.48 : 0.42;
+        const enemyHeightRatio = immersive ? 0.32 : commandStage ? 0.74 : 0.49;
+        const playerTargetScale = commandStage ? 1.3 : 1;
+        const enemyTargetScale = commandStage ? 2.4 : 1;
+        const isNarrowImmersive = immersive && width < 1180;
+        const isMobileImmersive = immersive && width <= 760;
+        const characterFloor = isMobileImmersive
+          ? height * 0.8
+          : immersive
+            ? height * 0.56
+            : commandStageFloor?.floorY ?? height * 0.82;
+        const playerScale = Math.min(
+          height * playerHeightRatio,
+          PLAYER_SHEETS.targetHeight * playerTargetScale,
+        ) /
           Math.max(1, playerTexture.height);
         const enemyFrameHeight = enemyFrames[0]?.height ?? enemyTexture.height;
-        const enemyScale = Math.min(height * 0.49, ENEMY_SHEETS.targetHeight) /
+        const enemyScale = Math.min(
+          height * enemyHeightRatio,
+          ENEMY_SHEETS.targetHeight * enemyTargetScale,
+        ) /
           Math.max(1, enemyFrameHeight);
         targets.home = {
           width,
           height,
-          playerX: width * 0.24,
-          playerY: height * 0.82,
+          playerX: width * (isNarrowImmersive ? 0.3 : commandStage ? 0.34 : 0.24),
+          playerY: characterFloor,
           playerScale,
-          enemyX: width * 0.76,
-          enemyY: height * 0.82,
+          enemyX: width * (isNarrowImmersive ? 0.7 : commandStage ? 0.78 : 0.76),
+          enemyY: characterFloor,
           enemyScale,
         };
         resetBattlefieldTargets(targets);
@@ -381,7 +459,7 @@ export const LiveBattlefield = forwardRef<
         }
       }
     };
-  }, [debugStatic, onReady]);
+  }, [commandStage, debugStatic, immersive, onReady]);
 
   return (
     <figure

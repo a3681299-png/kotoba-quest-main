@@ -1,0 +1,855 @@
+/*
+ * PC stage split
+ *
+ * The real stone platform in the battlefield asset is the divider. The scene
+ * ends immediately below that platform; the command deck begins beneath it.
+ * Cards never need a permanent inventory panel.
+ */
+
+.word-game--stage-split {
+  --battle-deck-split: 67%;
+  display: grid;
+  min-width: 1080px;
+  min-height: 720px;
+  grid-template-rows: minmax(0, var(--battle-deck-split)) minmax(0, 1fr);
+  overflow: hidden;
+  background: #080705;
+}
+
+.word-game--stage-split .word-game__scene {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  grid-row: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  background: #11100d;
+  box-shadow: none;
+}
+
+.word-game--stage-split .word-game__scene .reading-live-battlefield__canvas {
+  filter: sepia(0.12) saturate(0.78) contrast(1.1) brightness(0.8);
+}
+
+.word-game--stage-split .word-game__print-veil {
+  background:
+    linear-gradient(90deg, rgba(4, 5, 5, 0.27), transparent 20% 79%, rgba(4, 5, 5, 0.28)),
+    linear-gradient(180deg, rgba(4, 5, 5, 0.08), transparent 58%, rgba(4, 5, 5, 0.2));
+  box-shadow:
+    inset 0 0 86px 20px rgba(0, 0, 0, 0.34),
+    inset 0 -18px 18px rgba(0, 0, 0, 0.24);
+}
+
+.word-game--stage-split .word-game__masthead {
+  top: 12px;
+  right: 20px;
+  left: 20px;
+}
+
+.word-game--stage-split .word-game__chapters {
+  top: 45px;
+}
+
+.word-game--stage-split .word-game__notice {
+  top: 84px;
+  max-width: 420px;
+  border-color: rgba(195, 173, 117, 0.38);
+  background: rgba(8, 8, 7, 0.76);
+}
+
+.word-game--stage-split .word-game__vitals--player {
+  top: -18px;
+  left: -18px;
+  width: clamp(520px, 31vw, 600px);
+}
+
+.word-game--stage-split .word-game__enemy-vitals {
+  top: auto;
+  right: 26px;
+  bottom: 18px;
+  left: auto;
+  width: clamp(250px, 19vw, 330px);
+  transform: none;
+}
+
+.word-game--stage-split .word-game__enemy-vitals-name {
+  margin-left: 8px;
+  color: #f1dfc1;
+  font-size: clamp(11px, 0.82vw, 14px);
+}
+
+.word-game--stage-split .word-game__enemy-vitals-meter {
+  height: 22px;
+  border-color: #120b09;
+  background: rgba(20, 13, 12, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(224, 190, 118, 0.68),
+    0 3px 0 rgba(0, 0, 0, 0.76);
+}
+
+.word-game--stage-split .word-game__stage-marks {
+  right: auto;
+  bottom: 18px;
+  left: 22px;
+  gap: 8px;
+  border: 1px solid rgba(195, 173, 117, 0.42);
+  padding: 5px 9px;
+  background: rgba(6, 7, 6, 0.72);
+  color: #c5baa0;
+  transform: none;
+}
+
+/* Enemy reading becomes a compact battlefield HUD, not a lower column. */
+
+.word-game--stage-split .word-game__enemy-dossier {
+  position: absolute;
+  z-index: 8;
+  top: 218px;
+  left: 26px;
+  display: block;
+  width: 294px;
+  min-height: 0;
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid rgba(184, 153, 96, 0.42);
+  border-left: 3px solid var(--enemy-accent, var(--blood-bright));
+  padding: 8px 10px 7px;
+  background:
+    linear-gradient(90deg, rgba(7, 8, 7, 0.94), rgba(8, 9, 8, 0.76)),
+    url("../../assets/UI/table/table.png") center / 420px auto;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+    0 8px 20px rgba(0, 0, 0, 0.36);
+  scrollbar-color: var(--gold) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game--stage-split .word-game__enemy-heading {
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.word-game--stage-split .word-game__enemy-heading > span {
+  width: 27px;
+  height: 27px;
+  border-color: color-mix(in srgb, var(--enemy-accent) 62%, var(--gold));
+  background: rgba(6, 7, 6, 0.78);
+  font-size: 13px;
+}
+
+.word-game--stage-split .word-game__enemy-heading h1 {
+  font-size: 15px;
+}
+
+.word-game--stage-split .word-game__enemy-heading small {
+  font-size: 8px;
+}
+
+.word-game--stage-split .word-game__clue {
+  margin-top: 6px;
+  padding: 4px 7px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.word-game--stage-split .word-game__clue blockquote {
+  display: -webkit-box;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #ddd0b6;
+  font-size: 10px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.word-game--stage-split .word-game__enemy-details {
+  margin-top: 5px;
+  color: #c9bda4;
+  font-size: 9px;
+}
+
+.word-game--stage-split .word-game__enemy-details summary {
+  color: var(--gold-bright);
+  font-size: 9px;
+}
+
+/* Keep the lower command area neutral while the wood backdrop is disabled. */
+
+.word-game--stage-split .word-game__combat-band,
+.word-game--stage-split.is-lexicon-collapsed .word-game__combat-band {
+  position: relative;
+  z-index: 12;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  grid-row: 2;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #0b0b0a, #060606);
+  background-blend-mode: normal;
+  box-shadow:
+    inset 0 15px 22px rgba(0, 0, 0, 0.72),
+    inset 0 1px rgba(201, 170, 104, 0.22),
+    0 -7px 18px rgba(0, 0, 0, 0.46);
+  transition: none;
+}
+
+.word-game--stage-split .word-game__combat-band::before {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  height: 8px;
+  border: 0;
+  border-top: 1px solid rgba(21, 16, 11, 0.94);
+  border-bottom: 1px solid rgba(185, 149, 86, 0.2);
+  background: rgba(5, 4, 3, 0.58);
+  box-shadow: 0 -5px 12px rgba(0, 0, 0, 0.44);
+  content: "";
+  pointer-events: none;
+}
+
+/* The sentence sockets are engraved into the stone lip at the split. */
+
+.word-game--stage-split .word-game__composer {
+  position: absolute;
+  z-index: 72;
+  top: 8px;
+  right: clamp(255px, 17.5vw, 342px);
+  left: clamp(300px, 20vw, 390px);
+  display: grid;
+  height: 79px;
+  min-height: 0;
+  grid-template-rows: 20px 17px minmax(0, 1fr);
+  overflow: visible;
+  border: 1px solid rgba(183, 153, 96, 0.4);
+  border-top-color: rgba(218, 188, 118, 0.68);
+  padding: 3px 7px 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 14, 0.96),
+    rgba(7, 7, 7, 0.98)
+  );
+  background-blend-mode: normal;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.66),
+    0 5px 13px rgba(0, 0, 0, 0.44);
+}
+
+.word-game--stage-split .word-game__composer-heading {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(166, 138, 84, 0.22);
+  padding: 0 1px 2px;
+}
+
+.word-game--stage-split .word-game__composer-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.word-game--stage-split .word-game__composer-title small {
+  color: #8f846f;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+
+.word-game--stage-split .word-game__composer h2 {
+  color: #dfc68e;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+
+.word-game--stage-split .word-game__compression {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.word-game--stage-split .word-game__compression span,
+.word-game--stage-split .word-game__compression small {
+  display: none;
+}
+
+.word-game--stage-split .word-game__compression strong {
+  color: #a99e87;
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.word-game--stage-split .word-game__sentence-tabs {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding: 1px 0;
+}
+
+.word-game--stage-split .word-game__sentence-tabs button {
+  display: grid;
+  width: auto;
+  min-width: 58px;
+  height: 15px;
+  grid-template-columns: 13px auto;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  border-bottom: 1px solid rgba(131, 121, 101, 0.38);
+  padding: 0 5px 1px 0;
+  background: transparent;
+  color: #888173;
+  cursor: pointer;
+}
+
+.word-game--stage-split .word-game__sentence-tabs button > span {
+  display: grid;
+  width: 13px;
+  height: 13px;
+  place-items: center;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-size: 7px;
+}
+
+.word-game--stage-split .word-game__sentence-tabs button strong {
+  color: inherit;
+  font-size: 7px;
+  font-weight: 500;
+}
+
+.word-game--stage-split .word-game__sentence-tabs button small {
+  display: none;
+}
+
+.word-game--stage-split .word-game__sentence-tabs button.is-active {
+  border-bottom-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.word-game--stage-split .word-game__sentence-stack {
+  display: block;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.word-game--stage-split .word-game__sentence {
+  display: block;
+  height: 37px;
+  min-height: 0;
+  border: 0;
+  border-left: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.word-game--stage-split .word-game__sentence-index,
+.word-game--stage-split .word-game__sentence-reading,
+.word-game--stage-split .word-game__remove-sentence,
+.word-game--stage-split .word-game__causal-link,
+.word-game--stage-split .word-game__synergy-bracket,
+.word-game--stage-split .word-game__compression-trace {
+  display: none;
+}
+
+.word-game--stage-split .word-game__slots {
+  display: grid;
+  height: 37px;
+  grid-template-columns:
+    minmax(86px, 1.03fr)
+    minmax(94px, 1.13fr)
+    minmax(82px, 0.92fr)
+    minmax(94px, 1.08fr)
+    minmax(86px, 1fr)
+    minmax(88px, 0.98fr);
+  gap: 5px;
+  padding: 1px 0 0;
+}
+
+.word-game--stage-split .word-game .word-game__slot,
+.word-game--stage-split .word-game__slot {
+  height: 35px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  border-color: rgba(7, 6, 5, 0.96);
+  border-top-color: var(--category-color);
+  background:
+    linear-gradient(180deg, rgba(44, 40, 33, 0.94), rgba(14, 13, 11, 0.97)),
+    url("../../assets/UI/table/table.png") center / 300px auto;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.word-game--stage-split .word-game .word-game__slot.is-empty {
+  background:
+    linear-gradient(180deg, rgba(17, 16, 14, 0.9), rgba(7, 7, 6, 0.97)),
+    url("../../assets/UI/table/table.png") center / 300px auto;
+  background-blend-mode: normal, multiply;
+}
+
+.word-game--stage-split .word-game .word-game__slot.is-selected {
+  border-color: var(--category-color);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 28%, #302a22),
+      #0f0e0c
+    ),
+    url("../../assets/UI/table/table.png") center / 300px auto;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--category-color) 58%, transparent),
+    0 0 12px color-mix(in srgb, var(--category-color) 24%, transparent);
+  transform: translateY(-2px);
+}
+
+.word-game--stage-split .word-game__slot-copy small {
+  font-size: 7px;
+}
+
+.word-game--stage-split .word-game__slot-copy strong {
+  font-size: clamp(9px, 0.7vw, 12px);
+}
+
+/* Card table and its compact role controls. */
+
+.word-game--stage-split .word-game__lexicon {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  min-height: 0;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.word-game--stage-split .word-game__lexicon-heading {
+  position: absolute;
+  z-index: 38;
+  inset: 0;
+  display: block;
+  padding: 0;
+  pointer-events: none;
+}
+
+.word-game--stage-split .word-game__role-tabs {
+  position: absolute;
+  z-index: 2;
+  bottom: 17px;
+  left: 20px;
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.word-game--stage-split .word-game__role-tabs::after {
+  right: 2px;
+  bottom: -3px;
+  left: 2px;
+}
+
+.word-game--stage-split .word-game__role-tab {
+  width: 58px;
+  min-width: 58px;
+  height: 43px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 4px;
+  border-color: color-mix(in srgb, var(--category-color) 44%, #211c17);
+  padding: 4px 5px 4px 4px;
+  background:
+    linear-gradient(180deg, rgba(55, 45, 35, 0.94), rgba(10, 9, 8, 0.98)),
+    url("../../assets/UI/table/table.png") center / 220px auto;
+  background-blend-mode: normal, multiply;
+  pointer-events: auto;
+}
+
+.word-game--stage-split .word-game__role-tab.is-active {
+  height: 53px;
+  border-color: var(--category-color);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--category-color) 34%, #4d3d30),
+      #14110e 82%
+    ),
+    url("../../assets/UI/table/table.png") center / 220px auto;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--category-color) 46%, transparent),
+    0 -8px 18px color-mix(in srgb, var(--category-color) 25%, transparent),
+    0 5px 10px rgba(0, 0, 0, 0.68);
+  transform: translateY(-3px);
+}
+
+.word-game--stage-split .word-game__role-tab-mark {
+  width: 24px;
+  height: 24px;
+  background: rgba(3, 3, 3, 0.42);
+  font-size: 10px;
+}
+
+.word-game--stage-split .word-game__role-tab-label strong {
+  font-size: 9px;
+}
+
+.word-game--stage-split .word-game__role-tab-label small {
+  font-size: 8px;
+}
+
+.word-game--stage-split .word-game__active-prompt {
+  position: absolute;
+  top: 29px;
+  left: 22px;
+  display: flex;
+  width: 242px;
+  gap: 8px;
+  color: #e1d5bd;
+  pointer-events: none;
+}
+
+.word-game--stage-split .word-game__active-prompt > span {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  background: rgba(4, 4, 4, 0.56);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--category-color) 48%, transparent),
+    0 3px 8px rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+}
+
+.word-game--stage-split .word-game__active-prompt small {
+  color: color-mix(in srgb, var(--category-color) 68%, #b4a88f);
+  font-size: 8px;
+}
+
+.word-game--stage-split .word-game__active-prompt h2 {
+  margin-top: 3px;
+  color: #e1d5bd;
+  font-size: 15px;
+  letter-spacing: 0.07em;
+}
+
+.word-game--stage-split .word-game__lexicon-controls {
+  position: absolute;
+  right: 23px;
+  bottom: 17px;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.word-game--stage-split .word-game__tray-toggle,
+.word-game--stage-split .word-game__clear-modifier {
+  min-height: 34px;
+  border-color: color-mix(in srgb, var(--category-color) 48%, var(--gold));
+  padding: 5px 9px;
+  background:
+    linear-gradient(180deg, rgba(42, 35, 27, 0.94), rgba(8, 7, 6, 0.98)),
+    url("../../assets/UI/table/table.png") center / 220px auto;
+  background-blend-mode: normal, multiply;
+  font-size: 9px;
+}
+
+.word-game--stage-split .word-game__lexicon-stage {
+  position: absolute;
+  z-index: 26;
+  inset: 0;
+  display: block;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  border: 0;
+  opacity: 1;
+  pointer-events: none;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity 150ms ease,
+    transform 260ms cubic-bezier(0.22, 0.75, 0.2, 1),
+    visibility 0s;
+}
+
+.word-game--stage-split .word-game__lexicon-stage::before {
+  z-index: 0;
+  inset: 12px 19% -48px;
+  background: radial-gradient(
+    ellipse at 50% 86%,
+    rgba(0, 0, 0, 0.82),
+    rgba(0, 0, 0, 0.5) 45%,
+    transparent 74%
+  );
+  filter: blur(6px);
+  opacity: 0.8;
+}
+
+.word-game--stage-split .word-game__lexicon.is-collapsed .word-game__lexicon-stage {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(245px) scale(0.82);
+  visibility: hidden;
+  transition:
+    opacity 140ms ease,
+    transform 230ms cubic-bezier(0.4, 0, 0.7, 0.2),
+    visibility 0s 230ms;
+}
+
+.word-game--stage-split .word-game__lexemes {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  padding: 0;
+}
+
+.word-game--stage-split .word-game__lexeme,
+.word-game--stage-split .word-game__lexeme.is-fit {
+  bottom: -72px;
+  width: 230px;
+  min-width: 230px;
+  height: 345px;
+  filter: drop-shadow(0 15px 12px rgba(0, 0, 0, 0.8));
+  transform-origin: 50% 94%;
+  transition:
+    filter 160ms ease,
+    opacity 150ms ease,
+    transform 210ms cubic-bezier(0.18, 0.82, 0.25, 1);
+}
+
+.word-game--stage-split .word-game__lexicon.is-open .word-game__lexeme {
+  animation: word-game-stage-deal 430ms cubic-bezier(0.16, 0.86, 0.24, 1.04) backwards;
+  animation-delay: calc(var(--word-index) * 52ms);
+}
+
+.word-game--stage-split .word-game__lexeme-tint {
+  inset: 22px 20px 20px;
+}
+
+.word-game--stage-split .word-game__lexeme-head {
+  top: 34px;
+  right: 35px;
+  left: 35px;
+  height: 36px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+}
+
+.word-game--stage-split .word-game__lexeme-role {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.word-game--stage-split .word-game__lexeme-copy {
+  top: 91px;
+  right: 38px;
+  bottom: 69px;
+  left: 38px;
+}
+
+.word-game--stage-split .word-game__lexeme-copy > strong {
+  margin-top: 13px;
+  font-size: 21px;
+}
+
+.word-game--stage-split .word-game__lexeme-copy > span {
+  margin-top: 15px;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.word-game--stage-split .word-game__lexeme-foot {
+  right: 38px;
+  bottom: 38px;
+  left: 38px;
+  font-size: 9px;
+}
+
+.word-game--stage-split .word-game__lexeme:hover:not(:disabled),
+.word-game--stage-split .word-game__lexeme:focus-visible,
+.word-game--stage-split .word-game__lexeme.is-fit:hover:not(:disabled),
+.word-game--stage-split .word-game__lexeme.is-fit:focus-visible,
+.word-game--stage-split .word-game__lexeme.is-imprinted.is-fit:hover:not(:disabled),
+.word-game--stage-split .word-game__lexeme.is-imprinted.is-fit:focus-visible {
+  z-index: 90;
+  filter:
+    brightness(1.09)
+    drop-shadow(0 22px 18px rgba(0, 0, 0, 0.88))
+    drop-shadow(0 0 12px color-mix(in srgb, var(--category-color) 38%, transparent));
+  opacity: 1;
+  transform: translate3d(
+      calc(-50% + var(--fan-x)),
+      calc(var(--fan-drop) - 88px),
+      0
+    )
+    rotate(var(--fan-hover-angle))
+    scale(1.09);
+}
+
+.word-game--stage-split .word-game__lexeme:active:not(:disabled) {
+  transform: translate3d(
+      calc(-50% + var(--fan-x)),
+      calc(var(--fan-drop) - 66px),
+      0
+    )
+    rotate(var(--fan-hover-angle))
+    scale(1.035);
+}
+
+.word-game--stage-split .word-game__grammar-note {
+  right: 22px;
+  bottom: 60px;
+  max-width: 330px;
+}
+
+/* Execute stays at the right edge like a turn-control, while logs float above. */
+
+.word-game--stage-split .word-game__command-rail {
+  position: absolute;
+  z-index: 80;
+  top: 20px;
+  right: 20px;
+  display: block;
+  width: 214px;
+  height: 92px;
+  min-height: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.word-game--stage-split .word-game__command-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.word-game--stage-split .word-game__execute {
+  min-height: 61px;
+  border-color: #160907;
+  border-top-color: #d67352;
+  background:
+    linear-gradient(180deg, rgba(140, 45, 31, 0.92), rgba(63, 20, 16, 0.97)),
+    url("../../assets/UI/table/table.png") center / 280px auto;
+  background-blend-mode: normal, multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 167, 119, 0.34),
+    0 5px 12px rgba(0, 0, 0, 0.67);
+}
+
+.word-game--stage-split .word-game__execute span {
+  font-size: 15px;
+}
+
+.word-game--stage-split .word-game__add-sentence {
+  display: grid;
+  width: 48px;
+  min-width: 48px;
+  min-height: 61px;
+  place-items: center;
+  border-color: rgba(190, 160, 101, 0.56);
+  padding: 4px;
+  background: rgba(13, 11, 9, 0.9);
+}
+
+.word-game--stage-split .word-game__add-sentence img {
+  width: 35px;
+  height: 23px;
+  object-fit: contain;
+}
+
+.word-game--stage-split .word-game__add-sentence span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.word-game--stage-split .word-game__chronicle {
+  display: none;
+}
+
+.word-game--stage-split .word-game__chronicle:has(ol) {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: block;
+  width: 330px;
+  max-height: 136px;
+  overflow: auto;
+  border: 1px solid rgba(181, 151, 93, 0.42);
+  padding: 7px;
+  background: rgba(7, 7, 6, 0.92);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.48);
+  pointer-events: auto;
+}
+
+.word-game--stage-split .word-game__chronicle-heading,
+.word-game--stage-split .word-game__chronicle-empty {
+  display: none;
+}
+
+.word-game--stage-split .word-game__folio {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .word-game--stage-split .word-game__vitals--player {
+    top: 72px;
+    left: -2px;
+    width: min(92vw, 360px);
+  }
+}
+
+@keyframes word-game-stage-deal {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 286px, 0) rotate(0) scale(0.68);
+  }
+  68% {
+    opacity: 1;
+    transform: translate3d(
+        calc(-50% + var(--fan-x)),
+        calc(var(--fan-drop) - 15px),
+        0
+      )
+      rotate(var(--fan-angle))
+      scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(calc(-50% + var(--fan-x)), var(--fan-drop), 0)
+      rotate(var(--fan-angle));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-game--stage-split .word-game__lexicon.is-open .word-game__lexeme {
+    animation-delay: 0ms !important;
+  }
+}

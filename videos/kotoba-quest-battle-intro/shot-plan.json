@@ -1,0 +1,110 @@
+{
+  "category": "kinetic-type",
+  "duration_s": 8,
+  "fps": 30,
+  "canvas": {
+    "w": 1920,
+    "h": 1080,
+    "aspect": "16:9"
+  },
+  "style": "Kotoba Quest Shadow Cut: bright ruined sky held under deep ink shadows, bone-white Japanese type, antique-gold rules, and a single fire-red accent",
+  "palette": [
+    "#090908",
+    "#f1e4c7",
+    "#3a352a",
+    "#8d897e",
+    "#c3ad75",
+    "#c44b38"
+  ],
+  "font": "Noto Sans JP",
+  "beats": [6, 30, 66, 108, 144, 192],
+  "export": "mp4",
+  "asset_needs": [
+    {
+      "role": "battlefield",
+      "kind": "image",
+      "source": "../../src/assets/backgrounds/チュートリアル/background.png",
+      "resolved_path": ".media/images/image_001.png",
+      "treatment": "none"
+    },
+    {
+      "role": "player",
+      "kind": "image",
+      "source": "../../src/assets/characters/battle/チュートリアル/プレイヤー/player.png",
+      "resolved_path": ".media/images/image_002.png",
+      "treatment": "none"
+    },
+    {
+      "role": "enemy",
+      "kind": "image",
+      "source": "../../src/assets/characters/battle/チュートリアル/敵/火喰らいの獣.png",
+      "resolved_path": ".media/images/image_003.png",
+      "treatment": "none"
+    }
+  ],
+  "block": "caption-kinetic-slam",
+  "customize": {
+    "strategy": "reuse the block's shared beat-array and distinct phrase entrances, then adapt its markup into the main single-shot composition",
+    "assets": {
+      "battlefield": ".media/images/image_001.png",
+      "player": ".media/images/image_002.png",
+      "enemy": ".media/images/image_003.png"
+    },
+    "hero_frame": {
+      "battlefield": "full-bleed at 1920x1080 inside the camera world",
+      "player": "left 120px, bottom 62px, height 520px",
+      "enemy": "right 54px, bottom -126px, height 970px",
+      "copy_zone": "left 156px to 1260px, top 136px to 760px, anchored to antique-gold rules",
+      "foreground": "thin gold registration rules, one fire-red slash, and a compact motion-study label"
+    },
+    "motion_rules": [
+      "kinetic-beat-slam",
+      "multi-phase-camera",
+      "particle-burst",
+      "sine-wave-loop"
+    ],
+    "motion": {
+      "camera": "steady push from 0.96 to the CSS-authored 1.0 hero state over 6.2 seconds, then a motionless final hold",
+      "characters": "player cuts in from the left over 0.62s; enemy enters from the right and settles over 0.9s; each owns a separate entrance wrapper and image drift layer",
+      "phrases": "three groups share one beat array but use scale-snap, opposing side-snap, and rise-slam entrances respectively",
+      "pattern_interrupt": "at 4.8s one fire-red diagonal slash reverses the established left-to-right motion before the final lockup",
+      "finale": "a 14-chip deterministic fire-colored burst fires when 変えろ lands; motion settles by 6.35s and holds through 8s"
+    },
+    "proof_times_s": [0, 1.2, 3.35, 5.75, 7.7, 7.97]
+  },
+  "content": {
+    "scenes": [
+      {
+        "id": "encounter",
+        "start": 0,
+        "end": 2.2,
+        "text": "敵影、接近。",
+        "emphasis_words": ["敵影"],
+        "emotion": "quiet threat",
+        "motion": "the battlefield pushes forward while player and enemy cut in from opposing depths",
+        "beats": [6, 30]
+      },
+      {
+        "id": "weave",
+        "start": 2.2,
+        "end": 4.8,
+        "text": "ことばを編め。",
+        "emphasis_words": ["ことば", "編め"],
+        "emotion": "focused resolve",
+        "motion": "word groups assemble along an antique-gold rule and lock into a tactical phrase",
+        "beats": [66, 108]
+      },
+      {
+        "id": "turn",
+        "start": 4.8,
+        "end": 8,
+        "text": "戦況を変えろ。",
+        "emphasis_words": ["戦況", "変えろ"],
+        "emotion": "decisive impact",
+        "motion": "the final phrase slams into its hero frame, one fire-red accent pulses, then everything holds",
+        "beats": [144, 192]
+      }
+    ]
+  },
+  "shot_brief": "A serene ruined sky is abruptly claimed by the two combatants: the small wooden player advances from the left while the fire-eater looms in from the right. A gold tactical line slices the frame, and three short Japanese phrases assemble in escalating weight until the final command locks the battlefield into a poster-like confrontation. The dominant idea is opposition becoming language: every move converges on the sentence that changes the battle."
+}

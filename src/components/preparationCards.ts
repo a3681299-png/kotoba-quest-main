@@ -1,8 +1,4 @@
-import attackCardTextureUrl from "../assets/UI/card/attack.png";
-import branchCardTextureUrl from "../assets/UI/card/branch.png";
-import healCardTextureUrl from "../assets/UI/card/heal.png";
-import observationCardTextureUrl from "../assets/UI/card/observation.png";
-import recordCardTextureUrl from "../assets/UI/card/record.png";
+import cardTextureUrl from "../assets/UI/card/card.png";
 import { getTacticalCardsForStage, type TacticalCardView } from "./tacticalCards";
 
 export type PreparationSpellCard = {
@@ -35,7 +31,7 @@ function toPreparationCard(card: TacticalCardView): PreparationSpellCard {
     power: getCardPower(card),
     description: card.description,
     glyph: getCardGlyph(card),
-    textureUrl: getCardTextureUrl(card),
+    textureUrl: cardTextureUrl,
   };
 }
 
@@ -72,12 +68,4 @@ function getCardGlyph(card: TacticalCardView): string {
   if (card.code.includes("観察")) return "◎";
   if (card.code.includes("回復")) return "✚";
   return "•";
-}
-
-function getCardTextureUrl(card: TacticalCardView): string {
-  if (card.code.includes("記録")) return recordCardTextureUrl;
-  if (card.code.includes("攻撃")) return attackCardTextureUrl;
-  if (card.code.includes("観察")) return observationCardTextureUrl;
-  if (card.code.includes("回復")) return healCardTextureUrl;
-  return branchCardTextureUrl;
 }

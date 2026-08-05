@@ -1,0 +1,3 @@
+{"id":"image_001","type":"image","path":".media/images/image_001.png","source":"ingested","description":"background.png","provenance":{"provider":"local","from":"../../src/assets/backgrounds/チュートリアル/background.png"}}
+{"id":"image_002","type":"image","path":".media/images/image_002.png","source":"ingested","description":"player.png","provenance":{"provider":"local","from":"../../src/assets/characters/battle/チュートリアル/プレイヤー/player.png"}}
+{"id":"image_003","type":"image","path":".media/images/image_003.png","source":"ingested","description":"火喰らいの獣.png","provenance":{"provider":"local","from":"../../src/assets/characters/battle/チュートリアル/敵/火喰らいの獣.png"}}

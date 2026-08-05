@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="ja" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>ことばクエスト — 戦闘導入</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Kotoba Noto Sans JP";
+        src: url("assets/fonts/NotoSansJP-Bold.ttf") format("truetype");
+        font-style: normal;
+        font-weight: 700;
+        font-display: block;
+      }
+
+      :root {
+        color-scheme: dark;
+        --ink: #090908;
+        --bone: #f1e4c7;
+        --charcoal: #3a352a;
+        --ash: #8d897e;
+        --gold: #c3ad75;
+        --fire: #c44b38;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+
+      body {
+        font-family: "Kotoba Noto Sans JP", sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      .clip,
+      .scene-fill {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .scene-fill {
+        background: var(--ink);
+      }
+
+      .world-camera {
+        position: absolute;
+        inset: -64px;
+        overflow: hidden;
+        transform-origin: 58% 54%;
+      }
+
+      .battlefield-art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .world-shade {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 77% 48%, rgba(196, 75, 56, 0.20), transparent 31%),
+          radial-gradient(circle at 55% 30%, rgba(241, 228, 199, 0.08), transparent 36%),
+          rgba(9, 9, 8, 0.54);
+      }
+
+      .player-entry,
+      .enemy-entry {
+        position: absolute;
+        z-index: 2;
+      }
+
+      .player-entry {
+        left: 150px;
+        bottom: 86px;
+        width: 420px;
+        height: 520px;
+      }
+
+      .enemy-entry {
+        right: 42px;
+        bottom: -126px;
+        width: 790px;
+        height: 970px;
+      }
+
+      .character-drift,
+      .character-art {
+        width: 100%;
+        height: 100%;
+      }
+
+      .character-art {
+        display: block;
+        object-fit: contain;
+      }
+
+      .copy-scrim {
+        position: absolute;
+        z-index: 3;
+        left: 64px;
+        top: 52px;
+        width: 1330px;
+        height: 890px;
+        background:
+          radial-gradient(circle at 30% 48%, rgba(9, 9, 8, 0.94), rgba(9, 9, 8, 0.77) 54%, transparent 78%);
+      }
+
+      .red-slash-anchor {
+        position: absolute;
+        z-index: 4;
+        left: 46px;
+        top: 584px;
+        width: 1390px;
+        height: 58px;
+        transform: rotate(-7deg);
+        transform-origin: left center;
+      }
+
+      .red-slash {
+        width: 100%;
+        height: 100%;
+        background: var(--fire);
+        clip-path: polygon(0 42%, 100% 0, 98% 72%, 3% 100%);
+        transform-origin: right center;
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 6;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 78px 150px 72px;
+        color: var(--bone);
+      }
+
+      .top-rail,
+      .bottom-rail {
+        display: flex;
+        align-items: center;
+        width: 1120px;
+        color: var(--bone);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .top-rail {
+        gap: 22px;
+      }
+
+      .bottom-rail {
+        justify-content: space-between;
+      }
+
+      .registration-rule {
+        height: 2px;
+        background: var(--gold);
+        transform-origin: left center;
+      }
+
+      .top-rule {
+        width: 690px;
+      }
+
+      .bottom-rule {
+        width: 720px;
+      }
+
+      .status-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        background: var(--fire);
+      }
+
+      .copy-stage {
+        display: grid;
+        flex: 1;
+        width: 1120px;
+        min-height: 0;
+        align-items: center;
+      }
+
+      .phrase-group {
+        grid-area: 1 / 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        visibility: hidden;
+        opacity: 0;
+      }
+
+      .phrase-kicker {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 22px;
+        color: var(--gold);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+      }
+
+      .phrase-kicker::before {
+        width: 46px;
+        height: 3px;
+        background: var(--fire);
+        content: "";
+      }
+
+      .phrase-line {
+        color: var(--bone);
+        font-size: 150px;
+        font-weight: 700;
+        letter-spacing: -0.065em;
+        line-height: 0.94;
+        text-shadow: 0 8px 28px rgba(9, 9, 8, 0.68);
+        white-space: nowrap;
+      }
+
+      .phrase-line + .phrase-line {
+        margin-top: 18px;
+      }
+
+      .phrase-line.secondary {
+        margin-left: 152px;
+        color: var(--gold);
+        font-size: 118px;
+      }
+
+      .phrase-line.tactical {
+        font-size: 128px;
+      }
+
+      .phrase-line.command {
+        margin-left: 230px;
+        color: var(--fire);
+        font-size: 166px;
+      }
+
+      .phrase-line.final-lead {
+        font-size: 142px;
+      }
+
+      .phrase-line.final-command {
+        margin-left: 158px;
+        color: var(--fire);
+        font-size: 178px;
+      }
+
+      .accent-bracket {
+        display: inline-block;
+        margin-right: 22px;
+        color: var(--gold);
+      }
+
+      .particle-field {
+        position: absolute;
+        z-index: 8;
+        left: 1000px;
+        top: 660px;
+        width: 1px;
+        height: 1px;
+      }
+
+      .particle-chip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 16px;
+        height: 5px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .frame-corner {
+        position: absolute;
+        z-index: 7;
+        right: 78px;
+        top: 74px;
+        width: 96px;
+        height: 96px;
+        border-top: 3px solid var(--gold);
+        border-right: 3px solid var(--gold);
+      }
+
+      .frame-corner.bottom {
+        top: auto;
+        bottom: 70px;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 3px solid var(--fire);
+        border-left: 3px solid var(--fire);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="kotoba-quest-battle-intro"
+      data-start="0"
+      data-duration="8"
+      data-fps="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section
+        id="battle-intro-clip"
+        class="clip"
+        data-start="0"
+        data-duration="8"
+        data-track-index="1"
+        aria-label="ことばクエストの戦闘導入。敵影、接近。ことばを編め。戦況を変えろ。"
+      >
+        <div class="scene-fill">
+          <div id="world-camera" class="world-camera" data-layout-allow-overflow="true">
+            <img
+              class="battlefield-art"
+              src=".media/images/image_001.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <div class="world-shade" aria-hidden="true"></div>
+
+            <div id="player-entry" class="player-entry">
+              <div id="player-drift" class="character-drift">
+                <img
+                  class="character-art"
+                  src=".media/images/image_002.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+
+            <div
+              id="enemy-entry"
+              class="enemy-entry"
+              data-layout-allow-overflow="true"
+            >
+              <div id="enemy-drift" class="character-drift">
+                <img
+                  class="character-art"
+                  src=".media/images/image_003.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="copy-scrim" aria-hidden="true"></div>
+
+          <div class="red-slash-anchor" data-layout-ignore="true" aria-hidden="true">
+            <div id="red-slash" class="red-slash"></div>
+          </div>
+
+          <div class="scene-content">
+            <div id="top-rail" class="top-rail">
+              <span>KOTOBA QUEST</span>
+              <span id="top-rule" class="registration-rule top-rule" aria-hidden="true"></span>
+              <span>Battle / 01</span>
+            </div>
+
+            <main class="copy-stage">
+              <!--
+                Registry provenance: the shared beat schedule and alternating phrase
+                entrances are adapted from caption-kinetic-slam.
+              -->
+              <article id="phrase-encounter" class="phrase-group">
+                <p id="encounter-kicker" class="phrase-kicker">ENCOUNTER DETECTED</p>
+                <p id="encounter-line-1" class="phrase-line">敵影、</p>
+                <p id="encounter-line-2" class="phrase-line secondary">接近。</p>
+              </article>
+
+              <article id="phrase-weave" class="phrase-group">
+                <p id="weave-kicker" class="phrase-kicker">ASSEMBLE THE WORD</p>
+                <p id="weave-line-1" class="phrase-line tactical">ことばを</p>
+                <p id="weave-line-2" class="phrase-line command">編め。</p>
+              </article>
+
+              <article id="phrase-turn" class="phrase-group">
+                <p id="turn-kicker" class="phrase-kicker">YOUR WORDS MOVE THE BATTLE</p>
+                <p id="turn-line-1" class="phrase-line final-lead">
+                  <span class="accent-bracket">「</span>戦況を
+                </p>
+                <p id="turn-line-2" class="phrase-line final-command">変えろ。</p>
+              </article>
+            </main>
+
+            <div id="bottom-rail" class="bottom-rail">
+              <span id="bottom-rule" class="registration-rule bottom-rule" aria-hidden="true"></span>
+              <span class="status-mark"><span class="status-dot" aria-hidden="true"></span>WORD READY</span>
+            </div>
+          </div>
+
+          <div id="particle-field" class="particle-field" data-layout-ignore="true" aria-hidden="true"></div>
+          <div class="frame-corner" data-layout-ignore="true" aria-hidden="true"></div>
+          <div class="frame-corner bottom" data-layout-ignore="true" aria-hidden="true"></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      // The registry component's single beat array becomes the shared timing spine.
+      const beats = [0.2, 1.0, 2.2, 3.6, 4.8, 6.4];
+      const tl = gsap.timeline({ paused: true });
+
+      const particleField = document.querySelector("#particle-field");
+      const particleColors = ["#c44b38", "#c3ad75", "#f1e4c7"];
+      const particles = Array.from({ length: 14 }, (_, index) => {
+        const chip = document.createElement("i");
+        chip.className = "particle-chip";
+        chip.dataset.layoutIgnore = "true";
+        chip.style.background = particleColors[index % particleColors.length];
+        particleField.appendChild(chip);
+        return {
+          element: chip,
+          angle: -2.75 + index * 0.415,
+          distance: 92 + ((index * 47) % 112),
+          rotation: -86 + ((index * 73) % 172),
+          delay: (index % 5) * 0.045,
+        };
+      });
+
+      const burst = { progress: 0 };
+      const renderParticles = () => {
+        particles.forEach((particle) => {
+          const local = Math.max(0, Math.min(1, (burst.progress - particle.delay) / (1 - particle.delay)));
+          const eased = 1 - Math.pow(1 - local, 3);
+          const distance = particle.distance * eased;
+          const x = Math.cos(particle.angle) * distance;
+          const y = Math.sin(particle.angle) * distance + 72 * local * local;
+          const opacity = local === 0 ? 0 : Math.max(0, 1 - local * 1.12);
+          particle.element.style.opacity = opacity.toFixed(3);
+          particle.element.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) rotate(${(
+            particle.rotation * eased
+          ).toFixed(2)}deg)`;
+        });
+      };
+
+      renderParticles();
+
+      gsap.set(["#phrase-encounter", "#phrase-weave", "#phrase-turn", "#red-slash"], {
+        autoAlpha: 0,
+      });
+
+      tl.fromTo(
+        "#world-camera",
+        { scale: 0.96, x: 12, y: 6 },
+        { scale: 1, x: 0, y: 0, duration: 6.2, ease: "sine.inOut" },
+        0,
+      );
+      tl.fromTo(
+        "#player-entry",
+        { autoAlpha: 0, x: -230 },
+        { autoAlpha: 1, x: 0, duration: 0.72, ease: "power4.out" },
+        beats[0],
+      );
+      tl.fromTo(
+        "#enemy-entry",
+        { autoAlpha: 0, x: 290, scale: 1.055 },
+        { autoAlpha: 1, x: 0, scale: 1, duration: 0.9, ease: "expo.out" },
+        beats[0] + 0.08,
+      );
+      tl.fromTo(
+        "#player-drift",
+        { y: 0 },
+        { y: -5, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: 1 },
+        beats[1],
+      );
+      tl.fromTo(
+        "#enemy-drift",
+        { y: 0 },
+        { y: 4, duration: 1.55, ease: "sine.inOut", yoyo: true, repeat: 1 },
+        beats[1] + 0.18,
+      );
+
+      tl.fromTo(
+        ["#top-rule", "#bottom-rule"],
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.72, ease: "power3.out", stagger: 0.09 },
+        beats[0] + 0.06,
+      );
+      tl.fromTo(
+        ["#top-rail", "#bottom-rail"],
+        { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.48, ease: "power2.out", stagger: 0.08 },
+        beats[0],
+      );
+
+      tl.set("#phrase-encounter", { autoAlpha: 1 }, beats[0] + 0.12);
+      tl.fromTo(
+        "#encounter-kicker",
+        { autoAlpha: 0, x: -82 },
+        { autoAlpha: 1, x: 0, duration: 0.38, ease: "power3.out" },
+        beats[0] + 0.14,
+      );
+      tl.fromTo(
+        "#encounter-line-1",
+        { autoAlpha: 0, x: -154 },
+        { autoAlpha: 1, x: 0, duration: 0.52, ease: "power4.out" },
+        beats[0] + 0.22,
+      );
+      tl.fromTo(
+        "#encounter-line-2",
+        { autoAlpha: 0, scale: 1.34, rotation: 1.8 },
+        { autoAlpha: 1, scale: 1, rotation: 0, duration: 0.46, ease: "expo.out" },
+        beats[1] - 0.08,
+      );
+      tl.to("#phrase-encounter", { autoAlpha: 0, duration: 0.24, ease: "power3.in" }, beats[2] - 0.28);
+
+      tl.set("#phrase-weave", { autoAlpha: 1 }, beats[2]);
+      tl.fromTo(
+        "#weave-kicker",
+        { autoAlpha: 0, y: 22 },
+        { autoAlpha: 1, y: 0, duration: 0.34, ease: "power2.out" },
+        beats[2] + 0.02,
+      );
+      tl.fromTo(
+        "#weave-line-1",
+        { autoAlpha: 0, x: -210 },
+        { autoAlpha: 1, x: 0, duration: 0.55, ease: "power4.out" },
+        beats[2] + 0.12,
+      );
+      tl.fromTo(
+        "#weave-line-2",
+        { autoAlpha: 0, x: 240, rotation: -2.4 },
+        { autoAlpha: 1, x: 0, rotation: 0, duration: 0.48, ease: "circ.out" },
+        beats[2] + 0.54,
+      );
+      tl.to("#phrase-weave", { autoAlpha: 0, duration: 0.24, ease: "power3.in" }, beats[4] - 0.32);
+
+      tl.fromTo(
+        "#red-slash",
+        { autoAlpha: 0, scaleX: 0 },
+        { autoAlpha: 0.78, scaleX: 1, duration: 0.34, ease: "power4.out" },
+        beats[4] - 0.05,
+      );
+      tl.to("#red-slash", { autoAlpha: 0.18, duration: 0.42, ease: "power2.out" }, beats[4] + 0.29);
+
+      tl.set("#phrase-turn", { autoAlpha: 1 }, beats[4]);
+      tl.fromTo(
+        "#turn-kicker",
+        { autoAlpha: 0, x: 94 },
+        { autoAlpha: 1, x: 0, duration: 0.34, ease: "power3.out" },
+        beats[4] + 0.08,
+      );
+      tl.fromTo(
+        "#turn-line-1",
+        { autoAlpha: 0, y: 72, rotation: 1.8 },
+        { autoAlpha: 1, y: 0, rotation: 0, duration: 0.5, ease: "power4.out" },
+        beats[4] + 0.18,
+      );
+      tl.fromTo(
+        "#turn-line-2",
+        { autoAlpha: 0, scale: 1.28, rotation: -2 },
+        { autoAlpha: 1, scale: 1, rotation: 0, duration: 0.52, ease: "expo.out" },
+        beats[4] + 0.56,
+      );
+      tl.to(
+        burst,
+        { progress: 1, duration: 0.92, ease: "power2.out", onUpdate: renderParticles },
+        beats[4] + 0.58,
+      );
+
+      tl.seek(0);
+      window.__timelines["kotoba-quest-battle-intro"] = tl;
+    </script>
+  </body>
+</html>

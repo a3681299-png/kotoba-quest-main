@@ -1,0 +1,2011 @@
+:root {
+  color: #d2c6aa;
+  background: #050505;
+}
+
+.word-game {
+  --void: #050505;
+  --coal: #0d0d0c;
+  --iron: #171715;
+  --iron-raised: #24221e;
+  --iron-light: #36322b;
+  --gold: #9d8755;
+  --gold-bright: #c3ad75;
+  --bone: #d4c9ad;
+  --ash: #8d897e;
+  --ash-dark: #5e5b54;
+  --blood: #a43228;
+  --blood-bright: #c44b38;
+  --subject: #71827d;
+  --condition: #a35440;
+  --connector: #a18b56;
+  --action: #667782;
+  --modifier: #806b72;
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 640px;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  grid-template-rows: minmax(0, 63%) minmax(0, 37%);
+  overflow: hidden;
+  background: var(--void);
+  color: var(--bone);
+  color-scheme: dark;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro",
+    "Times New Roman", serif;
+}
+
+.word-game *,
+.word-game *::before,
+.word-game *::after {
+  box-sizing: border-box;
+}
+
+.word-game button,
+.word-game summary {
+  font: inherit;
+}
+
+.word-game button {
+  color: inherit;
+}
+
+.word-game button:focus-visible,
+.word-game summary:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.word-game button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+  opacity: 0.42;
+}
+
+/* 戦場：画面の約3分の2を、UIに邪魔されない一枚絵として扱う */
+
+.word-game__scene {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 5px solid #090908;
+  background: #090908;
+  box-shadow:
+    inset 0 -26px 34px rgba(0, 0, 0, 0.9),
+    inset 0 0 80px rgba(0, 0, 0, 0.52);
+}
+
+.word-game__scene > .reading-live-battlefield,
+.word-game__scene .reading-live-battlefield__host,
+.word-game__scene .reading-live-battlefield__canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+}
+
+.word-game__scene .reading-live-battlefield {
+  border: 0 !important;
+  background: #090908 !important;
+  box-shadow: none !important;
+}
+
+.word-game__scene .reading-live-battlefield__canvas {
+  filter: sepia(0.18) saturate(0.68) contrast(1.14) brightness(0.72);
+}
+
+.word-game__scene .reading-loop__sr-only,
+.word-game__scene figcaption {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+}
+
+.word-game__print-veil {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background-color: rgba(7, 7, 6, 0.12);
+  box-shadow:
+    inset 0 0 120px 42px rgba(0, 0, 0, 0.68),
+    inset 0 -72px 58px rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+}
+
+.word-game__book-gutter {
+  display: none;
+}
+
+.word-game__masthead {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  right: 18px;
+  left: 18px;
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 18px;
+  color: var(--bone);
+  text-shadow: 0 2px 3px #000;
+  pointer-events: none;
+}
+
+.word-game__turn span {
+  color: var(--ash);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.word-game__turn {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.word-game__turn strong {
+  border-right: 1px solid var(--gold);
+  border-left: 1px solid var(--gold);
+  padding: 4px 12px;
+  color: var(--bone);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.word-game__exit {
+  grid-column: 3;
+  justify-self: end;
+  border: 0;
+  border-bottom: 1px solid var(--gold);
+  padding: 3px 2px 5px;
+  background: transparent;
+  color: var(--gold-bright) !important;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  pointer-events: auto;
+}
+
+.word-game__exit:hover {
+  color: #f0dfb5 !important;
+}
+
+.word-game__chapters {
+  position: absolute;
+  z-index: 5;
+  top: 53px;
+  left: 50%;
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateX(-50%);
+}
+
+.word-game__chapters::before,
+.word-game__chapters::after {
+  width: 52px;
+  height: 1px;
+  align-self: center;
+  background: var(--ash-dark);
+  content: "";
+}
+
+.word-game__chapters li {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  grid-template-columns: 1fr;
+  place-items: center;
+  border: 1px solid var(--ash-dark);
+  background: rgba(8, 8, 7, 0.82);
+  color: var(--ash);
+  font-size: 9px;
+  line-height: 1;
+  transform: rotate(45deg);
+}
+
+.word-game__chapters li > * {
+  grid-area: 1 / 1;
+  transform: rotate(-45deg);
+}
+
+.word-game__chapters li small {
+  display: none;
+}
+
+.word-game__chapters li.is-current {
+  border-color: var(--gold-bright);
+  background: var(--blood);
+  color: #f1e2bd;
+  box-shadow: 0 0 12px rgba(164, 50, 40, 0.55);
+}
+
+.word-game__chapters li.is-cleared {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.word-game__notice {
+  position: absolute;
+  z-index: 6;
+  top: 84px;
+  left: 50%;
+  max-width: min(560px, 70vw);
+  margin: 0;
+  border: 1px solid rgba(157, 135, 85, 0.5);
+  padding: 6px 14px;
+  background: rgba(10, 9, 8, 0.86);
+  color: var(--bone);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.word-game__vitals {
+  --word-hp-percent: 100%;
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  width: clamp(300px, 26vw, 500px);
+  align-items: center;
+  gap: clamp(6px, 0.7vw, 10px);
+  color: var(--bone);
+  filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.78));
+  pointer-events: none;
+}
+
+.word-game__vitals--player {
+  top: -10px;
+  left: clamp(-18px, 1vw, 18px);
+}
+
+.word-game__vitals--enemy {
+  right: clamp(-10px, 5vw, 110px);
+  bottom: -4px;
+}
+
+.word-game__vitals-portrait {
+  position: relative;
+  display: block;
+  width: clamp(168px, 38%, 220px);
+  flex: 0 0 auto;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+
+.word-game__vitals-portrait-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.word-game__vitals-portrait-image--composite {
+  z-index: 0;
+  object-fit: contain;
+}
+
+.word-game__vitals-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.word-game__vitals-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  margin: 0 0 3px;
+  color: #eadbbd;
+  font-size: clamp(9px, 0.72vw, 13px);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 3px #160909;
+  white-space: nowrap;
+}
+
+.word-game__vitals-gauge {
+  position: relative;
+  height: clamp(25px, 1.8vw, 32px);
+  overflow: hidden;
+  background: transparent;
+  isolation: isolate;
+}
+
+.word-game__vitals-gauge-art,
+.word-game__vitals-gauge-fill {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.word-game__vitals-gauge-layer {
+  position: absolute;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+.word-game__vitals-gauge-layer--frame {
+  /* Show the complete transparent frame band (source y: 368..615). */
+  top: -148.5%;
+  left: 0;
+  width: 102.55%;
+  height: 413%;
+}
+
+.word-game__vitals-gauge-fill {
+  z-index: 1;
+  clip-path: inset(0 calc(100% - var(--word-hp-percent)) 0 0);
+  transition: clip-path 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.word-game__vitals-gauge-layer--fill {
+  /* Align the new color layer's visible tips and edges to the frame bounds. */
+  top: -130.2%;
+  left: -5.42%;
+  width: 110.98%;
+  height: 390.84%;
+}
+
+.word-game__vitals-gauge-layer--frame-overlay {
+  z-index: 2;
+  mix-blend-mode: darken;
+}
+
+.word-game__vitals-meter {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff7ea;
+  font-size: clamp(9px, 0.62vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow:
+    0 1px 2px #210507,
+    0 0 4px rgba(43, 4, 8, 0.9);
+}
+
+.word-game__statuses {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  pointer-events: auto;
+}
+
+.word-game__statuses span {
+  display: grid;
+  width: clamp(16px, 1.1vw, 20px);
+  height: clamp(16px, 1.1vw, 20px);
+  place-items: center;
+  border: 1px solid rgba(207, 181, 127, 0.78);
+  background-color: rgba(13, 11, 9, 0.92);
+  color: var(--gold-bright);
+  font-size: clamp(8px, 0.55vw, 10px);
+  font-style: normal;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.68);
+}
+
+.word-game__vitals[data-health="critical"] .word-game__vitals-meter {
+  color: #ffd7d0;
+}
+
+.word-game__enemy-vitals {
+  --word-enemy-hp-percent: 100%;
+  position: absolute;
+  z-index: 6;
+  top: calc(82% + 6px);
+  left: 76%;
+  width: clamp(190px, 18vw, 290px);
+  color: var(--bone);
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.82));
+  text-align: left;
+  text-shadow: 0 2px 3px #000;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.word-game__enemy-vitals-name {
+  display: block;
+  overflow: hidden;
+  margin: 0 4px 3px;
+  color: #f1e4c7;
+  font-size: clamp(10px, 0.76vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__enemy-vitals-meter {
+  position: relative;
+  height: clamp(17px, 1.25vw, 21px);
+  overflow: hidden;
+  border: 2px solid #0b0908;
+  background: #211a18;
+  box-shadow:
+    inset 0 0 0 1px rgba(219, 191, 127, 0.6),
+    0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.word-game__enemy-vitals-fill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: var(--word-enemy-hp-percent);
+  min-width: 0;
+  background: #bd3150;
+  transition: width 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.word-game__enemy-vitals-meter b {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff7ea;
+  font-size: clamp(9px, 0.68vw, 12px);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow:
+    0 1px 2px #210507,
+    0 0 4px rgba(43, 4, 8, 0.9);
+}
+
+.word-game__enemy-statuses {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.word-game__enemy-statuses span {
+  display: grid;
+  width: clamp(16px, 1.1vw, 20px);
+  height: clamp(16px, 1.1vw, 20px);
+  place-items: center;
+  border: 1px solid rgba(207, 181, 127, 0.78);
+  background-color: rgba(13, 11, 9, 0.92);
+  color: var(--gold-bright);
+  font-size: clamp(8px, 0.55vw, 10px);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.68);
+}
+
+.word-game__enemy-vitals[data-health="critical"]
+  .word-game__enemy-vitals-meter {
+  border-color: #6f1a17;
+}
+
+.word-game__stage-marks {
+  position: absolute;
+  z-index: 5;
+  right: 50%;
+  bottom: 18px;
+  display: flex;
+  gap: 12px;
+  padding: 5px 11px;
+  border-top: 1px solid rgba(157, 135, 85, 0.5);
+  background: rgba(7, 7, 6, 0.74);
+  color: var(--ash);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  transform: translateX(50%);
+}
+
+/* 下部は別々のカードではなく、鉄と古木で組まれた一枚の指令盤 */
+
+.word-game__combat-band {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(210px, 15vw) minmax(0, 1fr) minmax(220px, 17vw);
+  grid-template-rows: minmax(0, 1fr) 90px;
+  grid-template-areas:
+    "intel tactics command"
+    "lexicon lexicon lexicon";
+  border-top: 2px solid var(--gold);
+  padding: 9px 12px 8px;
+  background:
+    url("../../assets/UI/table/table.png") center / cover,
+    #15130f;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 3px #050505,
+    inset 0 0 38px rgba(0, 0, 0, 0.85),
+    0 -12px 24px rgba(0, 0, 0, 0.82);
+}
+
+.word-game__combat-band::before {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(157, 135, 85, 0.32);
+  content: "";
+  pointer-events: none;
+}
+
+.word-game__eyebrow {
+  margin: 0;
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.word-game__enemy-dossier {
+  position: relative;
+  z-index: 1;
+  grid-area: intel;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid rgba(157, 135, 85, 0.36);
+  padding: 8px 13px 6px 6px;
+  scrollbar-color: var(--gold) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game__enemy-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 5px;
+}
+
+.word-game__enemy-heading > span {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--gold);
+  background: #11100e;
+  color: var(--enemy-accent, var(--blood-bright));
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.word-game__enemy-heading h1 {
+  margin: 0;
+  color: var(--bone);
+  font-size: clamp(15px, 1.15vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.15;
+}
+
+.word-game__enemy-heading small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ash);
+  font-size: 9px;
+}
+
+.word-game__clue {
+  margin-top: 8px;
+  border-left: 3px solid var(--blood);
+  padding: 5px 7px 5px 9px;
+  background: rgba(8, 8, 7, 0.56);
+}
+
+.word-game__clue > span {
+  color: var(--blood-bright);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.word-game__clue blockquote {
+  margin: 3px 0 0;
+  color: var(--bone);
+  font-size: clamp(10px, 0.72vw, 12px);
+  line-height: 1.5;
+}
+
+.word-game__enemy-details {
+  margin-top: 7px;
+  color: var(--ash);
+  font-size: 9px;
+}
+
+.word-game__enemy-details summary {
+  width: max-content;
+  cursor: pointer;
+  border-bottom: 1px solid var(--ash-dark);
+  color: var(--gold);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+
+.word-game__enemy-details > p {
+  margin: 7px 0;
+  line-height: 1.55;
+}
+
+.word-game__hints {
+  display: grid;
+  gap: 4px;
+}
+
+.word-game__hints p {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px;
+  margin: 0;
+  border-top: 1px solid rgba(157, 135, 85, 0.22);
+  padding-top: 4px;
+}
+
+.word-game__hints strong {
+  color: var(--gold-bright);
+}
+
+.word-game__hints span {
+  line-height: 1.4;
+}
+
+/* 作戦文：技能盤と封印された命令札の中間 */
+
+.word-game__composer {
+  position: relative;
+  z-index: 2;
+  grid-area: tactics;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid rgba(157, 135, 85, 0.36);
+  padding: 6px 12px 5px;
+  background: rgba(9, 9, 8, 0.28);
+}
+
+.word-game__composer-heading {
+  display: grid;
+  min-height: 35px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(157, 135, 85, 0.35);
+  padding: 0 2px 5px;
+}
+
+.word-game__composer-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.word-game__composer-title small {
+  order: 2;
+  color: var(--ash);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.word-game__composer h2 {
+  margin: 0;
+  color: var(--gold-bright);
+  font-size: clamp(17px, 1.3vw, 23px);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  line-height: 1;
+}
+
+.word-game__compression {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  justify-content: end;
+  gap: 6px;
+  color: var(--ash);
+  text-align: right;
+}
+
+.word-game__compression span {
+  border: 1px solid var(--ash-dark);
+  padding: 2px 4px;
+  color: var(--ash);
+  font-size: 8px;
+}
+
+.word-game__compression strong {
+  color: var(--bone);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.word-game__compression small {
+  overflow: hidden;
+  color: var(--ash);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__compression.is-compressed span {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.word-game__compression.is-compressed strong {
+  color: var(--gold-bright);
+}
+
+.word-game__sentence-stack {
+  display: grid;
+  min-height: 0;
+  max-height: calc(100% - 39px);
+  gap: 4px;
+  padding-top: 5px;
+  overflow: auto;
+  scrollbar-color: var(--gold) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game__sentence {
+  --category-color: var(--ash);
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr) 29px;
+  grid-template-rows: 43px 16px;
+  border: 1px solid #050505;
+  border-left: 3px solid var(--ash-dark);
+  background: rgba(29, 28, 25, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(195, 173, 117, 0.11),
+    0 2px 4px rgba(0, 0, 0, 0.48);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.word-game__sentence.is-active {
+  border-left-color: var(--gold-bright);
+  background: rgba(40, 37, 31, 0.94);
+}
+
+.word-game__sentence.is-invalid.is-active {
+  border-left-color: var(--blood-bright);
+}
+
+.word-game__sentence.has-synergy {
+  border-top-color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+.word-game__sentence.is-compressed {
+  box-shadow:
+    inset 0 0 0 1px rgba(195, 173, 117, 0.32),
+    0 0 10px rgba(157, 135, 85, 0.18);
+}
+
+.word-game__sentence-index {
+  display: grid;
+  grid-row: 1 / 3;
+  align-content: center;
+  justify-items: center;
+  border-right: 1px solid rgba(157, 135, 85, 0.28);
+  color: var(--gold);
+}
+
+.word-game__sentence-index span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.word-game__sentence-index small {
+  margin-top: 2px;
+  color: var(--ash);
+  font-size: 7px;
+}
+
+.word-game__slots {
+  display: grid;
+  min-width: 0;
+  grid-template-columns:
+    minmax(76px, 1.06fr)
+    minmax(90px, 1.2fr)
+    minmax(74px, 0.9fr)
+    minmax(84px, 1.08fr)
+    minmax(74px, 0.88fr)
+    minmax(84px, 1fr);
+  gap: 3px;
+  padding: 3px 4px 2px;
+}
+
+.word-game .word-game__slot {
+  --category-color: var(--ash);
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 21px minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #090908;
+  border-top: 2px solid var(--category-color);
+  border-radius: 0;
+  padding: 0;
+  background: #24231f;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.word-game .word-game__slot.is-subject {
+  --category-color: var(--subject);
+}
+
+.word-game .word-game__slot.is-condition {
+  --category-color: var(--condition);
+  border-bottom: 1px dashed var(--condition);
+}
+
+.word-game .word-game__slot.is-connector {
+  --category-color: var(--connector);
+  border-radius: 8px 0 8px 0;
+}
+
+.word-game .word-game__slot.is-action {
+  --category-color: var(--action);
+  border-bottom: 2px solid var(--action);
+}
+
+.word-game .word-game__slot.is-modifier {
+  --category-color: var(--modifier);
+  border-style: dashed;
+  border-top-style: solid;
+}
+
+.word-game .word-game__slot:hover {
+  background: #302e28;
+}
+
+.word-game .word-game__slot.is-selected {
+  border-color: var(--gold-bright);
+  background: #39352b;
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.word-game .word-game__slot.is-empty {
+  background: #161614;
+  color: var(--ash-dark);
+}
+
+.word-game .word-game__slot.is-missing {
+  border-color: var(--blood-bright);
+}
+
+.word-game__role-mark {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  border-right: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.word-game__slot-copy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  padding: 2px 4px;
+}
+
+.word-game__slot-copy small {
+  overflow: hidden;
+  color: var(--ash);
+  font-size: 7px;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__slot-copy strong {
+  overflow: hidden;
+  color: var(--bone);
+  font-size: clamp(9px, 0.7vw, 12px);
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__slot.is-empty strong {
+  color: var(--ash-dark);
+  font-weight: 400;
+}
+
+.word-game .word-game__slot.is-synergy-node {
+  border-right-color: var(--gold-bright);
+  border-left-color: var(--gold-bright);
+}
+
+.word-game .word-game__slot.is-synergy-node .word-game__role-mark {
+  color: var(--gold-bright);
+}
+
+.word-game .word-game__slot.is-settling {
+  animation: word-game-settle 440ms ease both;
+}
+
+.word-game__sentence-reading {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  border-top: 1px solid rgba(157, 135, 85, 0.2);
+  padding: 1px 5px 2px;
+  color: var(--ash);
+  white-space: nowrap;
+}
+
+.word-game__sentence-reading strong {
+  overflow: hidden;
+  color: var(--bone);
+  font-size: 8px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.word-game__sentence-reading small {
+  overflow: hidden;
+  font-size: 7px;
+  text-overflow: ellipsis;
+}
+
+.word-game__sentence-reading span {
+  margin-left: auto;
+  border-left: 1px solid var(--gold);
+  padding-left: 6px;
+  color: var(--gold-bright);
+  font-size: 7px;
+}
+
+.word-game__causal-link {
+  position: absolute;
+  z-index: 4;
+  top: -6px;
+  left: 36px;
+  border: 1px solid var(--gold);
+  padding: 1px 6px;
+  background: var(--iron);
+  color: var(--gold-bright);
+  font-size: 7px;
+  line-height: 1.2;
+}
+
+.word-game__synergy-bracket {
+  position: absolute;
+  top: 4px;
+  right: 31px;
+  bottom: 19px;
+  width: 5px;
+  border-top: 1px solid var(--gold-bright);
+  border-right: 1px solid var(--gold-bright);
+  border-bottom: 1px solid var(--gold-bright);
+  pointer-events: none;
+}
+
+.word-game__remove-sentence {
+  display: grid;
+  grid-column: 3;
+  grid-row: 1 / 3;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid rgba(157, 135, 85, 0.24);
+  background: #161513;
+  color: var(--ash) !important;
+  cursor: pointer;
+  font-size: 8px;
+  writing-mode: vertical-rl;
+}
+
+.word-game__remove-sentence:hover {
+  background: #3b1713;
+  color: #e2b2a8 !important;
+}
+
+.word-game__compression-trace {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(157, 135, 85, 0.45);
+  padding: 3px 7px;
+  background: rgba(16, 15, 13, 0.86);
+}
+
+.word-game__compression-trace > div {
+  display: flex;
+  gap: 3px;
+}
+
+.word-game__compression-trace > div span {
+  border: 1px dashed var(--ash-dark);
+  padding: 2px 4px;
+  color: var(--ash-dark);
+  font-size: 7px;
+  text-decoration: line-through;
+}
+
+.word-game__compression-trace p {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+
+.word-game__compression-trace strong {
+  color: var(--gold-bright);
+  font-size: 8px;
+}
+
+.word-game__compression-trace small {
+  color: var(--ash);
+  font-size: 7px;
+}
+
+/* 右側：実行を最も強く、ログは短く */
+
+.word-game__command-rail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-area: command;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  padding: 6px 5px 5px 12px;
+}
+
+.word-game__command-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.word-game__execute {
+  position: relative;
+  display: grid;
+  min-height: 49px;
+  place-items: center;
+  border: 2px solid #050505;
+  border-top-color: #d16a4d;
+  border-bottom-color: #5f1a15;
+  border-radius: 0;
+  padding: 6px 10px;
+  background:
+    url("../../assets/UI/table/table.png") center / 360px auto,
+    #74231c;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 167, 119, 0.28),
+    0 3px 7px rgba(0, 0, 0, 0.72);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background-color 130ms ease,
+    transform 130ms ease;
+}
+
+.word-game__execute:hover:not(:disabled) {
+  background-color: #9d3025;
+  transform: translateY(-1px);
+}
+
+.word-game__execute:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.word-game__execute span {
+  color: #f0d9b4;
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.word-game__execute small {
+  color: #c9a589;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.word-game__add-sentence {
+  min-height: 26px;
+  border: 1px solid var(--gold);
+  border-radius: 0;
+  padding: 4px 8px;
+  background: #26231d;
+  color: var(--gold-bright) !important;
+  cursor: pointer;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+}
+
+.word-game__add-sentence:hover:not(:disabled) {
+  background: #363126;
+}
+
+.word-game__chronicle {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(157, 135, 85, 0.38);
+  padding-top: 6px;
+}
+
+.word-game__chronicle-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.word-game__chronicle h2 {
+  margin: 0;
+  color: var(--bone);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+}
+
+.word-game__chronicle-empty {
+  margin: 8px 0 0;
+  color: var(--ash-dark);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.word-game__chronicle ol {
+  display: grid;
+  max-height: calc(100% - 20px);
+  gap: 2px;
+  margin: 5px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  scrollbar-color: var(--gold) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game__chronicle li {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: start;
+  border-left: 2px solid var(--ash-dark);
+  padding: 3px 4px;
+  background: rgba(8, 8, 7, 0.48);
+  animation: word-game-log 260ms ease both;
+}
+
+.word-game__chronicle li > span {
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.word-game__chronicle li div {
+  display: grid;
+  min-width: 0;
+}
+
+.word-game__chronicle li strong,
+.word-game__chronicle li small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__chronicle li strong {
+  color: var(--bone);
+  font-size: 8px;
+}
+
+.word-game__chronicle li small {
+  color: var(--ash);
+  font-size: 7px;
+}
+
+.word-game__chronicle li.is-success {
+  border-left-color: var(--gold-bright);
+}
+
+.word-game__chronicle li.is-failed,
+.word-game__chronicle li.is-failure {
+  border-left-color: var(--blood-bright);
+}
+
+/* 語彙棚：同じ指令盤の最下段に、触れる部品として並べる */
+
+.word-game__lexicon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-area: lexicon;
+  grid-template-columns: minmax(132px, auto) minmax(0, 1fr);
+  grid-template-rows: 23px minmax(0, 1fr);
+  column-gap: 10px;
+  border-top: 2px solid #050505;
+  padding: 5px 5px 0;
+  background: rgba(6, 6, 5, 0.62);
+  box-shadow: inset 0 1px rgba(157, 135, 85, 0.4);
+}
+
+.word-game__lexicon-heading {
+  display: contents;
+}
+
+.word-game__lexicon-heading > div:first-child {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.word-game__lexicon-heading small {
+  color: var(--ash);
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.word-game__lexicon-heading h2 {
+  margin: 0;
+  color: var(--gold-bright);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+
+.word-game__legend {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.word-game__legend span {
+  --category-color: var(--ash);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ash);
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.word-game__legend i {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 7px;
+  font-style: normal;
+}
+
+.word-game__legend .is-subject {
+  --category-color: var(--subject);
+}
+
+.word-game__legend .is-condition {
+  --category-color: var(--condition);
+}
+
+.word-game__legend .is-connector {
+  --category-color: var(--connector);
+}
+
+.word-game__legend .is-action {
+  --category-color: var(--action);
+}
+
+.word-game__legend .is-modifier {
+  --category-color: var(--modifier);
+}
+
+.word-game__clear-modifier {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  border: 1px solid var(--modifier);
+  padding: 2px 5px;
+  background: #1b1819;
+  color: #c1afb4 !important;
+  cursor: pointer;
+  font-size: 7px;
+}
+
+.word-game__lexemes {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-items: stretch;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 1px 5px;
+  scrollbar-color: var(--gold) transparent;
+  scrollbar-width: thin;
+}
+
+.word-game .word-game__lexeme {
+  --category-color: var(--ash);
+  position: relative;
+  display: grid;
+  min-width: clamp(84px, 7vw, 124px);
+  max-width: 132px;
+  flex: 1 0 auto;
+  grid-template-columns: 21px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  border: 2px solid #060605;
+  border-top-color: var(--category-color);
+  border-radius: 0;
+  padding: 0;
+  background:
+    url("../../assets/UI/table/table.png") center / 330px auto,
+    #312e27;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(195, 173, 117, 0.16),
+    0 3px 5px rgba(0, 0, 0, 0.58);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+.word-game .word-game__lexeme.is-subject {
+  --category-color: var(--subject);
+}
+
+.word-game .word-game__lexeme.is-condition {
+  --category-color: var(--condition);
+  border-bottom-color: var(--condition);
+  border-bottom-style: dashed;
+}
+
+.word-game .word-game__lexeme.is-connector {
+  --category-color: var(--connector);
+  border-radius: 9px 0 9px 0;
+}
+
+.word-game .word-game__lexeme.is-action {
+  --category-color: var(--action);
+  border-bottom-color: var(--action);
+}
+
+.word-game .word-game__lexeme.is-modifier {
+  --category-color: var(--modifier);
+  border-right-style: dashed;
+  border-left-style: dashed;
+}
+
+.word-game .word-game__lexeme:hover:not(:disabled),
+.word-game .word-game__lexeme.is-active-category,
+.word-game .word-game__lexeme.is-fit {
+  border-color: var(--gold-bright);
+  background:
+    url("../../assets/UI/table/table.png") center / 330px auto,
+    #3a352a;
+  background-blend-mode: multiply;
+  color: var(--bone);
+  filter: brightness(1.08);
+  opacity: 1;
+  transform: translateY(-3px);
+}
+
+.word-game .word-game__lexeme:not(.is-fit) {
+  filter: brightness(0.58) saturate(0.5);
+}
+
+.word-game .word-game__lexeme.is-imprinted {
+  background:
+    url("../../assets/UI/table/table.png") center / 330px auto,
+    #201e1a;
+  background-blend-mode: multiply;
+  color: var(--bone);
+  box-shadow:
+    inset 0 0 0 1px var(--gold),
+    0 3px 5px rgba(0, 0, 0, 0.58);
+  opacity: 0.64;
+}
+
+.word-game .word-game__lexeme.is-imprinted.is-fit,
+.word-game .word-game__lexeme.is-imprinted.is-active-category {
+  background:
+    url("../../assets/UI/table/table.png") center / 330px auto,
+    #3a352a;
+  background-blend-mode: multiply;
+  color: var(--bone);
+  filter: brightness(1.08);
+  opacity: 1;
+}
+
+.word-game .word-game__lexeme.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+}
+
+.word-game .word-game__lexeme.is-rejected {
+  animation: word-game-reject 360ms ease;
+}
+
+.word-game__lexeme-role {
+  display: grid;
+  grid-row: 1 / 3;
+  place-items: center;
+  border-right: 1px solid var(--category-color);
+  color: var(--category-color);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.word-game__lexeme strong {
+  align-self: end;
+  overflow: hidden;
+  padding: 3px 4px 0;
+  color: var(--bone);
+  font-size: clamp(9px, 0.72vw, 12px);
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__lexeme em {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  color: var(--gold-bright);
+  font-size: 7px;
+  font-style: normal;
+}
+
+.word-game__lexeme small {
+  overflow: hidden;
+  padding: 0 4px 3px;
+  color: var(--ash);
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-game__grammar-note {
+  position: absolute;
+  z-index: 4;
+  right: 7px;
+  bottom: 5px;
+  max-width: 40%;
+  margin: 0;
+  border-left: 2px solid var(--blood-bright);
+  padding: 3px 6px;
+  background: rgba(11, 8, 7, 0.92);
+  color: #d5afa4;
+  font-size: 7px;
+}
+
+.word-game__folio {
+  position: absolute;
+  z-index: 12;
+  right: 13px;
+  bottom: 2px;
+  display: flex;
+  gap: 8px;
+  color: rgba(141, 137, 126, 0.5);
+  font-size: 6px;
+  pointer-events: none;
+}
+
+/* 状態変化は短い反応だけに留める */
+
+.word-game.is-resolving .word-game__execute {
+  animation: word-game-command 700ms ease both;
+}
+
+.word-game.is-resolving .word-game__sentence.is-valid {
+  animation: word-game-read 640ms ease both;
+  animation-delay: calc(var(--sentence-order, 0) * 110ms);
+}
+
+@keyframes word-game-settle {
+  0% {
+    opacity: 0.42;
+    transform: translateY(9px) scale(1.04);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(-1px) scale(0.99);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes word-game-reject {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px) rotate(-1deg);
+  }
+  55% {
+    transform: translateX(4px) rotate(1deg);
+  }
+  78% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes word-game-command {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  45% {
+    filter: brightness(1.55);
+  }
+}
+
+@keyframes word-game-read {
+  0% {
+    border-color: var(--gold);
+  }
+  50% {
+    border-color: #e0c788;
+    background-color: rgba(83, 68, 39, 0.92);
+  }
+  100% {
+    border-color: var(--gold);
+  }
+}
+
+@keyframes word-game-log {
+  from {
+    opacity: 0;
+    transform: translateX(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 報酬・結果も同じ鉄、古木、鈍い金に統一 */
+
+.word-game .word-quest-overlay {
+  position: fixed;
+  z-index: 100;
+  display: grid;
+  inset: 0;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.86);
+}
+
+.word-game .word-reward-panel,
+.word-game .word-result-panel {
+  width: min(860px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  border: 2px solid var(--gold);
+  border-radius: 0;
+  padding: clamp(24px, 4vw, 54px);
+  background:
+    url("../../assets/UI/table/table.png") center / cover,
+    #171512;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 4px #080807,
+    0 24px 60px #000;
+  color: var(--bone);
+}
+
+.word-game .word-reward-panel > small,
+.word-game .word-result-panel > small {
+  color: var(--blood-bright);
+  letter-spacing: 0.12em;
+}
+
+.word-game .word-reward-panel h2,
+.word-game .word-result-panel h2 {
+  color: var(--gold-bright);
+}
+
+.word-game .word-reward-panel > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.word-game .word-reward-panel button,
+.word-game .word-result-panel button {
+  border: 1px solid var(--gold);
+  border-radius: 0;
+  background: #24211c;
+  color: var(--bone);
+  cursor: pointer;
+}
+
+.word-game .word-result-panel__seal {
+  border-color: var(--blood);
+  color: var(--blood-bright);
+}
+
+/* 表紙も明るいWebカードへ戻さず、暗い古書の入口として扱う */
+
+.word-quest-start {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: hidden;
+  padding: 20px;
+  background:
+    url("../../assets/UI/table/table.png") center / cover,
+    #0b0a08;
+  background-blend-mode: multiply;
+  color: #d4c9ad;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Times New Roman", serif;
+}
+
+.word-quest-start .word-title-spread {
+  width: min(1100px, 94vw);
+  height: min(690px, 90vh);
+  grid-template-columns: 0.8fr 1.2fr;
+  border: 2px solid #9d8755;
+  background:
+    url("../../assets/UI/table/table.png") center / cover,
+    #1c1914;
+  background-blend-mode: multiply;
+  box-shadow:
+    inset 0 0 0 5px #080807,
+    0 28px 70px #000;
+  clip-path: none;
+}
+
+.word-quest-start .word-title-spread::before {
+  width: 1px;
+  background: #62563a;
+}
+
+.word-quest-start .word-title-spread__left,
+.word-quest-start .word-title-spread__right {
+  color: #d4c9ad;
+}
+
+.word-quest-start .word-title-spread__drop {
+  border-color: #9d8755;
+  color: #a43228;
+}
+
+.word-quest-start .word-title-spread h1 {
+  color: #c3ad75;
+}
+
+.word-quest-start .word-title-spread p,
+.word-quest-start .word-title-spread label {
+  color: #8d897e;
+}
+
+.word-quest-start .word-title-spread input {
+  border-color: #9d8755;
+  background: #0f0e0c;
+  color: #d4c9ad;
+}
+
+.word-quest-start .word-start-seal {
+  border-color: #050505;
+  background: #7f281f;
+  color: #ead8b4;
+}
+
+.word-quest-start .word-title-spread__return {
+  color: #c3ad75;
+}
+
+/* 低いデスクトップでは戦場比率を守りつつ、各領域内をスクロールさせる */
+
+@media (max-height: 820px) and (min-width: 901px) {
+  .word-game {
+    grid-template-rows: 61% 39%;
+  }
+
+  .word-game__combat-band {
+    grid-template-rows: minmax(0, 1fr) 76px;
+    padding-top: 7px;
+  }
+
+  .word-game__vitals--enemy {
+    bottom: -2px;
+  }
+
+  .word-game__stage-marks {
+    bottom: 12px;
+  }
+
+  .word-game__sentence {
+    grid-template-rows: 40px;
+  }
+
+  .word-game__sentence-reading {
+    display: none;
+  }
+
+  .word-game__sentence-index,
+  .word-game__remove-sentence {
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .word-game__combat-band {
+    grid-template-columns: 205px minmax(0, 1fr) 205px;
+  }
+
+  .word-game__slots {
+    grid-template-columns: repeat(6, minmax(72px, 1fr));
+    overflow-x: auto;
+  }
+
+  .word-game__slot-copy small {
+    display: none;
+  }
+
+  .word-game__legend {
+    gap: 5px;
+  }
+
+  .word-game__vitals--player {
+    left: 4vw;
+  }
+
+  .word-game__vitals--enemy {
+    right: 4vw;
+  }
+}
+
+@media (max-width: 900px) {
+  .word-game {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .word-game__scene {
+    height: 56vh;
+    height: 56svh;
+    min-height: 390px;
+  }
+
+  .word-game__combat-band {
+    display: grid;
+    min-height: 520px;
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: minmax(250px, auto) 92px minmax(150px, auto);
+    grid-template-areas:
+      "tactics tactics"
+      "lexicon lexicon"
+      "intel command";
+  }
+
+  .word-game__composer {
+    border-right: 0;
+    border-bottom: 1px solid rgba(157, 135, 85, 0.36);
+  }
+
+  .word-game__enemy-dossier {
+    border-top: 1px solid rgba(157, 135, 85, 0.36);
+  }
+
+  .word-game__command-rail {
+    border-top: 1px solid rgba(157, 135, 85, 0.36);
+  }
+
+  .word-game__folio {
+    position: fixed;
+  }
+}
+
+@media (max-width: 620px) {
+  .word-game__scene {
+    height: 50svh;
+    min-height: 330px;
+  }
+
+  .word-game__masthead {
+    top: 8px;
+    right: 10px;
+    left: 10px;
+    grid-template-columns: 1fr auto;
+  }
+
+  .word-game__turn span {
+    display: none;
+  }
+
+  .word-game__turn {
+    display: none;
+  }
+
+  .word-game__exit {
+    grid-column: 2;
+  }
+
+  .word-game__chapters {
+    top: 46px;
+  }
+
+  .word-game__chapters::before,
+  .word-game__chapters::after {
+    width: 26px;
+  }
+
+  .word-game__notice {
+    top: 78px;
+    right: 10px;
+    left: auto;
+    max-width: 46vw;
+    padding: 5px 7px;
+    font-size: 9px;
+    transform: none;
+  }
+
+  .word-game__vitals {
+    width: min(92vw, 360px);
+  }
+
+  .word-game__vitals--player {
+    top: 72px;
+    left: -2px;
+  }
+
+  .word-game__vitals-portrait {
+    width: 150px;
+  }
+
+  .word-game__vitals--enemy {
+    right: -2px;
+    bottom: -2px;
+  }
+
+  .word-game__stage-marks {
+    display: none;
+  }
+
+  .word-game__combat-band {
+    min-height: 720px;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(300px, auto) 92px auto auto;
+    grid-template-areas:
+      "tactics"
+      "lexicon"
+      "intel"
+      "command";
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .word-game__composer-heading {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .word-game__compression {
+    justify-content: start;
+    text-align: left;
+  }
+
+  .word-game__slots {
+    grid-template-columns: repeat(6, minmax(92px, 1fr));
+  }
+
+  .word-game__sentence {
+    grid-template-rows: 45px 17px;
+  }
+
+  .word-game__enemy-dossier {
+    border-right: 0;
+    border-bottom: 1px solid rgba(157, 135, 85, 0.36);
+    padding: 12px 8px;
+  }
+
+  .word-game__command-rail {
+    min-height: 220px;
+    padding: 12px 8px;
+  }
+
+  .word-game__legend {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .word-game__legend span {
+    font-size: 0;
+  }
+
+  .word-quest-start .word-title-spread {
+    display: block;
+    height: auto;
+    min-height: 86vh;
+    padding: 28px 22px;
+  }
+
+  .word-quest-start .word-title-spread__left {
+    display: none;
+  }
+
+  .word-quest-start .word-title-spread__right {
+    padding: 24px 4px;
+  }
+
+  .word-game .word-reward-panel > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-game *,
+  .word-game *::before,
+  .word-game *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
