@@ -211,6 +211,8 @@ export interface BattleRecord {
   rewardWordId: WordId | null;
   discoveries: readonly string[];
   score: number;
+  strategies: readonly StrategySentence[];
+  logs: readonly CausalLogEntry[];
 }
 
 export type RunPhase = "battle" | "reward" | "victory" | "defeat";

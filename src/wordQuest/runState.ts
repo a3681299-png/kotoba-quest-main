@@ -117,6 +117,8 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
         rewardWordId: null,
         discoveries: resolution.earnedDiscoveries,
         score: resolution.scoreDelta,
+        strategies: run.strategies.map((sentence) => ({ ...sentence })),
+        logs: resolution.logs,
       }),
     };
   }
@@ -139,6 +141,8 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
     rewardWordId: null,
     discoveries: resolution.earnedDiscoveries,
     score: resolution.scoreDelta + 3,
+    strategies: run.strategies.map((sentence) => ({ ...sentence })),
+    logs: resolution.logs,
   });
   if (enemy.isBoss) {
     return {

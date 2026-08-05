@@ -39,6 +39,7 @@ import "./word-quest-run.css";
 
 interface WordQuestRunScreenProps {
   onExit?: () => void;
+  onOpenMyPage?: () => void;
 }
 
 const SLOT_ORDER: readonly SentenceSlot[] = [
@@ -102,7 +103,7 @@ function sentenceWordId(
   return sentence[slot];
 }
 
-export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
+export function WordQuestRunScreen({ onExit, onOpenMyPage }: WordQuestRunScreenProps) {
   const [initialState] = useState(() => {
     const saved = loadSavedRun();
     return {
@@ -120,6 +121,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     useState<WordCategory>("condition");
   const [isResolving, setIsResolving] = useState(false);
   const [notice, setNotice] = useState(initialState.notice);
+  const [openStageIndex, setOpenStageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!run) return;
@@ -159,6 +161,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setActiveCategory("condition");
+    setOpenStageIndex(null);
     setNotice("少ない語彙で冒険を始めました。");
   };
 
@@ -267,6 +270,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setActiveCategory("condition");
+    setOpenStageIndex(null);
     setNotice(sameSeed ? "同じ並びで再挑戦します。" : "新しい並びで冒険を始めます。");
   };
 
@@ -289,6 +293,11 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
             />
           </label>
           <button type="button" onClick={startRun}>冒険を始める</button>
+          {onOpenMyPage && (
+            <button type="button" className="is-quiet" onClick={onOpenMyPage}>
+              👤 マイページ
+            </button>
+          )}
           {onExit && (
             <button type="button" className="is-quiet" onClick={onExit}>
               元の冒険へ戻る
@@ -339,10 +348,23 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
           <span>語彙 <strong>{Object.keys(run.inventory).length}</strong></span>
           <span>発見点 <strong>{run.totalScore}</strong></span>
         </div>
-        {onExit && (
-          <button type="button" className="word-quest-run__exit" onClick={onExit}>
-            元の冒険へ
-          </button>
+        {(onOpenMyPage || onExit) && (
+          <div className="word-quest-run__actions">
+            {onOpenMyPage && (
+              <button
+                type="button"
+                className="word-quest-run__exit"
+                onClick={onOpenMyPage}
+              >
+                👤 マイページ
+              </button>
+            )}
+            {onExit && (
+              <button type="button" className="word-quest-run__exit" onClick={onExit}>
+                元の冒険へ
+              </button>
+            )}
+          </div>
         )}
       </header>
 
@@ -592,14 +614,83 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                 : `戦闘${run.battleIndex + 1}で敗北。獲得語彙と敵順を変えて再挑戦できます。`}
             </p>
             <ol>
-              {run.history.map((record, index) => (
-                <li key={`${record.enemyId}-${index}`}>
-                  <span>{index + 1}</span>
-                  <strong>{getEnemy(record.enemyId).name}</strong>
-                  <small>{record.victory ? "突破" : "敗北"} / {record.turns}手</small>
-                </li>
-              ))}
+              {run.history.map((record, index) => {
+                const isOpen = openStageIndex === index;
+                return (
+                  <li key={`${record.enemyId}-${index}`}>
+                    <button
+                      type="button"
+                      className={`word-result-stage ${isOpen ? "is-open" : ""}`}
+                      onClick={() => setOpenStageIndex(isOpen ? null : index)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>{index + 1}</span>
+                      <strong>{getEnemy(record.enemyId).name}</strong>
+                      <small>{record.victory ? "突破" : "敗北"} / {record.turns}手</small>
+                      <em aria-hidden="true">{isOpen ? "▲ 閉じる" : "▼ ログを見る"}</em>
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
+            {openStageIndex !== null && run.history[openStageIndex] && (() => {
+              const record = run.history[openStageIndex];
+              const stageStrategies = record.strategies ?? [];
+              const stageLogs = record.logs ?? [];
+              const globalLogs = stageLogs.filter((log) => log.sentenceIndex === null);
+              const renderLogs = (entries: typeof stageLogs) => (
+                <ol className="word-result-detail__logs">
+                  {entries.map((log) => (
+                    <li key={log.id} className={`is-${log.status}`}>
+                      <i aria-hidden="true">{LOG_MARKS[log.kind]}</i>
+                      <div>
+                        <strong>{log.title}</strong>
+                        <small>{log.detail}</small>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              );
+              return (
+                <div className="word-result-detail">
+                  <header className="word-result-detail__head">
+                    <strong>{getEnemy(record.enemyId).name}</strong>
+                    <small>{record.victory ? "突破" : "敗北"} / {record.turns}手</small>
+                  </header>
+                  {stageStrategies.length === 0 ? (
+                    <p className="word-result-detail__empty">
+                      この戦闘の作戦文・ログは保存されていません。
+                    </p>
+                  ) : (
+                    stageStrategies.map((sentence, sentenceIndex) => {
+                      const sentenceLogs = stageLogs.filter(
+                        (log) => log.sentenceIndex === sentenceIndex,
+                      );
+                      return (
+                        <section
+                          key={sentence.id ?? sentenceIndex}
+                          className="word-result-detail__block"
+                        >
+                          <div className="word-result-detail__sentence">
+                            <span>{sentenceIndex + 1}</span>
+                            <strong>{formatSentence(sentence)}</strong>
+                          </div>
+                          {sentenceLogs.length > 0 && renderLogs(sentenceLogs)}
+                        </section>
+                      );
+                    })
+                  )}
+                  {globalLogs.length > 0 && (
+                    <section className="word-result-detail__block">
+                      <div className="word-result-detail__sentence word-result-detail__sentence--global">
+                        <strong>戦闘全体</strong>
+                      </div>
+                      {renderLogs(globalLogs)}
+                    </section>
+                  )}
+                </div>
+              );
+            })()}
             {run.discoveries.length > 0 && (
               <p className="word-result-panel__discoveries">
                 発見した解法：{run.discoveries.join("、")}
