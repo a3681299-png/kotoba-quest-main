@@ -1,0 +1,129 @@
+/* ゲーム画面（カードモード）に出す「マイページを開く」ボタン。
+   語彙遠征ではヘッダー内（元の冒険への隣）に置くのでこのボタンは出さない。 */
+.my-page-open-global {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 9999;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f0c780;
+  background: rgba(13, 9, 5, 0.75);
+  border: 1px solid rgba(221, 168, 92, 0.45);
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s ease;
+}
+
+.my-page-open-global:hover {
+  background: rgba(221, 168, 92, 0.16);
+  border-color: #f0c780;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(221, 168, 92, 0.2);
+}
+
+.my-page {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 20%, #1c1512, #0c0709 70%);
+  overflow: auto;
+}
+
+.my-page__panel {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 32px 28px 28px;
+  border: 1px solid rgba(221, 168, 92, 0.42);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #2c211e, #171214);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  color: var(--ink, #f1e7d6);
+}
+
+.my-page__close {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f0c780;
+  background: rgba(13, 9, 5, 0.6);
+  border: 1px solid rgba(221, 168, 92, 0.45);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.my-page__close:hover {
+  background: rgba(221, 168, 92, 0.16);
+  border-color: #f0c780;
+  color: #fff;
+}
+
+.my-page__eyebrow {
+  margin: 12px 0 2px;
+  text-align: center;
+  color: #aa9572;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.my-page__name {
+  margin: 0 0 22px;
+  text-align: center;
+  font-size: 26px;
+  color: #e7d3aa;
+}
+
+.my-page__section {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.my-page__section-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #d8aa58;
+}
+
+.my-page__placeholder {
+  margin: 0;
+  color: var(--muted, #9a8c78);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.my-page__logout {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #f87171;
+  background: rgba(13, 6, 20, 0.55);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.my-page__logout:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: #f87171;
+  color: #fff;
+}

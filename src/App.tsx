@@ -12,6 +12,7 @@ import {
 } from "./components/battleFlow";
 import { PreparationScreen } from "./components/PreparationScreen";
 import { ModeSelectScreen, type GameMode } from "./components/ModeSelectScreen";
+import { MyPageScreen } from "./components/MyPageScreen";
 import { STAGES } from "./data/stages";
 import "./styles/preparation-readable.css";
 import "./styles/reading-loop-entry.css";
@@ -64,6 +65,7 @@ function App() {
   const [hasChosenCardMode, setHasChosenCardMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [showMyPage, setShowMyPage] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -169,15 +171,29 @@ function App() {
     }
   };
 
-  const logoutButton = (
+  // ログアウトはマイページ内へ移動。ゲーム画面にはマイページを開くボタンを出す。
+  const myPageButton = (
     <button
-      className="logout-button-global"
+      className="my-page-open-global"
       type="button"
-      onClick={() => auth.signOut()}
+      onClick={() => setShowMyPage(true)}
     >
-      🚪 ログアウト
+      👤 マイページ
     </button>
   );
+
+  if (showMyPage) {
+    return (
+      <MyPageScreen
+        userName={user?.displayName || "冒険者"}
+        onClose={() => setShowMyPage(false)}
+        onLogout={() => {
+          setShowMyPage(false);
+          void auth.signOut();
+        }}
+      />
+    );
+  }
 
   const modeSelectButton = (
     <button
@@ -199,9 +215,11 @@ function App() {
             </div>
           }
         >
-          <ReadingLoopScreen onExit={closeReadingLoop} />
+          <ReadingLoopScreen
+            onExit={closeReadingLoop}
+            onOpenMyPage={() => setShowMyPage(true)}
+          />
         </Suspense>
-        {logoutButton}
       </>
     );
   }
@@ -232,7 +250,7 @@ function App() {
           }}
         />
         {modeSelectButton}
-        {logoutButton}
+        {myPageButton}
       </>
     );
   }
@@ -249,7 +267,7 @@ function App() {
         />
         {readingLoopEntry}
         {modeSelectButton}
-        {logoutButton}
+        {myPageButton}
       </>
     );
   }
@@ -268,7 +286,7 @@ function App() {
         }}
       />
       {modeSelectButton}
-      {logoutButton}
+      {myPageButton}
     </>
   );
 }
