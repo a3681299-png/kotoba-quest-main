@@ -1,7 +1,9 @@
-import type {
-  SentenceSlot,
-  StrategySentence,
-  WordCategory,
+import {
+  createStrategySentence,
+  type SentenceSlot,
+  type StrategySentence,
+  type WordId,
+  type WordCategory,
 } from "../../wordQuest";
 
 export const SLOT_ORDER: readonly SentenceSlot[] = [
@@ -66,6 +68,21 @@ export const CATEGORY_META: Readonly<
 
 export function categoryForSlot(slot: SentenceSlot): WordCategory {
   return slot === "target" ? "subject" : slot;
+}
+
+export function countUsedVocabularySlots(
+  strategies: readonly StrategySentence[],
+): number {
+  return strategies.reduce((total, sentence, sentenceIndex) => {
+    const initialSentence = createStrategySentence(sentenceIndex);
+    return (
+      total +
+      SLOT_ORDER.filter((slot) => {
+        const wordId: WordId | null = sentence[slot];
+        return Boolean(wordId && wordId !== initialSentence[slot]);
+      }).length
+    );
+  }, 0);
 }
 
 export function slotForCategory(

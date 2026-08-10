@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { simulateStrategyPlan } from "./battle";
 import { BOSS_ENEMY_ID, NORMAL_ENEMY_IDS } from "./enemies";
-import { validateSentence } from "./grammar";
+import { createStrategySentence, validateSentence } from "./grammar";
 import {
   chooseRunReward,
   createBattleState,
@@ -44,9 +44,10 @@ function inventoryWith(...wordIds: readonly WordId[]): WordInventory {
 }
 
 function executeUntilTransition(run: WordQuestRunState): WordQuestRunState {
+  const strategies = run.strategies;
   let current = run;
   for (let turn = 0; turn < 5 && current.phase === "battle"; turn += 1) {
-    current = executeRunBattle(current);
+    current = executeRunBattle(updateRunStrategies(current, strategies));
   }
   return current;
 }
@@ -196,6 +197,17 @@ describe("word quest battle simulation", () => {
 });
 
 describe("word quest run growth and persistence", () => {
+  it("recovers action slots after each valid strategy execution", () => {
+    const run = updateRunStrategies(createWordQuestRun("action-recovery"), [
+      attackSentence(0),
+    ]);
+
+    const next = executeRunBattle(run);
+
+    expect(next.currentBattle.turn).toBe(run.currentBattle.turn + 1);
+    expect(next.strategies).toEqual([createStrategySentence(0)]);
+  });
+
   it("keeps encounters and rewards deterministic for a seed", () => {
     const order = createEncounterOrder("deterministic-seed");
     expect(order).toEqual(createEncounterOrder("deterministic-seed"));

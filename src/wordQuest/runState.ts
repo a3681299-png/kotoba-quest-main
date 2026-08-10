@@ -94,6 +94,11 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
     return { ...run, lastResolution: resolution };
   }
 
+  const runWithRecoveredResources: WordQuestRunState = {
+    ...run,
+    strategies: [createStrategySentence(0)],
+  };
+
   const enemy = getEnemy(run.currentBattle.enemyId);
   const totalScore =
     run.totalScore + resolution.scoreDelta + (resolution.victory ? 3 : 0);
@@ -103,7 +108,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
 
   if (resolution.defeat) {
     return {
-      ...run,
+      ...runWithRecoveredResources,
       phase: "defeat",
       player: resolution.player,
       currentBattle: resolution.battle,
@@ -123,7 +128,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
 
   if (!resolution.victory) {
     return {
-      ...run,
+      ...runWithRecoveredResources,
       player: resolution.player,
       currentBattle: resolution.battle,
       lastResolution: resolution,
@@ -142,7 +147,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
   });
   if (enemy.isBoss) {
     return {
-      ...run,
+      ...runWithRecoveredResources,
       phase: "victory",
       player: resolution.player,
       currentBattle: resolution.battle,
@@ -154,7 +159,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
   }
 
   const withResolution: WordQuestRunState = {
-    ...run,
+    ...runWithRecoveredResources,
     phase: "reward",
     player: resolution.player,
     currentBattle: resolution.battle,
