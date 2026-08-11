@@ -27,3 +27,9 @@ andrej-karpathy-skills/
 .codegraph/
 .agents/
 CLAUDE.md
+.env
+.env.local
+
+# Database
+server/prisma/dev.db
+server/prisma/dev.db-journal
