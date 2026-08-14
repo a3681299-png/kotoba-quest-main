@@ -4,13 +4,13 @@ export const ENEMIES: readonly EnemyDefinition[] = [
   {
     id: "ember-maw",
     name: "火喰らいの獣",
-    epithet: "傷を怒りへ変えるもの",
+    epithet: "焼き跡を積み上げるもの",
     description:
-      "煤けた獣は、受けた傷を胸の火へ送り、次の一撃へ足している。",
+      "煤けた獣は、こちらが手を出すたびに炎を吐き戻し、同じ構えを続けるほど自らを焦がしていく。",
     readingClue:
-      "傷つけられるたび、私は怒りを力に変える。守りを固めた者だけが、燃え上がる牙を受け流せる。",
-    maxHp: 8,
-    basePower: 2,
+      "私に触れるたび、その手には火の粉が残る。同じ手を使い続ければ、いずれ自分の炎に飲まれる。冷ます術を持つ者だけが、長く戦える。",
+    maxHp: 20,
+    basePower: 3,
     initialStatuses: [],
     reactions: [
       {
@@ -26,21 +26,23 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     solutionHints: [
       {
         id: "ember-basic",
-        label: "押し切る",
-        description: "基本語彙の攻撃を重ねても突破できる。",
+        label: "焚き付けを抑える",
+        description: "冷ますを織り交ぜ、自滅しない程度に炎上を抑えて突破する。",
         kind: "basic",
         requiresActions: ["attack"],
         requiresStatuses: [],
         bonusScore: 0,
+        maxEmberStackAtMost: 8,
       },
       {
-        id: "ember-guard",
-        label: "防御反撃",
-        description: "先に守り、怒った敵へ反撃する。",
-        kind: "special",
-        requiresActions: ["guard", "counter"],
-        requiresStatuses: ["enraged"],
-        bonusScore: 2,
+        id: "ember-mastery",
+        label: "火を飼いならす",
+        description: "常に低い炎上を保ったまま、危険域に触れずに突破する。",
+        kind: "mastery",
+        requiresActions: ["attack"],
+        requiresStatuses: [],
+        bonusScore: 4,
+        maxEmberStackAtMost: 4,
       },
     ],
     rewardPool: [
@@ -63,8 +65,8 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       "石像の目は動くものだけを追う。強い光を受けると、瞼の紋様が閉じる。",
     readingClue:
       "私は見ている間だけ動きを縛る。けれど光を向けられると目を閉じ、その場で止まる。",
-    maxHp: 8,
-    basePower: 2,
+    maxHp: 38,
+    basePower: 3,
     initialStatuses: ["watching"],
     reactions: [
       {

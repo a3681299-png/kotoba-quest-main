@@ -31,6 +31,7 @@ export function createBattleState(enemyId: string): BattleState {
     enemyPower: enemy.basePower,
     enemyStatuses: [...enemy.initialStatuses],
     turn: 1,
+    emberStacks: 0,
   };
 }
 
@@ -46,8 +47,8 @@ export function createWordQuestRun(seed: string): WordQuestRunState {
     encounterOrder,
     battleIndex: 0,
     player: {
-      hp: 18,
-      maxHp: 18,
+      hp: 50,
+      maxHp: 50,
       statuses: [],
     },
     inventory: createStarterInventory(),

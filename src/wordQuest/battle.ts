@@ -17,6 +17,9 @@ import type {
 } from "./types";
 import { VOCABULARY_BY_ID } from "./vocabulary";
 
+const EMBER_STACK_DAMAGE_PER_STACK = 2;
+const EMBER_STACK_DOUSE_AMOUNT = 5;
+
 interface MutableBattleContext {
   player: {
     hp: number;
@@ -29,6 +32,7 @@ interface MutableBattleContext {
     enemyPower: number;
     enemyStatuses: Set<EnemyStatus>;
     turn: number;
+    emberStacks: number;
   };
   logs: CausalLogEntry[];
   usedActions: ActionEffectId[];
@@ -36,6 +40,7 @@ interface MutableBattleContext {
   guard: number;
   lastAction: ActionEffectId | null;
   previousSentenceExecuted: boolean;
+  maxEmberStacksReached: number;
 }
 
 function appendLog(
@@ -179,8 +184,17 @@ function executeAction(
   const power = actionPower(actionWord.id, inventory);
   const initialStatuses = new Set(context.battle.enemyStatuses);
   const repeated = context.lastAction === actionId;
+  const isEmberMaw = context.battle.enemyId === "ember-maw";
   let executed = true;
   let detail = "";
+
+  if (isEmberMaw && actionId !== "douse") {
+    context.battle.emberStacks += 1;
+    context.maxEmberStacksReached = Math.max(
+      context.maxEmberStacksReached,
+      context.battle.emberStacks,
+    );
+  }
 
   switch (actionId) {
     case "attack": {
@@ -239,6 +253,15 @@ function executeAction(
       context.battle.enemyStatuses.add("illuminated");
       detail = "敵へ光を当てた。";
       break;
+    case "douse": {
+      const before = context.battle.emberStacks;
+      context.battle.emberStacks = Math.max(
+        0,
+        context.battle.emberStacks - EMBER_STACK_DOUSE_AMOUNT,
+      );
+      detail = `炎上を${before - context.battle.emberStacks}分鎮めた。残り炎上${context.battle.emberStacks}。`;
+      break;
+    }
   }
 
   appendLog(context, {
@@ -279,6 +302,7 @@ function toBattleState(context: MutableBattleContext): BattleState {
     enemyPower: context.battle.enemyPower,
     enemyStatuses: [...context.battle.enemyStatuses],
     turn: context.battle.turn + 1,
+    emberStacks: context.battle.emberStacks,
   };
 }
 
@@ -301,6 +325,7 @@ export function simulateStrategyPlan(input: {
       enemyPower: input.battle.enemyPower,
       enemyStatuses: new Set(input.battle.enemyStatuses),
       turn: input.battle.turn,
+      emberStacks: input.battle.emberStacks,
     },
     logs: [],
     usedActions: [],
@@ -308,6 +333,7 @@ export function simulateStrategyPlan(input: {
     guard: 0,
     lastAction: null,
     previousSentenceExecuted: false,
+    maxEmberStacksReached: input.battle.emberStacks,
   };
 
   if (validations.some((validation) => !validation.valid)) {
@@ -443,6 +469,21 @@ export function simulateStrategyPlan(input: {
             : `${damage}ダメージを受けた。残りHP ${context.player.hp}。`,
       });
     }
+
+    if (context.battle.enemyId === "ember-maw" && context.battle.emberStacks > 0) {
+      const emberDamage = context.battle.emberStacks * EMBER_STACK_DAMAGE_PER_STACK;
+      context.player.hp = Math.max(0, context.player.hp - emberDamage);
+      if (context.player.hp < context.player.maxHp) {
+        context.player.statuses.add("wounded");
+      }
+      appendLog(context, {
+        sentenceIndex: null,
+        kind: "enemy",
+        status: "failed",
+        title: "炎上によるダメージ",
+        detail: `炎上${context.battle.emberStacks}スタック分、${emberDamage}ダメージを受けた。残りHP ${context.player.hp}。`,
+      });
+    }
   }
 
   const defeat = context.player.hp <= 0;
@@ -456,7 +497,10 @@ export function simulateStrategyPlan(input: {
       const statusesMatched = solution.requiresStatuses.every((status) =>
         allStatuses.has(status),
       );
-      if (!actionsMatched || !statusesMatched) continue;
+      const emberStackMatched =
+        solution.maxEmberStackAtMost === undefined ||
+        context.maxEmberStacksReached <= solution.maxEmberStackAtMost;
+      if (!actionsMatched || !statusesMatched || !emberStackMatched) continue;
       earnedDiscoveries.push(solution.label);
       context.scoreDelta += solution.bonusScore;
     }

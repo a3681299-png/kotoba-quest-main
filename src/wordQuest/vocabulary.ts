@@ -452,6 +452,26 @@ export const VOCABULARY: readonly VocabularyWord[] = [
     duplicateRule: { kind: "upgrade", maxRank: 3, powerPerRank: 1 },
   }),
   vocabularyWord({
+    id: "action.douse",
+    label: "冷ます",
+    category: "action",
+    grammarRole: "鎮火行動",
+    effect: {
+      kind: "action",
+      action: "douse",
+      basePower: 0,
+      allowedTargets: ["self"],
+    },
+    allowedSlots: ["action"],
+    connectsFrom: ["connector"],
+    connectsTo: ["subject", "modifier"],
+    rarity: "basic",
+    rewardWeight: 1,
+    tooltip: "自分に溜まった炎上を鎮める。燃え上がる敵との戦いに備える。",
+    example: "自分が傷ついているなら、自分を冷ます。",
+    unlockAfterBattle: 0,
+  }),
+  vocabularyWord({
     id: "modifier.once",
     label: "一度だけ",
     category: "modifier",
@@ -526,6 +546,7 @@ export const STARTER_WORD_IDS = [
   "action.attack",
   "action.guard",
   "action.heal",
+  "action.douse",
   "modifier.once",
 ] as const;
 

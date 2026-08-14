@@ -95,7 +95,7 @@ describe("word quest battle simulation", () => {
       strategies: [sentence],
       inventory: createStarterInventory(),
     });
-    expect(resolution.battle.enemyHp).toBe(8);
+    expect(resolution.battle.enemyHp).toBe(20);
     expect(resolution.logs.map((log) => log.status)).toContain("failed");
   });
 
@@ -107,7 +107,7 @@ describe("word quest battle simulation", () => {
       inventory: createStarterInventory(),
     });
     expect(ember.battle.enemyStatuses).toContain("enraged");
-    expect(ember.battle.enemyPower).toBe(3);
+    expect(ember.battle.enemyPower).toBe(4);
 
     const shineSentence: StrategySentence = {
       id: "shine",

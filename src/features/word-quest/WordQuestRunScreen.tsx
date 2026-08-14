@@ -784,6 +784,16 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
           <span>敵威力 {run.currentBattle.enemyPower}</span>
           <span>発見点 {run.totalScore}</span>
           <span>語彙 {Object.keys(run.inventory).length}語</span>
+          {run.currentBattle.emberStacks > 0 && (
+            <span
+              className="word-game__ember-stacks"
+              role="status"
+              aria-label={`炎上${run.currentBattle.emberStacks}スタック`}
+              title="毎手番、炎上スタックに応じたダメージを受ける。「冷ます」で鎮められる。"
+            >
+              炎上 {run.currentBattle.emberStacks}
+            </span>
+          )}
         </div>
 
         <aside className="word-game__enemy-dossier" aria-labelledby="word-enemy-title">

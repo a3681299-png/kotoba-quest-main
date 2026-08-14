@@ -37,7 +37,8 @@ export type ActionEffectId =
   | "bind"
   | "call_name"
   | "shine"
-  | "counter";
+  | "counter"
+  | "douse";
 
 export type ConnectorEffectId = "then" | "after" | "whenever";
 export type ModifierEffectId = "once" | "twice" | "again" | "negate";
@@ -133,6 +134,11 @@ export interface EnemySolutionHint {
   requiresActions: readonly ActionEffectId[];
   requiresStatuses: readonly EnemyStatus[];
   bonusScore: number;
+  /**
+   * 戦闘中に到達した最大炎上スタック数がこの値以下であることを要求する（ember-maw専用）。
+   * 未指定なら判定しない。
+   */
+  maxEmberStackAtMost?: number;
 }
 
 export interface EnemyDefinition {
@@ -164,6 +170,8 @@ export interface BattleState {
   enemyPower: number;
   enemyStatuses: readonly EnemyStatus[];
   turn: number;
+  /** プレイヤーに蓄積した炎上スタック（ember-maw専用、他の敵では常に0） */
+  emberStacks: number;
 }
 
 export type CausalLogKind =

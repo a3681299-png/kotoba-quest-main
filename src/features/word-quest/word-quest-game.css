@@ -525,6 +525,22 @@
   transform: translateX(50%);
 }
 
+.word-game__ember-stacks {
+  color: #ff9a5c;
+  font-weight: 700;
+  animation: word-game-ember-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes word-game-ember-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* 下部は別々のカードではなく、鉄と古木で組まれた一枚の指令盤 */
 
 .word-game__combat-band {
