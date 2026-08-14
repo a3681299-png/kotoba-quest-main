@@ -4,11 +4,14 @@ import titleLogoUrl from "../assets/UI/title/title1.png";
 import newGameLabelUrl from "../assets/UI/title/title2.png";
 import historyLabelUrl from "../assets/UI/title/title4.png";
 import continueLabelUrl from "../assets/UI/title/title5.png";
+import { auth, getUserProgress, type UserProgressData } from "../lib/firebase";
 import "../styles/title-screen.css";
 
 interface TitleScreenProps {
   onStart: () => void;
+  onContinue: () => void;
   onLogout: () => void;
+  hasSave: boolean;
 }
 
 interface TitleMenuButtonProps {
@@ -41,12 +44,41 @@ function TitleMenuButton({
   );
 }
 
-export function TitleScreen({ onStart, onLogout }: TitleScreenProps) {
+export function TitleScreen({
+  onStart,
+  onContinue,
+  onLogout,
+  hasSave,
+}: TitleScreenProps) {
   const [notice, setNotice] = useState("");
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [history, setHistory] = useState<UserProgressData | null>(null);
 
-  const showHistory = () => {
-    setNotice("冒険の記録はまだありません。");
+  const showHistory = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setNotice("ログイン情報が確認できませんでした。");
+      return;
+    }
+    setNotice("");
+    setIsHistoryOpen(true);
+    setIsLoadingHistory(true);
+    setHistory(null);
+    const data = await getUserProgress(uid);
+    setHistory(data);
+    setIsLoadingHistory(false);
   };
+
+  const closeHistory = () => {
+    setIsHistoryOpen(false);
+  };
+
+  const historyEntries = history
+    ? Object.entries(history.codes)
+        .map(([id, code]) => ({ stageId: Number(id), code }))
+        .sort((a, b) => a.stageId - b.stageId)
+    : [];
 
   return (
     <main className="title-screen" aria-label="ことばクエスト タイトル画面">
@@ -74,7 +106,8 @@ export function TitleScreen({ onStart, onLogout }: TitleScreenProps) {
           <TitleMenuButton
             label="つづきから"
             imageUrl={continueLabelUrl}
-            disabled
+            onClick={onContinue}
+            disabled={!hasSave}
           />
           <TitleMenuButton
             label="履歴"
@@ -96,6 +129,54 @@ export function TitleScreen({ onStart, onLogout }: TitleScreenProps) {
           {notice}
         </p>
       </section>
+
+      {isHistoryOpen && (
+        <div
+          className="title-history-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="title-history-heading"
+          onClick={closeHistory}
+        >
+          <div
+            className="title-history-panel"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="title-history-heading">冒険の記録</h2>
+
+            {isLoadingHistory ? (
+              <p className="title-history-message">読み込み中…</p>
+            ) : history === null ? (
+              <p className="title-history-message">
+                記録を読み込めませんでした。バックエンド（server）が起動しているか確認してください。
+              </p>
+            ) : historyEntries.length === 0 ? (
+              <p className="title-history-message">
+                まだ記録がありません。作戦を実行すると保存されます。
+              </p>
+            ) : (
+              <ul className="title-history-list">
+                {historyEntries.map((entry) => (
+                  <li key={entry.stageId}>
+                    <span className="title-history-stage">
+                      ステージ {entry.stageId}
+                    </span>
+                    <p className="title-history-code">{entry.code}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <button
+              type="button"
+              className="title-history-close"
+              onClick={closeHistory}
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

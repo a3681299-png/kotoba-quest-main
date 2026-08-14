@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import { AuthScreen } from "./components/AuthScreen";
 import { TitleScreen } from "./components/TitleScreen";
+import { WORD_QUEST_SAVE_KEY } from "./wordQuest";
 import "./styles/reading-loop-entry.css";
 import "./styles/auth.css";
 
@@ -96,10 +97,19 @@ function App() {
   };
 
   if (!isGameVisible) {
+    const hasSave =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(WORD_QUEST_SAVE_KEY) !== null;
     return (
       <TitleScreen
+        hasSave={hasSave}
         onStart={() => {
           setStartFresh(true);
+          setGameSessionId((current) => current + 1);
+          setIsGameVisible(true);
+        }}
+        onContinue={() => {
+          setStartFresh(false);
           setGameSessionId((current) => current + 1);
           setIsGameVisible(true);
         }}
