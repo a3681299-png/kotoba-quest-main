@@ -13,7 +13,6 @@ import {
   WORD_CATEGORY_LABELS,
   WORD_QUEST_SAVE_KEY,
   chooseRunReward,
-  createStrategySentence,
   createWordQuestRun,
   estimatePlanApCost,
   executeRunBattle,
@@ -38,23 +37,37 @@ import {
 import hpColorLayerUrl from "../../assets/UI/hp/HPの色レイヤー.png";
 import hpFrameUrl from "../../assets/UI/hp/空のゲージ背景.png";
 import lottaFrameUrl from "../../assets/UI/icon/frame/lotta_frame.png";
-import commandArrowUrl from "../../assets/UI/arrow/arrow.png";
-import { LiveBattlefield } from "../reading-loop/LiveBattlefield";
+import executionButtonUrl from "../../assets/UI/icon/hud/execution.png";
+import lottaAttackUrl from "../../assets/characters/battle/チュートリアル/プレイヤー/Lotta_attack.png";
+import {
+  LiveBattlefield,
+  type LiveBattlefieldHandle,
+} from "../reading-loop/LiveBattlefield";
+import { BattleSettingsMenu } from "../../components/BattleSettingsMenu";
 import { LexiconDrawer } from "./LexiconDrawer";
 import { analyzeStrategySynergy } from "./strategySynergy";
+import { createWordQuestBattleTimeline } from "./wordQuestBattleMotion";
+import {
+  buildWordQuestBattlePresentation,
+  type WordQuestBattleMotionPhase,
+  type WordQuestBattlePresentation,
+} from "./wordQuestBattlePresentation";
 import {
   CATEGORY_META,
   SLOT_ORDER,
   categoryForSlot,
+  countUsedVocabularySlots,
 } from "./wordQuestUiMeta";
 import "./word-quest-run.css";
 import "./word-quest-game.css";
 import "./word-quest-contextual-tray.css";
 import "./word-quest-stage-split.css";
 import "./word-quest-strategy-dock.css";
+import "./word-quest-battle-motion.css";
 
 interface WordQuestRunScreenProps {
   onExit?: () => void;
+  startFresh?: boolean;
 }
 
 const STATUS_LABELS: Readonly<Record<EnemyStatus, string>> = {
@@ -91,6 +104,107 @@ const PLAYER_STATUS_MARKS: Readonly<Record<PlayerStatus, string>> = {
 
 const BASE_ACTION_SLOTS = 2;
 
+interface CombatPlayback {
+  id: number;
+  phase: WordQuestBattleMotionPhase;
+  presentation: WordQuestBattlePresentation;
+  enemyHpAfter: number;
+  playerHpAfter: number;
+}
+
+const COMBAT_PHASE_ORDER: Readonly<Record<WordQuestBattleMotionPhase, number>> =
+  {
+    windup: 0,
+    strike: 1,
+    "enemy-impact": 2,
+    counter: 3,
+    "player-impact": 4,
+    settle: 5,
+  };
+
+function phaseReached(
+  current: WordQuestBattleMotionPhase,
+  target: WordQuestBattleMotionPhase,
+): boolean {
+  return COMBAT_PHASE_ORDER[current] >= COMBAT_PHASE_ORDER[target];
+}
+
+function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
+  const { presentation } = playback;
+  const motionStyle = {
+    "--word-enemy-impact-delay": `${presentation.enemyImpactMs ?? presentation.totalMs}ms`,
+    "--word-player-impact-delay": `${presentation.playerImpactMs ?? presentation.totalMs}ms`,
+    "--word-combat-total": `${presentation.totalMs}ms`,
+  } as CSSProperties;
+  const statusParts = [
+    presentation.hasPlayerStrike
+      ? `ロッタの攻撃、敵に${presentation.enemyDamage}ダメージ。`
+      : "",
+    presentation.hasEnemyStrike
+      ? `敵の反撃、旅人に${presentation.playerDamage}ダメージ。`
+      : "",
+  ].filter(Boolean);
+
+  return (
+    <div
+      key={playback.id}
+      className="word-game__combat-motion"
+      data-phase={playback.phase}
+      style={motionStyle}
+    >
+      {presentation.hasPlayerStrike && (
+        <>
+          <div className="word-game__attack-artwork">
+            {[3, 2, 1].map((echoIndex) => (
+              <img
+                key={echoIndex}
+                className="word-game__attack-art word-game__attack-art--echo"
+                src={lottaAttackUrl}
+                alt=""
+                style={{ "--word-echo-index": echoIndex } as CSSProperties}
+              />
+            ))}
+            <img
+              className="word-game__attack-art word-game__attack-art--main"
+              src={lottaAttackUrl}
+              alt=""
+            />
+          </div>
+          <span className="word-game__attack-lane" />
+          <span className="word-game__impact-flash" />
+          <span className="word-game__impact-bloom" />
+          <span className="word-game__impact-sparks">
+            {Array.from({ length: 12 }, (_, sparkIndex) => (
+              <i
+                key={sparkIndex}
+                style={{ "--word-spark-index": sparkIndex } as CSSProperties}
+              />
+            ))}
+          </span>
+          <strong className="word-game__damage-number word-game__damage-number--enemy">
+            -{presentation.enemyDamage}
+          </strong>
+        </>
+      )}
+
+      {presentation.hasEnemyStrike && (
+        <>
+          <span className="word-game__counter-bloom" />
+          <strong className="word-game__damage-number word-game__damage-number--player">
+            -{presentation.playerDamage}
+          </strong>
+        </>
+      )}
+
+      {statusParts.length > 0 && (
+        <p className="word-game__combat-status" role="status">
+          {statusParts.join("")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const EMPTY_SLOT_LABELS: Readonly<Record<SentenceSlot, string>> = {
   subject: "主体を選択",
   condition: "条件を選択",
@@ -112,7 +226,9 @@ const SLOT_ERROR_LABELS: Readonly<Record<SentenceSlot, string>> = {
 function loadSavedRun(): WordQuestRunState | null {
   if (typeof window === "undefined") return null;
   try {
-    return restoreWordQuestRun(window.localStorage.getItem(WORD_QUEST_SAVE_KEY));
+    return restoreWordQuestRun(
+      window.localStorage.getItem(WORD_QUEST_SAVE_KEY),
+    );
   } catch {
     return null;
   }
@@ -202,12 +318,18 @@ function PlayerVitalBar({
               draggable={false}
             />
           </div>
-          <span className="word-game__vitals-meter">{current}/{max}</span>
+          <span className="word-game__vitals-meter">
+            {current}/{max}
+          </span>
         </div>
 
         <div className="word-game__statuses" aria-label={`${name}の状態効果`}>
           {statuses.map((status) => (
-            <span key={status.id} title={status.label} aria-label={status.label}>
+            <span
+              key={status.id}
+              title={status.label}
+              aria-label={status.label}
+            >
               {status.mark}
             </span>
           ))}
@@ -228,12 +350,7 @@ interface EnemyVitalBarProps {
   }>;
 }
 
-function EnemyVitalBar({
-  current,
-  max,
-  name,
-  statuses,
-}: EnemyVitalBarProps) {
+function EnemyVitalBar({ current, max, name, statuses }: EnemyVitalBarProps) {
   const percent = hpPercent(current, max);
   const healthState =
     percent <= 25 ? "critical" : percent <= 50 ? "wounded" : "steady";
@@ -268,7 +385,11 @@ function EnemyVitalBar({
           aria-label={`${name}の状態効果`}
         >
           {statuses.map((status) => (
-            <span key={status.id} title={status.label} aria-label={status.label}>
+            <span
+              key={status.id}
+              title={status.label}
+              aria-label={status.label}
+            >
               {status.mark}
             </span>
           ))}
@@ -285,19 +406,28 @@ function sentenceWordId(
   return sentence[slot];
 }
 
-export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
+export function WordQuestRunScreen({
+  onExit,
+  startFresh = false,
+}: WordQuestRunScreenProps) {
   const [initialState] = useState(() => {
-    const saved = loadSavedRun();
+    const saved = startFresh ? null : loadSavedRun();
+    const seed = saved?.seed ?? "KOTOBA-001";
+    const initialRun = startFresh ? createWordQuestRun(seed) : saved;
     return {
-      saved,
-      seed: saved?.seed ?? "KOTOBA-001",
+      saved: initialRun,
+      seed,
       notice: saved ? "保存した冒険を再開しました。" : "",
     };
   });
   const executionTimerRef = useRef<number | null>(null);
   const placementTimerRef = useRef<number | null>(null);
   const rejectionTimerRef = useRef<number | null>(null);
-  const exchangeTimerRef = useRef<number | null>(null);
+  const battlefieldRef = useRef<LiveBattlefieldHandle>(null);
+  const combatTimelineRef = useRef<ReturnType<
+    typeof createWordQuestBattleTimeline
+  > | null>(null);
+  const combatPlaybackIdRef = useRef(0);
   const executeButtonRef = useRef<HTMLButtonElement>(null);
   const [run, setRun] = useState<WordQuestRunState | null>(initialState.saved);
   const [seed, setSeed] = useState(initialState.seed);
@@ -312,11 +442,10 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
   } | null>(null);
   const [rejectedWordId, setRejectedWordId] = useState<WordId | null>(null);
   const [lexiconFocusRequestId, setLexiconFocusRequestId] = useState(0);
-  const [handCycle, setHandCycle] = useState(0);
-  const [strategyHistory, setStrategyHistory] = useState<
-    readonly (readonly StrategySentence[])[]
-  >([]);
   const [notice, setNotice] = useState(initialState.notice);
+  const [combatPlayback, setCombatPlayback] = useState<CombatPlayback | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!run) return;
@@ -335,14 +464,14 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
       if (executionTimerRef.current !== null) {
         window.clearTimeout(executionTimerRef.current);
       }
+      combatTimelineRef.current?.kill();
+      combatTimelineRef.current = null;
+      battlefieldRef.current?.reset();
       if (placementTimerRef.current !== null) {
         window.clearTimeout(placementTimerRef.current);
       }
       if (rejectionTimerRef.current !== null) {
         window.clearTimeout(rejectionTimerRef.current);
-      }
-      if (exchangeTimerRef.current !== null) {
-        window.clearTimeout(exchangeTimerRef.current);
       }
     },
     [],
@@ -358,10 +487,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     [run],
   );
   const strategySynergy = useMemo(
-    () =>
-      run
-        ? analyzeStrategySynergy(run.strategies, validations)
-        : null,
+    () => (run ? analyzeStrategySynergy(run.strategies, validations) : null),
     [run, validations],
   );
   const estimatedApCost = useMemo(
@@ -376,27 +502,25 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     hasEnoughAp;
 
   const startRun = () => {
+    combatTimelineRef.current?.kill();
+    combatTimelineRef.current = null;
+    battlefieldRef.current?.reset();
+    if (executionTimerRef.current !== null) {
+      window.clearTimeout(executionTimerRef.current);
+      executionTimerRef.current = null;
+    }
+    setCombatPlayback(null);
+    setIsResolving(false);
     const next = createWordQuestRun(seed);
     setRun(next);
     setSeed(next.seed);
     setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
-    setHandCycle(0);
-    setStrategyHistory([]);
     setNotice("少ない語彙で冒険を始めました。");
   };
 
-  const updateStrategies = (
-    strategies: readonly StrategySentence[],
-    recordHistory = true,
-  ) => {
-    if (run && recordHistory) {
-      setStrategyHistory((current) => [
-        ...current.slice(-19),
-        run.strategies,
-      ]);
-    }
+  const updateStrategies = (strategies: readonly StrategySentence[]) => {
     setRun((current) =>
       current ? updateRunStrategies(current, strategies) : current,
     );
@@ -419,6 +543,18 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     setIsLexiconOpen(true);
   };
 
+  const rejectWordPlacement = (wordId: WordId, message: string) => {
+    setNotice(message);
+    setRejectedWordId(wordId);
+    if (rejectionTimerRef.current !== null) {
+      window.clearTimeout(rejectionTimerRef.current);
+    }
+    rejectionTimerRef.current = window.setTimeout(() => {
+      setRejectedWordId(null);
+      rejectionTimerRef.current = null;
+    }, 420);
+  };
+
   const placeWord = (
     wordId: WordId,
     sentenceIndex = activeSentenceIndex,
@@ -429,23 +565,23 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     const sentence = run.strategies[sentenceIndex];
     if (!word || !sentence) return;
     if (!wordFitsSlot(word, slot)) {
-      setNotice(
+      rejectWordPlacement(
+        word.id,
         `「${word.label}」は「${SENTENCE_SLOT_LABELS[slot]}」には置けません。`,
       );
-      setRejectedWordId(word.id);
-      if (rejectionTimerRef.current !== null) {
-        window.clearTimeout(rejectionTimerRef.current);
-      }
-      rejectionTimerRef.current = window.setTimeout(() => {
-        setRejectedWordId(null);
-        rejectionTimerRef.current = null;
-      }, 420);
       return;
     }
     const nextSentence = setSentenceSlot(sentence, slot, word.id);
     const next = run.strategies.map((item, index) =>
       index === sentenceIndex ? nextSentence : item,
     );
+    if (countUsedVocabularySlots(next) > Object.keys(run.inventory).length) {
+      rejectWordPlacement(
+        word.id,
+        "語彙の残り回数がありません。完成した作戦を実行してください。",
+      );
+      return;
+    }
     updateStrategies(next);
     const nextValidations = validatePlan(next, run.inventory);
     const sentenceValidation = nextValidations[sentenceIndex];
@@ -460,9 +596,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     const nextActiveSentence = next[nextActiveSentenceIndex];
     const nextSlot =
       nextValidations[nextActiveSentenceIndex]?.missingSlot ??
-      (nextActiveSentence
-        ? getNextEmptySlot(nextActiveSentence)
-        : "condition");
+      (nextActiveSentence ? getNextEmptySlot(nextActiveSentence) : "condition");
     const nextPlanIsReady = nextValidations.every(
       (validation) => validation.valid,
     );
@@ -494,7 +628,10 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     );
   };
 
-  const beginWordDrag = (event: DragEvent<HTMLButtonElement>, wordId: WordId) => {
+  const beginWordDrag = (
+    event: DragEvent<HTMLButtonElement>,
+    wordId: WordId,
+  ) => {
     if (!run || run.phase !== "battle") {
       event.preventDefault();
       return;
@@ -519,6 +656,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     placeWord(wordId, sentenceIndex, slot);
   };
 
+<<<<<<< HEAD
   const clearModifier = () => {
     if (!run) return;
     const sentence = run.strategies[activeSentenceIndex];
@@ -602,15 +740,100 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     setIsLexiconOpen(true);
   };
 
+=======
+>>>>>>> 11f1134dee1fb10ffc3e7b284f1ec19d9cf83951
   const executePlan = () => {
     if (!run || run.phase !== "battle" || isResolving || !planReady) return;
-    setIsResolving(true);
-    setStrategyHistory([]);
-    setRun(executeRunBattle(run));
-    executionTimerRef.current = window.setTimeout(() => {
+    const nextRun = executeRunBattle(run);
+    const resolution = nextRun.lastResolution;
+
+    if (!resolution?.valid) {
+      setRun(nextRun);
+      return;
+    }
+
+    const presentation = buildWordQuestBattlePresentation({
+      enemyHpBefore: run.currentBattle.enemyHp,
+      enemyHpAfter: resolution.battle.enemyHp,
+      playerHpBefore: run.player.hp,
+      playerHpAfter: resolution.player.hp,
+      usedActions: resolution.usedActions,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)")
+        .matches,
+    });
+    const playbackId = combatPlaybackIdRef.current + 1;
+    combatPlaybackIdRef.current = playbackId;
+    let completed = false;
+
+    const updatePhase = (phase: WordQuestBattleMotionPhase) => {
+      setCombatPlayback((current) =>
+        current?.id === playbackId ? { ...current, phase } : current,
+      );
+    };
+
+    const completeResolution = () => {
+      if (completed) return;
+      completed = true;
+      if (executionTimerRef.current !== null) {
+        window.clearTimeout(executionTimerRef.current);
+        executionTimerRef.current = null;
+      }
+      combatTimelineRef.current = null;
+      setRun(nextRun);
+      setCombatPlayback(null);
       setIsResolving(false);
-      executionTimerRef.current = null;
-    }, 780);
+      setActiveSentenceIndex(0);
+      setActiveSlot("condition");
+      setIsLexiconOpen(true);
+      if (nextRun.phase === "battle") {
+        setLexiconFocusRequestId((current) => current + 1);
+        setNotice("作戦を実行しました。行動回数と語彙が回復しました。");
+      }
+    };
+
+    setIsResolving(true);
+    setCombatPlayback({
+      id: playbackId,
+      phase: "windup",
+      presentation,
+      enemyHpAfter: resolution.battle.enemyHp,
+      playerHpAfter: resolution.player.hp,
+    });
+
+    const battlefield = battlefieldRef.current?.getTargets();
+    if (!battlefield) {
+      updatePhase(
+        presentation.hasPlayerStrike
+          ? "enemy-impact"
+          : presentation.hasEnemyStrike
+            ? "player-impact"
+            : "settle",
+      );
+      executionTimerRef.current = window.setTimeout(
+        completeResolution,
+        presentation.totalMs,
+      );
+      return;
+    }
+
+    try {
+      const timeline = createWordQuestBattleTimeline({
+        battlefield,
+        presentation,
+        onPhase: updatePhase,
+        onComplete: completeResolution,
+      });
+      combatTimelineRef.current = timeline;
+      timeline.play(0);
+    } catch (error) {
+      console.error("戦闘演出の再生に失敗:", error);
+      battlefieldRef.current?.reset();
+      updatePhase("settle");
+      executionTimerRef.current = window.setTimeout(
+        completeResolution,
+        presentation.reducedMotion ? 100 : 320,
+      );
+    }
   };
 
   const chooseReward = (wordId: WordId) => {
@@ -621,24 +844,24 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
     setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
-    setHandCycle(0);
-    setStrategyHistory([]);
   };
 
   const retry = (sameSeed: boolean) => {
     if (!run) return;
     const nextSeed = sameSeed
       ? run.seed
-      : `KOTOBA-${Math.floor(Date.now() / 1000).toString(36).toUpperCase()}`;
+      : `KOTOBA-${Math.floor(Date.now() / 1000)
+          .toString(36)
+          .toUpperCase()}`;
     const next = retryWordQuestRun(run, nextSeed);
     setRun(next);
     setSeed(next.seed);
     setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
-    setHandCycle(0);
-    setStrategyHistory([]);
-    setNotice(sameSeed ? "同じ並びで再挑戦します。" : "新しい並びで冒険を始めます。");
+    setNotice(
+      sameSeed ? "同じ並びで再挑戦します。" : "新しい並びで冒険を始めます。",
+    );
   };
 
   if (!run || !enemy) {
@@ -651,9 +874,13 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
             <p>並べ、つなぎ、短い因果へ刷り直せ。</p>
           </div>
           <div className="word-title-spread__right">
-            <p className="word-title-spread__kicker">ことばクエスト・語彙遠征</p>
+            <p className="word-title-spread__kicker">
+              ことばクエスト・語彙遠征
+            </p>
             <h1 id="word-title">
-              言葉を拾い、<br />因果を組む
+              言葉を拾い、
+              <br />
+              因果を組む
             </h1>
             <p>
               敵の記述を読み、限られた語彙から最大三つの作戦文を組みます。
@@ -682,7 +909,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                   className="word-title-spread__return"
                   onClick={onExit}
                 >
-                  元の冒険へ戻る
+                  タイトルへ戻る
                 </button>
               )}
             </div>
@@ -696,13 +923,22 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
   const activeSentence = run.strategies[activeSentenceIndex];
   const activeValidation = validations[activeSentenceIndex];
   const activeCategory = categoryForSlot(activeSlot);
-  const completedActionCount = Math.min(
+  const usedActionCount = Math.min(
     BASE_ACTION_SLOTS,
-    validations.filter((validation) => validation.valid).length,
+    run.strategies.filter((sentence) => Boolean(sentence.action)).length,
   );
+  const remainingActionCount = BASE_ACTION_SLOTS - usedActionCount;
   const bonusActionCount = strategySynergy?.savedSentenceCount ?? 0;
-  const usedVocabularyCount = strategySynergy?.uniqueWordCount ?? 0;
-  const availableVocabularyCount = Object.keys(run.inventory).length;
+  const displayedEnemyHp =
+    combatPlayback?.presentation.hasPlayerStrike &&
+    phaseReached(combatPlayback.phase, "enemy-impact")
+      ? combatPlayback.enemyHpAfter
+      : run.currentBattle.enemyHp;
+  const displayedPlayerHp =
+    combatPlayback?.presentation.hasEnemyStrike &&
+    phaseReached(combatPlayback.phase, "player-impact")
+      ? combatPlayback.playerHpAfter
+      : run.player.hp;
 
   return (
     <main
@@ -718,12 +954,28 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
         .filter(Boolean)
         .join(" ")}
       style={panelStyle}
+      aria-busy={isResolving}
     >
-      <section className="word-game__scene" aria-label={`${enemy.name}との戦場`}>
+      {onExit && (
+        <BattleSettingsMenu
+          isBattleBusy={isResolving}
+          restartLabel="冒険を最初からやり直す"
+          restartDescription="同じ頁番号で最初から始めます"
+          busyMessage="作戦の解決が終わるまで、やり直しとタイトルへの移動はできません。"
+          onRestart={startRun}
+          onReturnToTitle={onExit}
+        />
+      )}
+      <section
+        className="word-game__scene"
+        aria-label={`${enemy.name}との戦場`}
+      >
         <LiveBattlefield
+          ref={battlefieldRef}
           label={`${enemy.name}と主人公が対峙する戦場`}
           commandStage
         />
+        {combatPlayback && <BattleMotionOverlay playback={combatPlayback} />}
         <div className="word-game__print-veil" aria-hidden="true" />
         <div className="word-game__book-gutter" aria-hidden="true" />
 
@@ -751,11 +1003,6 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
               <b>{run.player.actionPoints}/{AP_MAX}</b>
             </div>
           </div>
-          {onExit && (
-            <button type="button" className="word-game__exit" onClick={onExit}>
-              本を閉じる
-            </button>
-          )}
         </header>
 
         <ol className="word-game__chapters" aria-label="冒険の進行">
@@ -786,7 +1033,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
         <PlayerVitalBar
           side="player"
           name="旅人"
-          current={run.player.hp}
+          current={displayedPlayerHp}
           max={run.player.maxHp}
           portraitFrameUrl={lottaFrameUrl}
           statuses={run.player.statuses.map((status) => ({
@@ -798,7 +1045,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
 
         <EnemyVitalBar
           name={enemy.name}
-          current={run.currentBattle.enemyHp}
+          current={displayedEnemyHp}
           max={enemy.maxHp}
           statuses={run.currentBattle.enemyStatuses.map((status) => ({
             id: status,
@@ -823,7 +1070,10 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
           )}
         </div>
 
-        <aside className="word-game__enemy-dossier" aria-labelledby="word-enemy-title">
+        <aside
+          className="word-game__enemy-dossier"
+          aria-labelledby="word-enemy-title"
+        >
           <p className="word-game__eyebrow">ENEMY / 読解記録</p>
           <div className="word-game__enemy-heading">
             <span aria-hidden="true">{enemy.icon}</span>
@@ -873,7 +1123,8 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                   const word = wordId ? VOCABULARY_BY_ID[wordId] : null;
                   const category = categoryForSlot(slot);
                   const categoryMeta = CATEGORY_META[category];
-                  const insight = strategySynergy?.sentences[activeSentenceIndex];
+                  const insight =
+                    strategySynergy?.sentences[activeSentenceIndex];
                   const isSynergyNode =
                     insight?.highlightedSlots.includes(slot) ?? false;
                   const isSettling =
@@ -913,7 +1164,10 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                       aria-label={`${categoryMeta.label}・${
                         SENTENCE_SLOT_LABELS[slot]
                       }：${word?.label ?? EMPTY_SLOT_LABELS[slot]}`}
-                      title={issueLabel ?? `${categoryMeta.prompt}（${categoryMeta.shapeLabel}）`}
+                      title={
+                        issueLabel ??
+                        `${categoryMeta.prompt}（${categoryMeta.shapeLabel}）`
+                      }
                       onDragOver={(event) => {
                         event.preventDefault();
                         const draggedWord = draggedWordId
@@ -929,11 +1183,16 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                       }
                       disabled={run.phase !== "battle"}
                     >
-                      <span className="strategy-dock__slot-mark" aria-hidden="true">
+                      <span
+                        className="strategy-dock__slot-mark"
+                        aria-hidden="true"
+                      >
                         {categoryMeta.mark}
                       </span>
                       <span className="strategy-dock__slot-copy">
-                        <strong>{word?.label ?? EMPTY_SLOT_LABELS[slot]}</strong>
+                        <strong>
+                          {word?.label ?? EMPTY_SLOT_LABELS[slot]}
+                        </strong>
                         {issueLabel && (
                           <small id={errorId} title={slotIssue ?? undefined}>
                             {issueLabel}
@@ -944,18 +1203,6 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                   );
                 })}
               </div>
-
-              {run.strategies.length > 1 && (
-                <button
-                  type="button"
-                  className="strategy-dock__remove-sentence"
-                  onClick={() => removeSentence(activeSentenceIndex)}
-                  aria-label={`第${activeSentenceIndex + 1}文を削除`}
-                  title="この文を削除"
-                >
-                  文削除
-                </button>
-              )}
             </article>
           )}
         </section>
@@ -970,7 +1217,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
               : null
           }
           draggedWordId={draggedWordId}
-          handCycle={handCycle}
+          handCycle={0}
           isOpen={isLexiconOpen}
           focusRequestId={lexiconFocusRequestId}
           ownedWords={ownedWords}
@@ -982,9 +1229,12 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
         />
 
         <aside className="strategy-dock__command-panel" aria-label="作戦操作">
-          <nav className="strategy-dock__sentence-nav" aria-label="作戦文の操作">
-            {run.strategies.length > 1 &&
-              run.strategies.map((sentence, sentenceIndex) => {
+          {run.strategies.length > 1 && (
+            <nav
+              className="strategy-dock__sentence-nav"
+              aria-label="作戦文の切り替え"
+            >
+              {run.strategies.map((sentence, sentenceIndex) => {
                 const selected = sentenceIndex === activeSentenceIndex;
                 const valid = validations[sentenceIndex]?.valid ?? false;
                 return (
@@ -1007,6 +1257,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                   </button>
                 );
               })}
+<<<<<<< HEAD
             <button
               type="button"
               className="strategy-dock__add-sentence"
@@ -1106,10 +1357,58 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                   ? `行動値が足りません（必要${estimatedApCost}、残り${run.player.actionPoints}）。`
                   : "未設定の語彙があります"
             }
+=======
+            </nav>
+          )}
+
+          <div
+            className={`strategy-dock__execution-cluster ${
+              planReady ? "is-ready" : ""
+            }`}
+>>>>>>> 11f1134dee1fb10ffc3e7b284f1ec19d9cf83951
           >
-            <span>作戦実行</span>
-            <small>{planReady ? "実行可能" : "未完成"}</small>
-          </button>
+            <button
+              ref={executeButtonRef}
+              type="button"
+              className="strategy-dock__execute"
+              onClick={executePlan}
+              disabled={!planReady || run.phase !== "battle" || isResolving}
+              aria-label="作戦を実行"
+              title={
+                planReady ? "完成した作戦を実行" : "未設定の語彙があります"
+              }
+            >
+              <span className="strategy-dock__sr-only">作戦を実行</span>
+            </button>
+
+            <img
+              className="strategy-dock__execution-art"
+              src={executionButtonUrl}
+              alt=""
+              aria-hidden="true"
+            />
+
+            <div
+              className="strategy-dock__turn-meter"
+              role="meter"
+              aria-label="残りターン数"
+              aria-valuemin={0}
+              aria-valuemax={BASE_ACTION_SLOTS}
+              aria-valuenow={remainingActionCount}
+              aria-valuetext={`残りターン ${remainingActionCount}/${BASE_ACTION_SLOTS}${
+                bonusActionCount > 0 ? `、追加ターン ${bonusActionCount}` : ""
+              }`}
+            >
+              <span className="strategy-dock__turn-count" aria-hidden="true">
+                <small>TURN</small>
+                <strong>
+                  {remainingActionCount}
+                  <b>/{BASE_ACTION_SLOTS}</b>
+                </strong>
+                {bonusActionCount > 0 && <em>+{bonusActionCount}</em>}
+              </span>
+            </div>
+          </div>
         </aside>
       </section>
 
@@ -1119,22 +1418,39 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
       </footer>
 
       {run.phase === "reward" && (
-        <div className="word-quest-overlay" role="dialog" aria-modal="true" aria-labelledby="word-reward-title">
+        <div
+          className="word-quest-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="word-reward-title"
+        >
           <section className="word-reward-panel">
             <small>戦闘 {run.battleIndex + 1} 突破</small>
             <h2 id="word-reward-title">次へ持っていく語彙を一つ選ぶ</h2>
-            <p>新しい語彙は文章の作り方を増やします。重複した語彙はランクが上がります。</p>
+            <p>
+              新しい語彙は文章の作り方を増やします。重複した語彙はランクが上がります。
+            </p>
             <div>
               {run.rewardChoices.map((wordId) => {
                 const word = VOCABULARY_BY_ID[wordId];
                 const owned = run.inventory[wordId];
                 if (!word) return null;
                 return (
-                  <button type="button" key={wordId} onClick={() => chooseReward(wordId)}>
-                    <span>{WORD_CATEGORY_LABELS[word.category]} / {word.rarity}</span>
+                  <button
+                    type="button"
+                    key={wordId}
+                    onClick={() => chooseReward(wordId)}
+                  >
+                    <span>
+                      {WORD_CATEGORY_LABELS[word.category]} / {word.rarity}
+                    </span>
                     <strong>{word.label}</strong>
                     <p>{word.tooltip}</p>
-                    <small>{owned ? `重複取得：ランク${owned.rank}から強化` : "未所持の語彙"}</small>
+                    <small>
+                      {owned
+                        ? `重複取得：ランク${owned.rank}から強化`
+                        : "未所持の語彙"}
+                    </small>
                   </button>
                 );
               })}
@@ -1144,14 +1460,21 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
       )}
 
       {(run.phase === "victory" || run.phase === "defeat") && (
-        <div className="word-quest-overlay" role="dialog" aria-modal="true" aria-labelledby="word-result-title">
+        <div
+          className="word-quest-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="word-result-title"
+        >
           <section className="word-result-panel">
             <span className="word-result-panel__seal" aria-hidden="true">
               {run.phase === "victory" ? "完" : "断"}
             </span>
             <small>語彙遠征の記録</small>
             <h2 id="word-result-title">
-              {run.phase === "victory" ? "忘名王まで因果が届いた" : "文章の鎖が途中で切れた"}
+              {run.phase === "victory"
+                ? "忘名王まで因果が届いた"
+                : "文章の鎖が途中で切れた"}
             </h2>
             <p>
               {run.phase === "victory"
@@ -1163,7 +1486,9 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
                 <li key={`${record.enemyId}-${index}`}>
                   <span>{index + 1}</span>
                   <strong>{getEnemy(record.enemyId).name}</strong>
-                  <small>{record.victory ? "突破" : "敗北"} / {record.turns}手</small>
+                  <small>
+                    {record.victory ? "突破" : "敗北"} / {record.turns}手
+                  </small>
                 </li>
               ))}
             </ol>
@@ -1173,9 +1498,17 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
               </p>
             )}
             <div>
-              <button type="button" onClick={() => retry(true)}>同じシードで再挑戦</button>
-              <button type="button" onClick={() => retry(false)}>新しい敵順で再挑戦</button>
-              {onExit && <button type="button" className="is-quiet" onClick={onExit}>元の冒険へ戻る</button>}
+              <button type="button" onClick={() => retry(true)}>
+                同じシードで再挑戦
+              </button>
+              <button type="button" onClick={() => retry(false)}>
+                新しい敵順で再挑戦
+              </button>
+              {onExit && (
+                <button type="button" className="is-quiet" onClick={onExit}>
+                  タイトルへ戻る
+                </button>
+              )}
             </div>
           </section>
         </div>

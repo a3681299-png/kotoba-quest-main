@@ -1,19 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import BattleScreen from "./components/BattleScreen";
-import {
-  advanceToStageIntro,
-  initialBattleFlowState,
-  openPreparation,
-  returnToPreparation,
-  startPreparedBattle,
-} from "./components/battleFlow";
-import { PreparationScreen } from "./components/PreparationScreen";
-import "./styles/preparation-readable.css";
+import { TitleScreen } from "./components/TitleScreen";
 import "./styles/reading-loop-entry.css";
 
-const ReadingLoopScreen = lazy(() =>
-  import("./features/reading-loop/ReadingLoopScreen").then((module) => ({
-    default: module.ReadingLoopScreen,
+const WordQuestRunScreen = lazy(() =>
+  import("./features/word-quest/WordQuestRunScreen").then((module) => ({
+    default: module.WordQuestRunScreen,
   })),
 );
 
@@ -31,14 +22,20 @@ function isReadingLoopLocation() {
 }
 
 function App() {
-  const [battleFlow, setBattleFlow] = useState(initialBattleFlowState);
-  const [isReadingLoopMode, setIsReadingLoopMode] = useState(
+  const [isGameVisible, setIsGameVisible] = useState(
     isReadingLoopLocation,
   );
+  const [startFresh, setStartFresh] = useState(false);
+  const [gameSessionId, setGameSessionId] = useState(0);
 
   useEffect(() => {
     const syncModeFromLocation = () => {
-      setIsReadingLoopMode(isReadingLoopLocation());
+      const isDirectGameRoute = isReadingLoopLocation();
+      setStartFresh(false);
+      setIsGameVisible(isDirectGameRoute);
+      if (isDirectGameRoute) {
+        setGameSessionId((current) => current + 1);
+      }
     };
 
     window.addEventListener("popstate", syncModeFromLocation);
@@ -65,84 +62,40 @@ function App() {
     );
   }
 
-  const openReadingLoop = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("mode", "reading-loop");
-    window.history.pushState(null, "", url);
-    setIsReadingLoopMode(true);
-  };
-
-  const closeReadingLoop = () => {
+  const returnToTitle = () => {
     const url = new URL(window.location.href);
     url.searchParams.delete("mode");
     window.history.replaceState(null, "", url);
-    setIsReadingLoopMode(false);
+    setStartFresh(false);
+    setIsGameVisible(false);
   };
 
-  if (isReadingLoopMode) {
+  if (!isGameVisible) {
     return (
-      <Suspense
-        fallback={
-          <div className="reading-loop-loading" role="status">
-            語彙遠征を読み込んでいます…
-          </div>
-        }
-      >
-        <ReadingLoopScreen onExit={closeReadingLoop} />
-      </Suspense>
-    );
-  }
-
-  const readingLoopEntry = (
-    <button
-      className="reading-loop-entry"
-      type="button"
-      onClick={openReadingLoop}
-    >
-      <span className="reading-loop-entry__eyebrow">新しい遊び方</span>
-      <span className="reading-loop-entry__label">語彙を組む遠征</span>
-      <span className="reading-loop-entry__compact">語彙遠征へ</span>
-    </button>
-  );
-
-  if (battleFlow.screenMode === "preparation") {
-    return (
-      <PreparationScreen
-        stageId={battleFlow.stageIndex + 1}
-        onStartBattle={(battlePlan) => {
-          setBattleFlow((current) => startPreparedBattle(current, battlePlan));
+      <TitleScreen
+        onStart={() => {
+          setStartFresh(true);
+          setGameSessionId((current) => current + 1);
+          setIsGameVisible(true);
         }}
       />
     );
   }
 
-  if (battleFlow.screenMode === "intro") {
-    return (
-      <>
-        <BattleScreen
-          key={`intro-${battleFlow.stageIndex}`}
-          stageIndex={battleFlow.stageIndex}
-          onPreparationReady={() => {
-            setBattleFlow((current) => openPreparation(current));
-          }}
-        />
-        {readingLoopEntry}
-      </>
-    );
-  }
-
   return (
-    <BattleScreen
-      key={`battle-${battleFlow.stageIndex}`}
-      stageIndex={battleFlow.stageIndex}
-      preparedBattlePlan={battleFlow.preparedBattlePlan}
-      onAdvanceStage={(nextStageIndex) => {
-        setBattleFlow((current) => advanceToStageIntro(current, nextStageIndex));
-      }}
-      onPreparedPlanComplete={() => {
-        setBattleFlow((current) => returnToPreparation(current));
-      }}
-    />
+    <Suspense
+      fallback={
+        <div className="reading-loop-loading" role="status">
+          ことばの戦場を読み込んでいます…
+        </div>
+      }
+    >
+      <WordQuestRunScreen
+        key={gameSessionId}
+        startFresh={startFresh}
+        onExit={returnToTitle}
+      />
+    </Suspense>
   );
 }
 

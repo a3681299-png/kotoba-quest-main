@@ -1,0 +1,205 @@
+.battle-settings-trigger {
+  position: fixed;
+  top: 22px;
+  right: 26px;
+  z-index: 1200;
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  padding: 7px;
+  border: 1px solid rgba(239, 214, 163, 0.68);
+  border-radius: 50%;
+  background: #11110f;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.68),
+    inset 0 0 15px rgba(231, 195, 123, 0.11);
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.battle-settings-trigger img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px #000);
+  transition: transform 240ms ease;
+  pointer-events: none;
+}
+
+.battle-settings-trigger:hover,
+.battle-settings-trigger:focus-visible,
+.battle-settings-trigger[aria-expanded="true"] {
+  border-color: #f5dca8;
+  box-shadow:
+    0 0 22px rgba(226, 180, 92, 0.3),
+    0 13px 30px rgba(0, 0, 0, 0.72);
+  outline: 2px solid rgba(245, 220, 168, 0.72);
+  outline-offset: 3px;
+  transform: scale(1.05);
+}
+
+.battle-settings-trigger:hover img,
+.battle-settings-trigger:focus-visible img,
+.battle-settings-trigger[aria-expanded="true"] img {
+  transform: rotate(28deg);
+}
+
+.battle-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(2, 3, 4, 0.84);
+  backdrop-filter: blur(8px) saturate(0.62);
+}
+
+.battle-settings-dialog {
+  width: min(560px, calc(100vw - 64px));
+  padding: 30px;
+  color: #f8ead0;
+  color-scheme: dark;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(190, 139, 68, 0.22), transparent 44%),
+    linear-gradient(180deg, #242522, #0c1011 82%);
+  border: 1px solid #a98a55;
+  border-radius: 10px;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.84),
+    inset 0 1px 0 rgba(255, 241, 207, 0.16);
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro",
+    serif;
+  opacity: 1;
+}
+
+.battle-settings-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #79643e;
+}
+
+.battle-settings-dialog__header span {
+  display: block;
+  margin-bottom: 4px;
+  color: #d9b977;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+.battle-settings-dialog__header h2 {
+  margin: 0;
+  color: #fff2d4;
+  font-size: 1.8rem;
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 3px #000;
+}
+
+.battle-settings-dialog__close {
+  min-width: 76px;
+  padding: 8px 12px;
+  color: #efe1c5;
+  background: #292a27;
+  border: 1px solid #756344;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.battle-settings-dialog__close:hover,
+.battle-settings-dialog__close:focus-visible {
+  color: #fff8e9;
+  background: #39362f;
+  border-color: #d6b878;
+  outline: 2px solid #e2c98f;
+  outline-offset: 2px;
+}
+
+.battle-settings-dialog__description {
+  margin: 18px 0;
+  color: #e2d4b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.battle-settings-actions {
+  display: grid;
+  gap: 13px;
+}
+
+.battle-settings-actions > button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 16px 18px;
+  color: #fff0cf;
+  text-align: left;
+  background: linear-gradient(180deg, #33322d, #1a1e1e);
+  border: 1px solid #77613d;
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.battle-settings-actions > button:hover:not(:disabled),
+.battle-settings-actions > button:focus-visible:not(:disabled) {
+  background: linear-gradient(180deg, #4a402f, #232927);
+  border-color: #ddbd7a;
+  outline: 2px solid rgba(226, 196, 133, 0.72);
+  outline-offset: 2px;
+  transform: translateX(3px);
+}
+
+.battle-settings-actions > button.is-caution {
+  border-color: #815443;
+}
+
+.battle-settings-actions > button.is-caution:hover:not(:disabled),
+.battle-settings-actions > button.is-caution:focus-visible:not(:disabled) {
+  background: linear-gradient(180deg, #54332c, #241d1b);
+  border-color: #d58a70;
+}
+
+.battle-settings-actions > button:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
+.battle-settings-actions strong {
+  color: #fff0cf;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px #000;
+}
+
+.battle-settings-actions span {
+  color: #ddd0b4;
+  font-size: 0.84rem;
+}
+
+.battle-settings-dialog__busy {
+  margin: 16px 2px 0;
+  color: #f0c87f;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-settings-trigger,
+  .battle-settings-trigger img,
+  .battle-settings-actions > button {
+    transition: none;
+  }
+}

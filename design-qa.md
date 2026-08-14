@@ -1,3 +1,91 @@
+# Design QA: 複合実行UI（2026-08-14）
+
+## 対象と比較条件
+
+- source visual truth: `/mnt/c/Users/sm787/AppData/Local/Temp/codex-clipboard-1a190c0d-38bb-4e52-ae63-c0da264f5671.png`（1920 x 1080、RGB）。右下の大きい主操作と小さいカウンターの組み合わせを参照した。
+- supplied asset: `src/assets/UI/icon/hud/execution.png`（1254 x 1254、RGBA）。画像内の大円を実行ボタン、小円をターン表示として使用した。
+- implementation full view: `/tmp/word-quest-execution-cluster-battle.png`（1920 x 1080）。
+- implementation focused view: `/tmp/word-quest-execution-cluster-ready-region.png`（440 x 430）。
+- combined comparison: `/tmp/word-quest-execution-reference-comparison.png`（920 x 480）。参照画像の右下640 x 420と実装の右下440 x 430を同じ画像内で比較した。
+- viewport/density: CSS viewport 1920 x 1080、device scale factor 1。比較はどちらも等倍の右下領域を使い、密度変換はしていない。
+- state: 初回戦闘。未完成時は残りターン3/3で実行不可、条件と行動を選んだ状態は2/3で実行可能。
+
+## Findings
+
+未解決のP0、P1、P2はありません。参照画像と同じく、大きい円を主操作、その左下の小さい円を数値表示として読める。背景の長方形や区切り線はなく、右下へ固定した装飾画像だけが戦闘画面に重なる。
+
+## 比較履歴
+
+- 初回比較で、大円と小円の位置関係、右下への固定、素材の透明境界、2/3の中央揃えを確認した。
+- 大円のクリック領域は画像内の円と一致し、小円は実行操作を受けない。初回比較にP0、P1、P2はなかったため、比較後の修正はない。
+- 参考画像は別作品の画面全体であり、文字や色の複製はせず、支給された `execution.png` の意匠を基準にした。
+
+## 必須確認面
+
+- 文字: 大円の「実行」は支給画像内の文字をそのまま使用。小円だけに `TURN` と残り/合計を重ね、2/3と3/3が中央に収まる。
+- 間隔: 複合画像は360 x 360pxで右下固定。大円の操作領域は画像内の円に沿う48%、小円の表示領域は32%で、互いに重ならない。
+- 色: 支給PNGの黒、骨色、赤を維持。未完成時だけ明度と彩度を落とし、実行可能時は素材本来の色と弱い赤い光へ戻す。
+- 画像品質: 1254 x 1254のPNGを再生成、再圧縮せず `object-fit: contain` で表示。透明境界、縦横比、細い装飾線に欠けはない。
+- 文言: 主操作は画像内の「実行」、小円はターン数だけに限定した。以前の補助操作や語彙コストは戻していない。
+- レスポンシブ: 900px以下では複合画像を300pxへ縮小。390px幅では既存の1080px戦闘キャンバス内の右端に収まり、このUIによる追加の横方向オーバーフローはない。
+- アクセシビリティ: 大円は実際の `button` で、円形のキーボードフォーカス、disabled、title、`aria-label` を維持。小円は `role="meter"` と `aria-valuemin/max/now/text` を持つ。
+
+## 操作と自動検証
+
+- ブラウザ: 初回戦闘を開始し、新しい `execution.png` が読み込まれた状態を1920 x 1080で確認。Viteエラーオーバーレイと実行時エラーはなし。
+- 操作: 初期3/3、行動選択後2/3、実行後3/3を確認。大円は未完成時disabled、完成時enabledになり、実行後に再びdisabledへ戻る。
+- ESLint: passed
+- Vitest（`src`）: 34 files、174 tests passed
+- TypeScript/Vite production build: passed
+- `git diff --check`: passed
+
+final result: passed
+
+---
+
+# Design QA: 行動回数と実行ボタンの画像UI（2026-08-14）
+
+## 対象と比較条件
+
+- source visual truth: `/mnt/c/Users/sm787/AppData/Local/Temp/codex-clipboard-93b2bcc6-ec23-4fc5-9ae8-4c6a7afaf8bc.png`（440 x 283）。置き換え前の操作領域と削除対象の確認に使用。
+- supplied assets: `src/assets/UI/icon/hud/turn.png`（765 x 326、RGBA）と `src/assets/UI/icon/hud/execution.png`（2172 x 724、RGBA）。
+- implementation screenshot: `/tmp/word-quest-battle-ui.png`（1920 x 1080、未完成状態）と `/tmp/word-quest-battle-ui-ready.png`（1920 x 1080、実行可能状態）。
+- combined comparison: `/tmp/word-quest-ui-comparison.png`（920 x 330）。左に参照画像、右に実装の操作領域を440 x 283で同時表示した。
+- viewport/density: CSS viewport 1920 x 1080、device scale factor 1。参照画像は等倍。実装側は同一スクリーンショットの右下440 x 283を切り出し、密度を変えずに比較した。
+- state: 初回戦闘。通常時は行動3/3で実行不可、条件と動詞を選んだ実行可能時は行動2/3。
+
+## Findings
+
+未解決のP0、P1、P2はありません。`turn.png` 内に残り行動数が収まり、`execution.png` は未完成時の暗い状態と実行可能時の明るい状態を判別できる。いずれも透明領域を保ったまま欠けずに表示され、画面右下からはみ出していない。
+
+## 比較履歴
+
+- 初回比較で、旧「行動」メーターと「作戦実行」ボタンが支給画像へ置き換わり、文追加、文削除、交換、戻す、修飾解除、語彙コスト表示が操作領域から消えていることを確認した。
+- 初回比較にP0、P1、P2はなかったため、比較後の視覚修正は不要だった。
+- 実行可能状態も追加確認し、`execution.png` が明るくなり、ボタンのフォーカス表示を維持することを確認した。
+
+## 必須確認面
+
+- 文字: `execution.png` 内の「実行」は支給画像の文字をそのまま使用。行動数は既存UIと同じ残り/合計表記で、3/3から動詞選択後に2/3へ変化する。WSLのヘッドレスChromeには日本語フォントがないため、変更対象外のDOM文字は比較対象から除外した。
+- 間隔: 440px幅の操作欄で、行動フレームを188 x 124px、実行ボタン領域を356 x 90pxに収めた。両方を中央揃えにし、1920 x 1080で下端まで表示できる。
+- 色: 支給PNGの黒、骨色、赤を無加工で使用。未完成時だけ既存のdisabled表現に合わせて彩度と明度を落とし、実行可能時は素材本来の色へ戻す。
+- 画像品質: 両PNGを再生成、再圧縮せず使用。縦横比を維持し、透明境界のハロー、引き伸ばし、代替CSS描画はない。
+- 文言: 操作領域には「行動」と残数だけを重ね、実行ラベルは画像内の「実行」に統一。削除対象の補助文言は残していない。
+- アクセシビリティ: 行動数は `role="meter"` と `aria-valuemin/max/now/text` を持つ。実行ボタンは画像を装飾扱いにし、`aria-label="作戦を実行"`、disabled、title、キーボードフォーカスを維持した。
+
+## 操作と自動検証
+
+- ブラウザ: 初回戦闘を開始し、両画像がnatural size 765 x 326、2172 x 724で読み込まれたことを確認。Viteエラーオーバーレイと実行時エラーはなし。
+- 操作: 条件と動詞を選ぶと行動2/3、実行ボタン有効へ変化。実行後は行動3/3へ戻り、「作戦を実行しました。行動回数と語彙が回復しました。」が表示された。
+- ESLint: passed
+- Vitest（`src`）: 34 files、174 tests passed
+- TypeScript/Vite production build: passed
+- `git diff --check`: passed
+
+final result: passed
+
+---
+
 # Design QA: キャラ専用フレーム画像へ切り替え（2026-08-06）
 
 ## 対象と比較条件
