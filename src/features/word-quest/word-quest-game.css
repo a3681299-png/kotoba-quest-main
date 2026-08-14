@@ -167,6 +167,43 @@
   letter-spacing: 0.12em;
 }
 
+.word-game__ap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ash);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.word-game__ap span {
+  color: var(--ash);
+}
+
+.word-game__ap b {
+  color: var(--bone);
+  font-weight: 700;
+}
+
+.word-game__ap-pips {
+  display: flex;
+  gap: 2px;
+}
+
+.word-game__ap-pips i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(157, 135, 85, 0.6);
+  background: transparent;
+  font-style: normal;
+}
+
+.word-game__ap-pips i.is-filled {
+  border-color: #8fd0e0;
+  background: #8fd0e0;
+  box-shadow: 0 0 4px rgba(143, 208, 224, 0.7);
+}
+
 .word-game__exit {
   grid-column: 3;
   justify-self: end;

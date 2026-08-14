@@ -15,9 +15,11 @@ function isRunState(value: unknown): value is WordQuestRunState {
     Array.isArray(run.encounterOrder) &&
     typeof run.battleIndex === "number" &&
     Boolean(run.player) &&
+    typeof run.player?.actionPoints === "number" &&
     Boolean(run.inventory) &&
     Array.isArray(run.strategies) &&
     Boolean(run.currentBattle) &&
+    typeof run.currentBattle?.emberStacks === "number" &&
     Array.isArray(run.history)
   );
 }

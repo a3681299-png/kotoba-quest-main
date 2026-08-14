@@ -33,6 +33,18 @@ function attackSentence(index: number): StrategySentence {
   };
 }
 
+function healSentence(index: number): StrategySentence {
+  return {
+    id: `heal-${index}`,
+    subject: "subject.self",
+    condition: "condition.player_hurt",
+    connector: "connector.then",
+    action: "action.heal",
+    target: "subject.self",
+    modifier: "modifier.once",
+  };
+}
+
 function inventoryWith(...wordIds: readonly WordId[]): WordInventory {
   return wordIds.reduce<WordInventory>(
     (inventory, wordId) => ({
@@ -43,9 +55,22 @@ function inventoryWith(...wordIds: readonly WordId[]): WordInventory {
   );
 }
 
+function testPlayer(overrides: {
+  hp: number;
+  maxHp: number;
+  statuses?: readonly [];
+}) {
+  return {
+    hp: overrides.hp,
+    maxHp: overrides.maxHp,
+    statuses: overrides.statuses ?? [],
+    actionPoints: 99,
+  };
+}
+
 function executeUntilTransition(run: WordQuestRunState): WordQuestRunState {
   let current = run;
-  for (let turn = 0; turn < 5 && current.phase === "battle"; turn += 1) {
+  for (let turn = 0; turn < 10 && current.phase === "battle"; turn += 1) {
     current = executeRunBattle(current);
   }
   return current;
@@ -90,18 +115,18 @@ describe("word quest battle simulation", () => {
       condition: "condition.player_hurt",
     };
     const resolution = simulateStrategyPlan({
-      player: { hp: 18, maxHp: 18, statuses: [] },
+      player: testPlayer({ hp: 18, maxHp: 18 }),
       battle: createBattleState("ember-maw"),
       strategies: [sentence],
       inventory: createStarterInventory(),
     });
-    expect(resolution.battle.enemyHp).toBe(20);
+    expect(resolution.battle.enemyHp).toBe(16);
     expect(resolution.logs.map((log) => log.status)).toContain("failed");
   });
 
   it("applies each enemy's data-driven reaction", () => {
     const ember = simulateStrategyPlan({
-      player: { hp: 18, maxHp: 18, statuses: [] },
+      player: testPlayer({ hp: 18, maxHp: 18 }),
       battle: createBattleState("ember-maw"),
       strategies: [attackSentence(0)],
       inventory: createStarterInventory(),
@@ -119,7 +144,7 @@ describe("word quest battle simulation", () => {
       modifier: "modifier.once",
     };
     const gaze = simulateStrategyPlan({
-      player: { hp: 18, maxHp: 18, statuses: [] },
+      player: testPlayer({ hp: 18, maxHp: 18 }),
       battle: createBattleState("gaze-idol"),
       strategies: [shineSentence],
       inventory: inventoryWith("condition.enemy_watching", "action.shine"),
@@ -137,13 +162,17 @@ describe("word quest battle simulation", () => {
       modifier: "modifier.twice",
     };
     const moth = simulateStrategyPlan({
-      player: { hp: 18, maxHp: 18, statuses: [] },
+      player: testPlayer({ hp: 18, maxHp: 18 }),
       battle: createBattleState("echo-moth"),
       strategies: [repeated],
       inventory: inventoryWith("modifier.twice"),
     });
-    expect(moth.battle.enemyHp).toBe(4);
-    expect(moth.logs.some((log) => log.kind === "reaction")).toBe(true);
+    expect(moth.battle.enemyHp).toBe(12);
+    expect(
+      moth.logs.some(
+        (log) => log.status === "failed" && log.detail.includes("反響"),
+      ),
+    ).toBe(true);
   });
 
   it("resolves a three-sentence boss chain with ordered causal logs", () => {
@@ -174,7 +203,7 @@ describe("word quest battle simulation", () => {
       },
     ];
     const resolution = simulateStrategyPlan({
-      player: { hp: 18, maxHp: 18, statuses: [] },
+      player: testPlayer({ hp: 18, maxHp: 18 }),
       battle: createBattleState(BOSS_ENEMY_ID),
       strategies,
       inventory: inventoryWith(
@@ -202,7 +231,7 @@ describe("word quest run growth and persistence", () => {
     expect(order.slice(0, 3).sort()).toEqual([...NORMAL_ENEMY_IDS].sort());
     expect(order.at(-1)).toBe(BOSS_ENEMY_ID);
 
-    const plan = [attackSentence(0), attackSentence(1), attackSentence(2)];
+    const plan = [attackSentence(0), attackSentence(1)];
     const first = executeUntilTransition(
       updateRunStrategies(createWordQuestRun("reward-seed"), plan),
     );
@@ -226,7 +255,7 @@ describe("word quest run growth and persistence", () => {
   });
 
   it("plays three normal battles, rewards, and the boss to victory", () => {
-    const plan = [attackSentence(0), attackSentence(1), attackSentence(2)];
+    const plan = [attackSentence(0), healSentence(1)];
     let run = updateRunStrategies(createWordQuestRun("full-run"), plan);
 
     for (let encounter = 0; encounter < 4; encounter += 1) {

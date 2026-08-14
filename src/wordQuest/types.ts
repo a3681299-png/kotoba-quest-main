@@ -54,8 +54,14 @@ export type WordRuntimeEffect =
       basePower: number;
       allowedTargets: readonly SubjectEffectId[];
       requiresEnemyStatus?: EnemyStatus;
+      apCost: number;
     }
-  | { kind: "modifier"; modifier: ModifierEffectId };
+  | {
+      kind: "modifier";
+      modifier: ModifierEffectId;
+      /** この修飾語を使うこと自体に追加でかかる行動値コスト（未指定なら0） */
+      extraApCost?: number;
+    };
 
 export interface VocabularyWord {
   id: WordId;
@@ -162,6 +168,7 @@ export interface PlayerRunState {
   hp: number;
   maxHp: number;
   statuses: readonly PlayerStatus[];
+  actionPoints: number;
 }
 
 export interface BattleState {
@@ -172,6 +179,8 @@ export interface BattleState {
   turn: number;
   /** プレイヤーに蓄積した炎上スタック（ember-maw専用、他の敵では常に0） */
   emberStacks: number;
+  /** プレイヤーが直近に使用した行動（echo-moth専用の連続使用禁止判定に使う。ターンをまたいで保持） */
+  lastPlayerAction: ActionEffectId | null;
 }
 
 export type CausalLogKind =

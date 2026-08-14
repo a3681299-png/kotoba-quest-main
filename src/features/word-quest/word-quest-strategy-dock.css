@@ -714,6 +714,24 @@
   animation: strategy-dock-card-reject 360ms ease both !important;
 }
 
+.strategy-dock__card.is-on-cooldown {
+  filter: grayscale(0.7) brightness(0.72);
+}
+
+.strategy-dock__card-cooldown {
+  position: absolute;
+  z-index: 4;
+  top: 4px;
+  right: 4px;
+  border-radius: 999px;
+  background: rgba(7, 7, 6, 0.82);
+  padding: 2px 6px;
+  color: #ff9a5c;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 .strategy-dock__card-art {
   position: absolute;
   z-index: 0;

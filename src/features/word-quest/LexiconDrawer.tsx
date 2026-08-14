@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   SENTENCE_SLOT_LABELS,
+  type ActionEffectId,
   type SentenceSlot,
   type VocabularyWord,
   type WordCategory,
@@ -23,6 +24,7 @@ interface LexiconDrawerProps {
   activeCategory: WordCategory;
   activeSentenceIndex: number;
   activeSlot: SentenceSlot;
+  blockedActionId: ActionEffectId | null;
   draggedWordId: WordId | null;
   handCycle: number;
   isOpen: boolean;
@@ -42,6 +44,7 @@ export function LexiconDrawer({
   activeCategory,
   activeSentenceIndex,
   activeSlot,
+  blockedActionId,
   draggedWordId,
   handCycle,
   isOpen,
@@ -158,6 +161,9 @@ export function LexiconDrawer({
                 const fanDrop = Math.min(20, Math.abs(fanIndex) * 8);
                 const entryOffset = fanIndex * -88;
                 const stackOrder = 50 - Math.round(Math.abs(fanIndex) * 2);
+                const isOnCooldown =
+                  word.effect.kind === "action" &&
+                  blockedActionId === word.effect.action;
 
                 return (
                   <button
@@ -170,6 +176,7 @@ export function LexiconDrawer({
                       `is-${word.category}`,
                       draggedWordId === word.id ? "is-dragging" : "",
                       rejectedWordId === word.id ? "is-rejected" : "",
+                      isOnCooldown ? "is-on-cooldown" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -235,11 +242,21 @@ export function LexiconDrawer({
                     <span className="strategy-dock__card-copy">
                       <strong>{word.label}</strong>
                     </span>
+                    {isOnCooldown && (
+                      <span
+                        className="strategy-dock__card-cooldown"
+                        aria-hidden="true"
+                      >
+                        連続不可
+                      </span>
+                    )}
                     <span
                       id={`strategy-word-detail-${word.id}`}
                       className="strategy-dock__sr-only"
                     >
                       {word.tooltip} 例：{word.example}
+                      {isOnCooldown &&
+                        " 同じ言葉を続けて使うと、反響の蛾に読まれてしまう。"}
                     </span>
                   </button>
                 );

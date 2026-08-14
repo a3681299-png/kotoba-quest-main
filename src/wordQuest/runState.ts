@@ -32,6 +32,7 @@ export function createBattleState(enemyId: string): BattleState {
     enemyStatuses: [...enemy.initialStatuses],
     turn: 1,
     emberStacks: 0,
+    lastPlayerAction: null,
   };
 }
 
@@ -50,6 +51,7 @@ export function createWordQuestRun(seed: string): WordQuestRunState {
       hp: 50,
       maxHp: 50,
       statuses: [],
+      actionPoints: 4,
     },
     inventory: createStarterInventory(),
     strategies: [createStrategySentence(0)],
@@ -66,7 +68,7 @@ export function updateRunStrategies(
   run: WordQuestRunState,
   strategies: readonly StrategySentence[],
 ): WordQuestRunState {
-  if (run.phase !== "battle" || strategies.length < 1 || strategies.length > 3) {
+  if (run.phase !== "battle" || strategies.length < 1 || strategies.length > 2) {
     return run;
   }
   return {
@@ -196,6 +198,7 @@ export function chooseRunReward(
         healedHp === run.player.maxHp
           ? []
           : run.player.statuses.filter((status) => status === "wounded"),
+      actionPoints: 4,
     },
     inventory: grant.inventory,
     currentBattle: createBattleState(nextEnemyId),

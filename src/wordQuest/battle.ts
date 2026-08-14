@@ -19,12 +19,15 @@ import { VOCABULARY_BY_ID } from "./vocabulary";
 
 const EMBER_STACK_DAMAGE_PER_STACK = 2;
 const EMBER_STACK_DOUSE_AMOUNT = 5;
+const AP_REGEN_PER_TURN = 2;
+export const AP_MAX = 6;
 
 interface MutableBattleContext {
   player: {
     hp: number;
     maxHp: number;
     statuses: Set<PlayerStatus>;
+    actionPoints: number;
   };
   battle: {
     enemyId: string;
@@ -33,6 +36,7 @@ interface MutableBattleContext {
     enemyStatuses: Set<EnemyStatus>;
     turn: number;
     emberStacks: number;
+    lastPlayerAction: ActionEffectId | null;
   };
   logs: CausalLogEntry[];
   usedActions: ActionEffectId[];
@@ -181,12 +185,38 @@ function executeAction(
     ? VOCABULARY_BY_ID[sentence.action]
     : null;
   if (!actionWord || actionWord.effect.kind !== "action") return false;
+  const { apCost } = actionWord.effect;
+  const isEchoMoth = context.battle.enemyId === "echo-moth";
+
+  if (isEchoMoth && context.battle.lastPlayerAction === actionId) {
+    appendLog(context, {
+      sentenceIndex,
+      kind: "failure",
+      status: "failed",
+      title: actionWord.label,
+      detail: "同じ言葉を続けて使うと、反響の蛾に読まれてしまう。",
+    });
+    return false;
+  }
+  if (context.player.actionPoints < apCost) {
+    appendLog(context, {
+      sentenceIndex,
+      kind: "failure",
+      status: "failed",
+      title: actionWord.label,
+      detail: `行動値が足りない（必要${apCost}、残り${context.player.actionPoints}）。`,
+    });
+    return false;
+  }
+
   const power = actionPower(actionWord.id, inventory);
   const initialStatuses = new Set(context.battle.enemyStatuses);
   const repeated = context.lastAction === actionId;
   const isEmberMaw = context.battle.enemyId === "ember-maw";
   let executed = true;
   let detail = "";
+
+  context.player.actionPoints -= apCost;
 
   if (isEmberMaw && actionId !== "douse") {
     context.battle.emberStacks += 1;
@@ -284,6 +314,7 @@ function executeAction(
     );
   }
   context.lastAction = actionId;
+  context.battle.lastPlayerAction = actionId;
   return true;
 }
 
@@ -292,6 +323,10 @@ function toPlayerState(context: MutableBattleContext): PlayerRunState {
     hp: context.player.hp,
     maxHp: context.player.maxHp,
     statuses: [...context.player.statuses],
+    actionPoints: Math.min(
+      AP_MAX,
+      context.player.actionPoints + AP_REGEN_PER_TURN,
+    ),
   };
 }
 
@@ -303,7 +338,49 @@ function toBattleState(context: MutableBattleContext): BattleState {
     enemyStatuses: [...context.battle.enemyStatuses],
     turn: context.battle.turn + 1,
     emberStacks: context.battle.emberStacks,
+    lastPlayerAction: context.battle.lastPlayerAction,
   };
+}
+
+/**
+ * 作戦文すべてが実行されると仮定した場合の合計行動値コストを見積もる。
+ * 条件分岐で実際には実行されない文があっても、ここでは考慮しない（単純合計）。
+ */
+export function estimatePlanApCost(
+  strategies: readonly StrategySentence[],
+): number {
+  return strategies.reduce((total, sentence) => {
+    const actionWord = sentence.action ? VOCABULARY_BY_ID[sentence.action] : null;
+    if (!actionWord || actionWord.effect.kind !== "action") return total;
+    const connectorWord = sentence.connector
+      ? VOCABULARY_BY_ID[sentence.connector]
+      : null;
+    const modifierWord = sentence.modifier
+      ? VOCABULARY_BY_ID[sentence.modifier]
+      : null;
+
+    let repetitions = 1;
+    if (
+      connectorWord?.effect.kind === "connector" &&
+      connectorWord.effect.connector === "whenever"
+    ) {
+      repetitions += 1;
+    }
+    if (
+      modifierWord?.effect.kind === "modifier" &&
+      (modifierWord.effect.modifier === "twice" ||
+        modifierWord.effect.modifier === "again")
+    ) {
+      repetitions += 1;
+    }
+
+    const extraApCost =
+      modifierWord?.effect.kind === "modifier"
+        ? modifierWord.effect.extraApCost ?? 0
+        : 0;
+
+    return total + actionWord.effect.apCost * repetitions + extraApCost;
+  }, 0);
 }
 
 export function simulateStrategyPlan(input: {
@@ -318,6 +395,7 @@ export function simulateStrategyPlan(input: {
       hp: input.player.hp,
       maxHp: input.player.maxHp,
       statuses: new Set(input.player.statuses),
+      actionPoints: input.player.actionPoints,
     },
     battle: {
       enemyId: input.battle.enemyId,
@@ -326,6 +404,7 @@ export function simulateStrategyPlan(input: {
       enemyStatuses: new Set(input.battle.enemyStatuses),
       turn: input.battle.turn,
       emberStacks: input.battle.emberStacks,
+      lastPlayerAction: input.battle.lastPlayerAction,
     },
     logs: [],
     usedActions: [],
@@ -418,6 +497,25 @@ export function simulateStrategyPlan(input: {
       ) {
         repetitions += 1;
       }
+    }
+
+    const extraApCost =
+      modifierWord?.effect.kind === "modifier"
+        ? modifierWord.effect.extraApCost ?? 0
+        : 0;
+    if (extraApCost > 0) {
+      if (context.player.actionPoints < extraApCost) {
+        appendLog(context, {
+          sentenceIndex,
+          kind: "failure",
+          status: "failed",
+          title: modifierWord?.label ?? "修飾",
+          detail: `行動値が足りない（必要${extraApCost}、残り${context.player.actionPoints}）。`,
+        });
+        context.previousSentenceExecuted = false;
+        return;
+      }
+      context.player.actionPoints -= extraApCost;
     }
 
     let executed = false;

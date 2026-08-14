@@ -9,7 +9,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       "煤けた獣は、こちらが手を出すたびに炎を吐き戻し、同じ構えを続けるほど自らを焦がしていく。",
     readingClue:
       "私に触れるたび、その手には火の粉が残る。同じ手を使い続ければ、いずれ自分の炎に飲まれる。冷ます術を持つ者だけが、長く戦える。",
-    maxHp: 20,
+    maxHp: 16,
     basePower: 3,
     initialStatuses: [],
     reactions: [
@@ -65,7 +65,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       "石像の目は動くものだけを追う。強い光を受けると、瞼の紋様が閉じる。",
     readingClue:
       "私は見ている間だけ動きを縛る。けれど光を向けられると目を閉じ、その場で止まる。",
-    maxHp: 38,
+    maxHp: 30,
     basePower: 3,
     initialStatuses: ["watching"],
     reactions: [
@@ -117,25 +117,18 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     name: "反響の蛾",
     epithet: "同じ言葉を食べるもの",
     description:
-      "薄い羽が、繰り返された命令だけを拾って傷へ戻している。",
+      "薄い羽は同じ言葉を二度と聞き入れない。繰り返そうとした声は、宙で虚しく反響するだけに終わる。",
     readingClue:
-      "同じ行いを続ける者の声は覚えやすい。二度目の同じ言葉を聞くたび、私は傷を戻す。",
-    maxHp: 10,
+      "同じ言葉を続けて紡ぐ者を、私は聞き入れない。声を変え、また変え、飽きさせずに語りかけよ。",
+    maxHp: 18,
     basePower: 2,
     initialStatuses: [],
-    reactions: [
-      {
-        id: "moth-heals-on-repeat",
-        trigger: { kind: "repeat-action" },
-        effects: [{ kind: "heal-enemy", amount: 2 }],
-        log: "繰り返された行動を羽が写し、敵のHPが2戻った。",
-      },
-    ],
+    reactions: [],
     solutionHints: [
       {
         id: "moth-basic",
-        label: "三度押す",
-        description: "回復を上回る回数で攻撃すれば突破できる。",
+        label: "言葉を選ぶ",
+        description: "攻撃と防御などを言い換えながら攻めれば突破できる。",
         kind: "basic",
         requiresActions: ["attack"],
         requiresStatuses: [],
@@ -143,11 +136,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       },
       {
         id: "moth-variety",
-        label: "言い換える",
-        description: "攻撃、停止、反撃を混ぜて同じ行動を続けない。",
+        label: "三様の構え",
+        description: "攻撃、停止、反撃と三種の言葉を使い分けて隙なく攻める。",
         kind: "special",
-        requiresActions: ["stop", "attack"],
-        requiresStatuses: ["stopped"],
+        requiresActions: ["stop", "attack", "counter"],
+        requiresStatuses: [],
         bonusScore: 2,
       },
     ],

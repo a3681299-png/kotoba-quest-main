@@ -7,6 +7,7 @@ import {
   type DragEvent,
 } from "react";
 import {
+  AP_MAX,
   SENTENCE_SLOT_LABELS,
   VOCABULARY_BY_ID,
   WORD_CATEGORY_LABELS,
@@ -14,6 +15,7 @@ import {
   chooseRunReward,
   createStrategySentence,
   createWordQuestRun,
+  estimatePlanApCost,
   executeRunBattle,
   formatSentence,
   getEnemy,
@@ -87,7 +89,7 @@ const PLAYER_STATUS_MARKS: Readonly<Record<PlayerStatus, string>> = {
   attacked: "撃",
 };
 
-const BASE_ACTION_SLOTS = 3;
+const BASE_ACTION_SLOTS = 2;
 
 const EMPTY_SLOT_LABELS: Readonly<Record<SentenceSlot, string>> = {
   subject: "主体を選択",
@@ -362,10 +364,16 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
         : null,
     [run, validations],
   );
+  const estimatedApCost = useMemo(
+    () => (run ? estimatePlanApCost(run.strategies) : 0),
+    [run],
+  );
+  const hasEnoughAp = Boolean(run) && estimatedApCost <= (run?.player.actionPoints ?? 0);
   const planReady =
     Boolean(run) &&
     validations.length > 0 &&
-    validations.every((validation) => validation.valid);
+    validations.every((validation) => validation.valid) &&
+    hasEnoughAp;
 
   const startRun = () => {
     const next = createWordQuestRun(seed);
@@ -563,7 +571,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
   };
 
   const addSentence = () => {
-    if (!run || run.strategies.length >= 3) return;
+    if (!run || run.strategies.length >= 2) return;
     const nextIndex = run.strategies.length;
     updateStrategies([...run.strategies, createStrategySentence(nextIndex)]);
     setActiveSentenceIndex(nextIndex);
@@ -723,6 +731,25 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
           <div className="word-game__turn">
             <span>{enemy.epithet}</span>
             <strong>手番 {run.currentBattle.turn}</strong>
+            <div
+              className="word-game__ap"
+              role="meter"
+              aria-label="行動値"
+              aria-valuemin={0}
+              aria-valuemax={AP_MAX}
+              aria-valuenow={run.player.actionPoints}
+            >
+              <span>AP</span>
+              <span className="word-game__ap-pips" aria-hidden="true">
+                {Array.from({ length: AP_MAX }).map((_, index) => (
+                  <i
+                    key={index}
+                    className={index < run.player.actionPoints ? "is-filled" : ""}
+                  />
+                ))}
+              </span>
+              <b>{run.player.actionPoints}/{AP_MAX}</b>
+            </div>
           </div>
           {onExit && (
             <button type="button" className="word-game__exit" onClick={onExit}>
@@ -937,6 +964,11 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
           activeCategory={activeCategory}
           activeSentenceIndex={activeSentenceIndex}
           activeSlot={activeSlot}
+          blockedActionId={
+            run.currentBattle.enemyId === "echo-moth"
+              ? run.currentBattle.lastPlayerAction
+              : null
+          }
           draggedWordId={draggedWordId}
           handCycle={handCycle}
           isOpen={isLexiconOpen}
@@ -979,7 +1011,7 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
               type="button"
               className="strategy-dock__add-sentence"
               onClick={addSentence}
-              disabled={run.strategies.length >= 3 || run.phase !== "battle"}
+              disabled={run.strategies.length >= 2 || run.phase !== "battle"}
               aria-label="作戦文を追加"
               title="作戦文を追加"
             >
@@ -1067,7 +1099,13 @@ export function WordQuestRunScreen({ onExit }: WordQuestRunScreenProps) {
             className={`strategy-dock__execute ${planReady ? "is-ready" : ""}`}
             onClick={executePlan}
             disabled={!planReady || run.phase !== "battle" || isResolving}
-            title={planReady ? "完成した作戦を実行" : "未設定の語彙があります"}
+            title={
+              planReady
+                ? "完成した作戦を実行"
+                : !hasEnoughAp
+                  ? `行動値が足りません（必要${estimatedApCost}、残り${run.player.actionPoints}）。`
+                  : "未設定の語彙があります"
+            }
           >
             <span>作戦実行</span>
             <small>{planReady ? "実行可能" : "未完成"}</small>
