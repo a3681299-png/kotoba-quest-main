@@ -2,13 +2,13 @@ import { useState } from "react";
 import titleBackgroundUrl from "../assets/UI/title/title.png";
 import titleLogoUrl from "../assets/UI/title/title1.png";
 import newGameLabelUrl from "../assets/UI/title/title2.png";
-import quitLabelUrl from "../assets/UI/title/title3.png";
 import historyLabelUrl from "../assets/UI/title/title4.png";
 import continueLabelUrl from "../assets/UI/title/title5.png";
 import "../styles/title-screen.css";
 
 interface TitleScreenProps {
   onStart: () => void;
+  onLogout: () => void;
 }
 
 interface TitleMenuButtonProps {
@@ -41,20 +41,11 @@ function TitleMenuButton({
   );
 }
 
-export function TitleScreen({ onStart }: TitleScreenProps) {
+export function TitleScreen({ onStart, onLogout }: TitleScreenProps) {
   const [notice, setNotice] = useState("");
 
   const showHistory = () => {
     setNotice("冒険の記録はまだありません。");
-  };
-
-  const quitGame = () => {
-    if (window.opener) {
-      window.close();
-      return;
-    }
-
-    setNotice("終了するときは、このブラウザのタブを閉じてください。");
   };
 
   return (
@@ -90,11 +81,15 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
             imageUrl={historyLabelUrl}
             onClick={showHistory}
           />
-          <TitleMenuButton
-            label="やめる"
-            imageUrl={quitLabelUrl}
-            onClick={quitGame}
-          />
+          <button
+            className="title-screen__menu-button title-screen__menu-button--text"
+            type="button"
+            aria-label="ログアウト"
+            title="ログアウト"
+            onClick={onLogout}
+          >
+            <span>ログアウト</span>
+          </button>
         </nav>
 
         <p className="title-screen__notice" role="status" aria-live="polite">

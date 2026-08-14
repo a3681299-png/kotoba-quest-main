@@ -38,7 +38,6 @@ import hpFrameUrl from "../../assets/UI/hp/空のゲージ背景.png";
 import lottaFrameUrl from "../../assets/UI/icon/frame/lotta_frame.png";
 import commandArrowUrl from "../../assets/UI/arrow/arrow.png";
 import { LiveBattlefield } from "../reading-loop/LiveBattlefield";
-<<<<<<< HEAD
 import { BattleSettingsMenu } from "../../components/BattleSettingsMenu";
 import { LexiconDrawer } from "./LexiconDrawer";
 import { analyzeStrategySynergy } from "./strategySynergy";
@@ -48,9 +47,7 @@ import {
   categoryForSlot,
   countUsedVocabularySlots,
 } from "./wordQuestUiMeta";
-=======
 import { auth, saveStageCode, saveUserProgress } from "../../lib/firebase"; // FirebaseとローカルAPI連携用
->>>>>>> f6a531c8fe4646590ddc75941dc6b28a9d18cc94
 import "./word-quest-run.css";
 import "./word-quest-game.css";
 import "./word-quest-contextual-tray.css";
@@ -624,7 +621,20 @@ export function WordQuestRunScreen({
     if (!run || run.phase !== "battle" || isResolving || !planReady) return;
     const nextRun = executeRunBattle(run);
     setIsResolving(true);
-<<<<<<< HEAD
+
+    // 攻撃コードと選択されたルール（作戦文の履歴）をローカルデータベースに保存する
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const code = run.strategies
+        .map((sentence) => formatSentence(sentence))
+        .join("\n");
+      const stageId = run.battleIndex + 1;
+
+      // バックエンドAPIを介してSQLiteへ攻撃コードおよび履歴を保存
+      void saveStageCode(currentUser.uid, stageId, code, run.strategies);
+      void saveUserProgress(currentUser.uid, stageId);
+    }
+
     setStrategyHistory([]);
     setRun(nextRun);
     if (nextRun.lastResolution?.valid) {
@@ -636,21 +646,6 @@ export function WordQuestRunScreen({
         setNotice("作戦を実行しました。行動回数と語彙が回復しました。");
       }
     }
-=======
-
-    // 攻撃コードと選択されたルール（作戦文の履歴）をローカルデータベースに保存する
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const code = run.strategies.map((sentence) => formatSentence(sentence)).join("\n");
-      const stageId = run.battleIndex + 1;
-      
-      // バックエンドAPIを介してSQLiteへ攻撃コードおよび履歴を保存
-      void saveStageCode(currentUser.uid, stageId, code, run.strategies);
-      void saveUserProgress(currentUser.uid, stageId);
-    }
-
-    setRun(executeRunBattle(run));
->>>>>>> f6a531c8fe4646590ddc75941dc6b28a9d18cc94
     executionTimerRef.current = window.setTimeout(() => {
       setIsResolving(false);
       executionTimerRef.current = null;

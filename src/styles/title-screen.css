@@ -168,6 +168,32 @@
     drop-shadow(0 0.2rem 0.14rem rgba(0, 0, 0, 0.98));
 }
 
+/* 画像ではなくテキストのメニュー項目（ログアウト） */
+.title-screen__menu-button--text {
+  display: grid;
+  place-items: center;
+}
+
+.title-screen__menu-button--text span {
+  color: rgba(255, 244, 213, 0.94);
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Times New Roman", serif;
+  font-size: clamp(1.5rem, 3.2vh, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow:
+    0 0 0.12rem rgba(255, 246, 218, 0.2),
+    0 0.2rem 0.12rem rgba(0, 0, 0, 0.96);
+  transition: text-shadow 180ms ease;
+  user-select: none;
+}
+
+.title-screen__menu-button--text:hover:not(:disabled) span,
+.title-screen__menu-button--text:focus-visible span {
+  text-shadow:
+    0 0 0.4rem rgba(255, 238, 183, 0.8),
+    0 0.25rem 0.15rem rgba(0, 0, 0, 0.94);
+}
+
 .title-screen__notice {
   min-height: 1.5em;
   margin: clamp(0.45rem, 1.2vh, 0.8rem) 1rem 0;
