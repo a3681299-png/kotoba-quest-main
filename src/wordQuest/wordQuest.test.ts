@@ -71,13 +71,8 @@ function testPlayer(overrides: {
 function executeUntilTransition(run: WordQuestRunState): WordQuestRunState {
   const strategies = run.strategies;
   let current = run;
-<<<<<<< HEAD
   for (let turn = 0; turn < 10 && current.phase === "battle"; turn += 1) {
-    current = executeRunBattle(current);
-=======
-  for (let turn = 0; turn < 5 && current.phase === "battle"; turn += 1) {
     current = executeRunBattle(updateRunStrategies(current, strategies));
->>>>>>> 11f1134dee1fb10ffc3e7b284f1ec19d9cf83951
   }
   return current;
 }

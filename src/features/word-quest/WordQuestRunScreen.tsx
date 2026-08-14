@@ -13,6 +13,7 @@ import {
   WORD_CATEGORY_LABELS,
   WORD_QUEST_SAVE_KEY,
   chooseRunReward,
+  createStrategySentence,
   createWordQuestRun,
   estimatePlanApCost,
   executeRunBattle,
@@ -656,7 +657,6 @@ export function WordQuestRunScreen({
     placeWord(wordId, sentenceIndex, slot);
   };
 
-<<<<<<< HEAD
   const clearModifier = () => {
     if (!run) return;
     const sentence = run.strategies[activeSentenceIndex];
@@ -668,44 +668,6 @@ export function WordQuestRunScreen({
           : item,
       ),
     );
-  };
-
-  const undoStrategyEdit = () => {
-    const previousStrategies = strategyHistory.at(-1);
-    if (!run || run.phase !== "battle" || !previousStrategies) return;
-
-    const nextSentenceIndex = Math.max(
-      0,
-      Math.min(activeSentenceIndex, previousStrategies.length - 1),
-    );
-    const nextSentence = previousStrategies[nextSentenceIndex];
-    const nextValidation = validatePlan(
-      previousStrategies,
-      run.inventory,
-    )[nextSentenceIndex];
-    updateStrategies(previousStrategies, false);
-    setStrategyHistory((current) => current.slice(0, -1));
-    setActiveSentenceIndex(nextSentenceIndex);
-    setActiveSlot(
-      nextValidation?.missingSlot ??
-        (nextSentence ? getNextEmptySlot(nextSentence) : "condition"),
-    );
-    setIsLexiconOpen(true);
-    setNotice("直前の作戦編集を取り消しました。");
-  };
-
-  const exchangeHand = () => {
-    if (!run || run.phase !== "battle" || !isLexiconOpen) return;
-    setIsLexiconOpen(false);
-    if (exchangeTimerRef.current !== null) {
-      window.clearTimeout(exchangeTimerRef.current);
-    }
-    exchangeTimerRef.current = window.setTimeout(() => {
-      setHandCycle((current) => current + 1);
-      setIsLexiconOpen(true);
-      setLexiconFocusRequestId((current) => current + 1);
-      exchangeTimerRef.current = null;
-    }, 180);
   };
 
   const addSentence = () => {
@@ -740,8 +702,6 @@ export function WordQuestRunScreen({
     setIsLexiconOpen(true);
   };
 
-=======
->>>>>>> 11f1134dee1fb10ffc3e7b284f1ec19d9cf83951
   const executePlan = () => {
     if (!run || run.phase !== "battle" || isResolving || !planReady) return;
     const nextRun = executeRunBattle(run);
@@ -1203,6 +1163,18 @@ export function WordQuestRunScreen({
                   );
                 })}
               </div>
+
+              {run.strategies.length > 1 && (
+                <button
+                  type="button"
+                  className="strategy-dock__remove-sentence"
+                  onClick={() => removeSentence(activeSentenceIndex)}
+                  aria-label={`第${activeSentenceIndex + 1}文を削除`}
+                  title="この文を削除"
+                >
+                  文削除
+                </button>
+              )}
             </article>
           )}
         </section>
@@ -1257,38 +1229,39 @@ export function WordQuestRunScreen({
                   </button>
                 );
               })}
-<<<<<<< HEAD
-            <button
-              type="button"
-              className="strategy-dock__add-sentence"
-              onClick={addSentence}
-              disabled={run.strategies.length >= 2 || run.phase !== "battle"}
-              aria-label="作戦文を追加"
-              title="作戦文を追加"
-            >
-              <span aria-hidden="true">＋</span>
-              <small>文追加</small>
-            </button>
-          </nav>
+            </nav>
+          )}
+
+          <button
+            type="button"
+            className="strategy-dock__add-sentence"
+            onClick={addSentence}
+            disabled={run.strategies.length >= 2 || run.phase !== "battle"}
+            aria-label="作戦文を追加"
+            title="作戦文を追加"
+          >
+            <span aria-hidden="true">＋</span>
+            <small>文追加</small>
+          </button>
 
           <div className="strategy-dock__command-status">
             <div className="strategy-dock__metric strategy-dock__metric--actions">
               <span>行動</span>
               <span
                 className="strategy-dock__action-gems"
-                aria-label={`基本行動 ${completedActionCount}/${BASE_ACTION_SLOTS}`}
+                aria-label={`基本行動 ${usedActionCount}/${BASE_ACTION_SLOTS}`}
               >
                 {Array.from({ length: BASE_ACTION_SLOTS }).map((_, index) => (
                   <i
                     key={index}
-                    className={index < completedActionCount ? "is-used" : ""}
+                    className={index < usedActionCount ? "is-used" : ""}
                     aria-hidden="true"
                   >
                     ◆
                   </i>
                 ))}
               </span>
-              <b>{completedActionCount}/{BASE_ACTION_SLOTS}</b>
+              <b>{usedActionCount}/{BASE_ACTION_SLOTS}</b>
               {bonusActionCount > 0 && (
                 <span
                   className="strategy-dock__bonus-actions"
@@ -1302,25 +1275,9 @@ export function WordQuestRunScreen({
               )}
             </div>
 
-            <div className="strategy-dock__metric strategy-dock__metric--words">
-              <span>語彙</span>
-              <b>{usedVocabularyCount}/{availableVocabularyCount}</b>
-            </div>
           </div>
 
           <div className="strategy-dock__command-tools">
-            <button
-              type="button"
-              className="strategy-dock__undo"
-              onClick={undoStrategyEdit}
-              disabled={strategyHistory.length === 0 || run.phase !== "battle"}
-              aria-label="直前の作戦編集を取り消す"
-              title="取り消す"
-            >
-              <span aria-hidden="true">↶</span>
-              <small>戻す</small>
-            </button>
-
             {activeSlot === "modifier" && activeSentence?.modifier && (
               <button
                 type="button"
@@ -1330,42 +1287,12 @@ export function WordQuestRunScreen({
                 修飾を外す
               </button>
             )}
-
-            <button
-              type="button"
-              className="strategy-dock__exchange"
-              onClick={exchangeHand}
-              disabled={run.phase !== "battle" || !isLexiconOpen}
-              aria-label="語彙カードを交換"
-              title="語彙カードを交換"
-            >
-              <img src={commandArrowUrl} alt="" aria-hidden="true" />
-              <span>交換</span>
-            </button>
           </div>
-
-          <button
-            ref={executeButtonRef}
-            type="button"
-            className={`strategy-dock__execute ${planReady ? "is-ready" : ""}`}
-            onClick={executePlan}
-            disabled={!planReady || run.phase !== "battle" || isResolving}
-            title={
-              planReady
-                ? "完成した作戦を実行"
-                : !hasEnoughAp
-                  ? `行動値が足りません（必要${estimatedApCost}、残り${run.player.actionPoints}）。`
-                  : "未設定の語彙があります"
-            }
-=======
-            </nav>
-          )}
 
           <div
             className={`strategy-dock__execution-cluster ${
               planReady ? "is-ready" : ""
             }`}
->>>>>>> 11f1134dee1fb10ffc3e7b284f1ec19d9cf83951
           >
             <button
               ref={executeButtonRef}
@@ -1375,7 +1302,11 @@ export function WordQuestRunScreen({
               disabled={!planReady || run.phase !== "battle" || isResolving}
               aria-label="作戦を実行"
               title={
-                planReady ? "完成した作戦を実行" : "未設定の語彙があります"
+                planReady
+                  ? "完成した作戦を実行"
+                  : !hasEnoughAp
+                    ? `行動値が足りません（必要${estimatedApCost}、残り${run.player.actionPoints}）。`
+                    : "未設定の語彙があります"
               }
             >
               <span className="strategy-dock__sr-only">作戦を実行</span>
