@@ -103,3 +103,65 @@ export async function getUserProgress(uid: string): Promise<UserProgressData | n
     return null;
   }
 }
+
+// 1戦ごとの対戦履歴エントリ（対戦履歴画面で使用）
+export interface BattleHistoryEntry {
+  id: number;
+  stageId: number;
+  enemyId: string;
+  result: "victory" | "defeat";
+  turns: number;
+  score: number;
+  logJson: string | null;
+  createdAt: string;
+}
+
+/**
+ * 1戦ごとの対戦結果をローカルサーバー（SQLite）へ保存する
+ */
+export async function saveBattleRecord(record: {
+  stageId: number;
+  enemyId: string;
+  result: "victory" | "defeat";
+  turns: number;
+  score: number;
+  logJson?: string;
+}): Promise<void> {
+  try {
+    const headers = await buildAuthHeaders();
+    if (!headers) return;
+
+    const res = await fetch(`${API_URL}/battle-record`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} while saving battle record`);
+    }
+  } catch (error) {
+    console.error("Failed to save battle record to local server:", error);
+  }
+}
+
+/**
+ * ユーザーの対戦履歴を新しい順で取得する（エラー時は null、記録なしは空配列）
+ */
+export async function getBattleRecords(
+  uid: string,
+): Promise<BattleHistoryEntry[] | null> {
+  try {
+    const headers = await buildAuthHeaders();
+    if (!headers) return null;
+
+    const res = await fetch(`${API_URL}/battle-records/${uid}`, { headers });
+    if (!res.ok) {
+      throw new Error("HTTP error loading battle records");
+    }
+    const data = await res.json();
+    return data.battles ?? [];
+  } catch (error) {
+    console.error("Failed to load battle records from local server:", error);
+    return null;
+  }
+}

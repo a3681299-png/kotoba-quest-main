@@ -47,7 +47,12 @@ import {
   categoryForSlot,
   countUsedVocabularySlots,
 } from "./wordQuestUiMeta";
-import { auth, saveStageCode, saveUserProgress } from "../../lib/firebase"; // FirebaseとローカルAPI連携用
+import {
+  auth,
+  saveBattleRecord,
+  saveStageCode,
+  saveUserProgress,
+} from "../../lib/firebase"; // FirebaseとローカルAPI連携用
 import "./word-quest-run.css";
 import "./word-quest-game.css";
 import "./word-quest-contextual-tray.css";
@@ -302,6 +307,11 @@ export function WordQuestRunScreen({
     };
   });
   const executionTimerRef = useRef<number | null>(null);
+  // 同じ戦闘の間、ターンごとに「作戦＋ログ」を貯める（battleIndex が変わったらリセット）
+  const battleLogRef = useRef<{ battleIndex: number; turns: unknown[] }>({
+    battleIndex: -1,
+    turns: [],
+  });
   const placementTimerRef = useRef<number | null>(null);
   const rejectionTimerRef = useRef<number | null>(null);
   const exchangeTimerRef = useRef<number | null>(null);
@@ -633,6 +643,39 @@ export function WordQuestRunScreen({
       // バックエンドAPIを介してSQLiteへ攻撃コードおよび履歴を保存
       void saveStageCode(currentUser.uid, stageId, code, run.strategies);
       void saveUserProgress(currentUser.uid, stageId);
+
+      // このターンの「作戦＋ログ」を、同じ戦闘の間だけ貯める（battleIndex が変わったらリセット）
+      if (battleLogRef.current.battleIndex !== run.battleIndex) {
+        battleLogRef.current = { battleIndex: run.battleIndex, turns: [] };
+      }
+      if (nextRun.lastResolution) {
+        battleLogRef.current.turns.push({
+          strategy: run.strategies,
+          logs: nextRun.lastResolution.logs,
+        });
+      }
+
+      // 1戦が決着したら（history が伸びたら）その対戦結果を保存
+      if (nextRun.history.length > run.history.length) {
+        const newRecords = nextRun.history.slice(run.history.length);
+        // ターンごとの「作戦＋ログ」をまとめて保存する
+        const battleLogJson = JSON.stringify({
+          turns: battleLogRef.current.turns,
+        });
+        newRecords.forEach((record, offset) => {
+          const isLatest = offset === newRecords.length - 1;
+          void saveBattleRecord({
+            stageId: run.history.length + offset + 1,
+            enemyId: record.enemyId,
+            result: record.victory ? "victory" : "defeat",
+            turns: record.turns,
+            score: record.score,
+            logJson: isLatest ? battleLogJson : undefined,
+          });
+        });
+        // 保存後、次の戦闘のためにリセット
+        battleLogRef.current = { battleIndex: -1, turns: [] };
+      }
     }
 
     setStrategyHistory([]);
