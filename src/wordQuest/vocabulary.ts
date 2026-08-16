@@ -406,7 +406,7 @@ export const VOCABULARY: readonly VocabularyWord[] = [
     connectsTo: ["subject", "modifier"],
     rarity: "rare",
     rewardWeight: 1.2,
-    tooltip: "敵を名前を呼ばれた状態にする。忘名王への決め手。",
+    tooltip: "敵の名前を呼び、真名状態にする。亡名神への決め手。",
     example: "敵が近くにいるなら、敵の名前を呼ぶ。",
     unlockAfterBattle: 1,
   }),

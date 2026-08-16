@@ -112,7 +112,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
   },
   {
     id: "echo-moth",
-    name: "反響の蛾",
+    name: "反響の翅",
     epithet: "同じ言葉を食べるもの",
     description:
       "薄い羽が、繰り返された命令だけを拾って傷へ戻している。",
@@ -164,10 +164,10 @@ export const ENEMIES: readonly EnemyDefinition[] = [
   },
   {
     id: "forgotten-king",
-    name: "忘名王アステル",
-    epithet: "名を失った王",
+    name: "亡名神",
+    epithet: "名を失った神",
     description:
-      "王冠の内側には古い名が刻まれている。名を思い出した瞬間だけ、石の身体に隙が生まれる。",
+      "光輪の内側には古い名が刻まれている。名を思い出した瞬間だけ、石の身体に隙が生まれる。",
     readingClue:
       "剣も火も、名のない私を止められない。昔の名を呼ばれた時だけ身体が止まり、鎖が届く。",
     maxHp: 12,
@@ -183,7 +183,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
           { kind: "add-enemy-status", status: "exposed" },
           { kind: "add-score", amount: 2 },
         ],
-        log: "アステルの名が玉座へ響き、王の身体が止まった。",
+        log: "失われた名が光輪へ響き、亡名神の身体が止まった。",
       },
       {
         id: "king-bound-opening",
@@ -192,7 +192,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
           { kind: "add-enemy-status", status: "exposed" },
           { kind: "damage-enemy", amount: 2 },
         ],
-        log: "停止した王へ鎖が届き、王冠の隙が開いた。",
+        log: "停止した亡名神へ鎖が届き、光輪の守りが崩れた。",
       },
     ],
     solutionHints: [

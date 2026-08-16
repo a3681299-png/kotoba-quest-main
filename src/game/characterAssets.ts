@@ -1,11 +1,14 @@
-import cecileBattleUrl from "../assets/characters/battle/1/Cécile_Asteria_dot.png";
-import lisetteBattleUrl from "../assets/characters/battle/2/Lisette_Rosalia_dot.png";
-import edgarBattleUrl from "../assets/characters/battle/3/Edgar_Grey_dot.png";
-import eleanorBattleUrl from "../assets/characters/battle/4/Eleanor_Veil_dot.png";
-import shionBattleUrl from "../assets/characters/battle/5/Shion_Yoizuki_dot.png";
-import lucienBattleUrl from "../assets/characters/battle/6/Lucien_Valmont_dot.png";
-import enemyPortraitUrl from "../assets/characters/battle/チュートリアル/敵/火喰らいの獣.png";
-import lottaBattleUrl from "../assets/characters/battle/チュートリアル/プレイヤー/Lotta_Rouge_dot.png";
+import gazeIdolBattleUrl from "../assets/characters/battle/1/1-1/敵/見張りの石像.png";
+import echoMothBattleUrl from "../assets/characters/battle/1/1-2/敵/反響の翅.png";
+import emberMawBattleUrl from "../assets/characters/battle/1/1-3/敵/火喰らいの獣.png";
+import forgottenKingBattleUrl from "../assets/characters/battle/1/1-4/敵/亡名神.png";
+import lottaBattleUrl from "../assets/characters/battle/1/1-1/プレイヤー/Lotta_Rouge_dot.png";
+import cecileBattleUrl from "../assets/characters/battle/2/Cécile_Asteria_dot.png";
+import lisetteBattleUrl from "../assets/characters/battle/3/Lisette_Rosalia_dot.png";
+import edgarBattleUrl from "../assets/characters/battle/4/Edgar_Grey_dot.png";
+import eleanorBattleUrl from "../assets/characters/battle/5/Eleanor_Veil_dot.png";
+import shionBattleUrl from "../assets/characters/battle/6/Shion_Yoizuki_dot.png";
+import lucienBattleUrl from "../assets/characters/battle/7/Lucien_Valmont_dot.png";
 
 export interface SpriteSheetDefinition {
   src: string;
@@ -44,4 +47,25 @@ export const STAGE_PLAYER_SHEETS: Readonly<
   6: createStaticCharacterDefinition(lucienBattleUrl),
 };
 
-export const ENEMY_SHEETS = createStaticCharacterDefinition(enemyPortraitUrl);
+const GAZE_IDOL_SHEETS = createStaticCharacterDefinition(gazeIdolBattleUrl);
+const ECHO_MOTH_SHEETS = createStaticCharacterDefinition(echoMothBattleUrl);
+const EMBER_MAW_SHEETS = createStaticCharacterDefinition(emberMawBattleUrl);
+const FORGOTTEN_KING_SHEETS = createStaticCharacterDefinition(
+  forgottenKingBattleUrl,
+);
+
+export const ENEMY_SHEETS_BY_ID: Readonly<
+  Record<string, CharacterSheetDefinition>
+> = {
+  "gaze-idol": GAZE_IDOL_SHEETS,
+  "echo-moth": ECHO_MOTH_SHEETS,
+  "ember-maw": EMBER_MAW_SHEETS,
+  "forgotten-king": FORGOTTEN_KING_SHEETS,
+};
+
+// Word Quest以外の旧戦闘画面では火喰らいの獣を使う。
+export const ENEMY_SHEETS = EMBER_MAW_SHEETS;
+
+export function getEnemySheets(enemyId: string): CharacterSheetDefinition {
+  return ENEMY_SHEETS_BY_ID[enemyId] ?? ENEMY_SHEETS;
+}

@@ -34,9 +34,11 @@ import {
 } from "../../wordQuest";
 import hpColorLayerUrl from "../../assets/UI/hp/HPの色レイヤー.png";
 import hpFrameUrl from "../../assets/UI/hp/空のゲージ背景.png";
-import lottaFrameUrl from "../../assets/UI/icon/frame/lotta_frame.png";
+import lottaIconUrl from "../../assets/UI/icon/character/Lotta_icon.png";
+import characterFrameUrl from "../../assets/UI/icon/frame/frame.png";
 import executionButtonUrl from "../../assets/UI/icon/hud/execution.png";
-import lottaAttackUrl from "../../assets/characters/battle/チュートリアル/プレイヤー/Lotta_attack.png";
+import lottaAttackUrl from "../../assets/characters/battle/1/1-1/プレイヤー/Lotta_attack.png";
+import { getEnemySheets } from "../../game/characterAssets";
 import {
   LiveBattlefield,
   type LiveBattlefieldHandle,
@@ -240,6 +242,7 @@ interface PlayerVitalBarProps {
   current: number;
   max: number;
   name: string;
+  portraitIconUrl: string;
   portraitFrameUrl: string;
   side: "player" | "enemy";
   statuses: ReadonlyArray<{
@@ -253,6 +256,7 @@ function PlayerVitalBar({
   current,
   max,
   name,
+  portraitIconUrl,
   portraitFrameUrl,
   side,
   statuses,
@@ -273,7 +277,13 @@ function PlayerVitalBar({
     >
       <span className="word-game__vitals-portrait" aria-hidden="true">
         <img
-          className="word-game__vitals-portrait-image word-game__vitals-portrait-image--composite"
+          className="word-game__vitals-portrait-image word-game__vitals-portrait-image--icon"
+          src={portraitIconUrl}
+          alt=""
+          draggable={false}
+        />
+        <img
+          className="word-game__vitals-portrait-image word-game__vitals-portrait-image--frame"
           src={portraitFrameUrl}
           alt=""
           draggable={false}
@@ -880,6 +890,7 @@ export function WordQuestRunScreen({
           ref={battlefieldRef}
           label={`${enemy.name}と主人公が対峙する戦場`}
           commandStage
+          enemySheets={getEnemySheets(enemy.id)}
         />
         {combatPlayback && <BattleMotionOverlay playback={combatPlayback} />}
         <div className="word-game__print-veil" aria-hidden="true" />
@@ -922,7 +933,8 @@ export function WordQuestRunScreen({
           name="旅人"
           current={displayedPlayerHp}
           max={run.player.maxHp}
-          portraitFrameUrl={lottaFrameUrl}
+          portraitIconUrl={lottaIconUrl}
+          portraitFrameUrl={characterFrameUrl}
           statuses={run.player.statuses.map((status) => ({
             id: status,
             label: PLAYER_STATUS_LABELS[status],
@@ -1243,7 +1255,7 @@ export function WordQuestRunScreen({
             <small>語彙遠征の記録</small>
             <h2 id="word-result-title">
               {run.phase === "victory"
-                ? "忘名王まで因果が届いた"
+                ? "亡名神まで因果が届いた"
                 : "文章の鎖が途中で切れた"}
             </h2>
             <p>

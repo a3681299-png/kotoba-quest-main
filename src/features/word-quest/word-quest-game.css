@@ -302,9 +302,20 @@
   user-select: none;
 }
 
-.word-game__vitals-portrait-image--composite {
+.word-game__vitals-portrait-image--icon {
   z-index: 0;
+  inset: 9%;
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  object-fit: cover;
+  clip-path: circle(49% at 50% 50%);
+}
+
+.word-game__vitals-portrait-image--frame {
+  z-index: 1;
   object-fit: contain;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.72));
 }
 
 .word-game__vitals-body {

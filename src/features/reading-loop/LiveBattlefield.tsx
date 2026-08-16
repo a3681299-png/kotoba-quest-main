@@ -9,6 +9,7 @@ import stageBackdropUrl from "../../assets/backgrounds/チュートリアル/bac
 import {
   ENEMY_SHEETS,
   PLAYER_SHEETS,
+  type CharacterSheetDefinition,
   type SpriteSheetDefinition,
 } from "../../game/characterAssets";
 
@@ -49,6 +50,7 @@ interface LiveBattlefieldProps {
   debugStatic?: boolean;
   immersive?: boolean;
   commandStage?: boolean;
+  enemySheets?: CharacterSheetDefinition;
   onReady?: (targets: BattlefieldMotionTargets | null) => void;
 }
 
@@ -145,36 +147,49 @@ function createDust(): PIXI.Container {
   return dust;
 }
 
-// The bright stone surface crosses y=820 in the 1920x1080 stage artwork.
-const COMMAND_STAGE_FLOOR_SOURCE_Y_RATIO = 820 / 1080;
-const COMMAND_STAGE_FLOOR_BOTTOM_INSET = 10;
+// The sunlit platform crosses y=700 in the 1920x1080 stage artwork.
+const COMMAND_STAGE_FLOOR_SOURCE_Y = 700;
+const COMMAND_STAGE_FLOOR_BOTTOM_INSET = 18;
+const COMMAND_STAGE_FULL_HD_MIN_PHYSICAL_WIDTH = 1900;
+const COMMAND_STAGE_FULL_HD_MAX_PHYSICAL_WIDTH = 1940;
 // Use the visible soles, not each PNG's transparent bottom edge, as its origin.
 const PLAYER_COMMAND_STAGE_FOOT_ANCHOR_Y = 1335 / 1536;
 const ENEMY_COMMAND_STAGE_FOOT_ANCHOR_Y = 1479 / 1536;
 
-function getCommandStageFloorPlacement(
-  texture: PIXI.Texture,
+interface WidthFittedBackdropLayout {
+  top: number;
+  scale: number;
+}
+
+function fitWidth(
+  sprite: PIXI.Sprite,
   width: number,
   height: number,
-) {
-  const scale = Math.max(width / texture.width, height / texture.height);
-  const scaledHeight = texture.height * scale;
+): WidthFittedBackdropLayout {
+  const scale = width / sprite.texture.width;
+  const scaledHeight = sprite.texture.height * scale;
   const overflowY = Math.max(0, scaledHeight - height);
-  const uncroppedFloorY =
-    texture.height * COMMAND_STAGE_FLOOR_SOURCE_Y_RATIO * scale;
+  const uncroppedFloorY = COMMAND_STAGE_FLOOR_SOURCE_Y * scale;
   const preferredFloorY = height - COMMAND_STAGE_FLOOR_BOTTOM_INSET;
-  const verticalAnchor =
-    overflowY > 0
-      ? Math.min(
-          1,
-          Math.max(0, (uncroppedFloorY - preferredFloorY) / overflowY),
-        )
-      : 0.5;
+  const physicalWidth = width * (window.devicePixelRatio || 1);
+  const shouldAlignFullHdFloor =
+    physicalWidth >= COMMAND_STAGE_FULL_HD_MIN_PHYSICAL_WIDTH &&
+    physicalWidth <= COMMAND_STAGE_FULL_HD_MAX_PHYSICAL_WIDTH;
+  const top =
+    scaledHeight < height
+      ? (height - scaledHeight) / 2
+      : shouldAlignFullHdFloor
+        ? -Math.min(
+            overflowY,
+            Math.max(0, uncroppedFloorY - preferredFloorY),
+          )
+        : 0;
 
-  return {
-    floorY: uncroppedFloorY - overflowY * verticalAnchor,
-    verticalAnchor,
-  };
+  sprite.anchor.set(0.5, 0);
+  sprite.position.set(width / 2, top);
+  sprite.scale.set(scale);
+
+  return { top, scale };
 }
 
 function fitCover(
@@ -259,6 +274,7 @@ export const LiveBattlefield = forwardRef<
     debugStatic = false,
     immersive = false,
     commandStage = false,
+    enemySheets = ENEMY_SHEETS,
     onReady,
   },
   forwardedRef,
@@ -308,7 +324,7 @@ export const LiveBattlefield = forwardRef<
       const [stageTexture, playerTexture, enemyTexture] = await Promise.all([
         PIXI.Assets.load<PIXI.Texture>(stageBackdropUrl),
         PIXI.Assets.load<PIXI.Texture>(PLAYER_SHEETS.idle.src),
-        PIXI.Assets.load<PIXI.Texture>(ENEMY_SHEETS.idle.src),
+        PIXI.Assets.load<PIXI.Texture>(enemySheets.idle.src),
       ]);
 
       if (disposed) return;
@@ -333,7 +349,7 @@ export const LiveBattlefield = forwardRef<
         commandStage ? PLAYER_COMMAND_STAGE_FOOT_ANCHOR_Y : 1,
       );
 
-      const enemyFrames = createFrames(enemyTexture, ENEMY_SHEETS.idle);
+      const enemyFrames = createFrames(enemyTexture, enemySheets.idle);
       const enemy = new PIXI.AnimatedSprite(enemyFrames);
       enemy.anchor.set(
         0.5,
@@ -390,15 +406,12 @@ export const LiveBattlefield = forwardRef<
       const layout = () => {
         const width = nextApp.screen.width;
         const height = nextApp.screen.height;
-        const commandStageFloor = commandStage
-          ? getCommandStageFloorPlacement(stageTexture, width, height)
-          : null;
-        fitCover(
-          stageBackdrop,
-          width,
-          height,
-          commandStageFloor?.verticalAnchor ?? 0.5,
-        );
+        let commandStageBackdrop: WidthFittedBackdropLayout | null = null;
+        if (commandStage) {
+          commandStageBackdrop = fitWidth(stageBackdrop, width, height);
+        } else {
+          fitCover(stageBackdrop, width, height);
+        }
 
         const playerHeightRatio = immersive ? 0.27 : commandStage ? 0.48 : 0.42;
         const enemyHeightRatio = immersive ? 0.32 : commandStage ? 0.74 : 0.49;
@@ -406,11 +419,15 @@ export const LiveBattlefield = forwardRef<
         const enemyTargetScale = commandStage ? 2.4 : 1;
         const isNarrowImmersive = immersive && width < 1180;
         const isMobileImmersive = immersive && width <= 760;
+        const commandStageFloor = commandStageBackdrop
+          ? commandStageBackdrop.top +
+            COMMAND_STAGE_FLOOR_SOURCE_Y * commandStageBackdrop.scale
+          : null;
         const characterFloor = isMobileImmersive
           ? height * 0.8
           : immersive
             ? height * 0.56
-            : commandStageFloor?.floorY ?? height * 0.82;
+            : commandStageFloor ?? height * 0.82;
         const playerScale = Math.min(
           height * playerHeightRatio,
           PLAYER_SHEETS.targetHeight * playerTargetScale,
@@ -419,16 +436,24 @@ export const LiveBattlefield = forwardRef<
         const enemyFrameHeight = enemyFrames[0]?.height ?? enemyTexture.height;
         const enemyScale = Math.min(
           height * enemyHeightRatio,
-          ENEMY_SHEETS.targetHeight * enemyTargetScale,
+          enemySheets.targetHeight * enemyTargetScale,
         ) /
           Math.max(1, enemyFrameHeight);
         targets.home = {
           width,
           height,
-          playerX: width * (isNarrowImmersive ? 0.3 : commandStage ? 0.34 : 0.24),
+          playerX: isNarrowImmersive
+            ? width * 0.3
+            : commandStage
+              ? width * 0.34
+              : width * 0.24,
           playerY: characterFloor,
           playerScale,
-          enemyX: width * (isNarrowImmersive ? 0.7 : commandStage ? 0.78 : 0.76),
+          enemyX: isNarrowImmersive
+            ? width * 0.7
+            : commandStage
+              ? width * 0.78
+              : width * 0.76,
           enemyY: characterFloor,
           enemyScale,
         };
@@ -459,7 +484,7 @@ export const LiveBattlefield = forwardRef<
         }
       }
     };
-  }, [commandStage, debugStatic, immersive, onReady]);
+  }, [commandStage, debugStatic, enemySheets, immersive, onReady]);
 
   return (
     <figure

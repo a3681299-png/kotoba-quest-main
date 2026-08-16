@@ -1,11 +1,11 @@
 // チュートリアル6ステージ定義
 // 仕様書の「言葉の意味を探すRPG」を5分程度で体験するための短い構成
-import librarianMentorPortraitUrl from "../assets/characters/battle/1/Cécile_Asteria.png";
-import contractMentorPortraitUrl from "../assets/characters/battle/2/Lisette_Rosalia.png";
-import puppetMentorPortraitUrl from "../assets/characters/battle/3/Edgar_Grey.png";
-import princessMentorPortraitUrl from "../assets/characters/battle/4/Eleanor_Veil.png";
-import plantMentorPortraitUrl from "../assets/characters/battle/5/Shion_Yoizuki.png";
-import clownMentorPortraitUrl from "../assets/characters/battle/6/Lucien_Valmont.png";
+import librarianMentorPortraitUrl from "../assets/characters/battle/2/Cécile_Asteria.png";
+import contractMentorPortraitUrl from "../assets/characters/battle/3/Lisette_Rosalia.png";
+import puppetMentorPortraitUrl from "../assets/characters/battle/4/Edgar_Grey.png";
+import princessMentorPortraitUrl from "../assets/characters/battle/5/Eleanor_Veil.png";
+import plantMentorPortraitUrl from "../assets/characters/battle/6/Shion_Yoizuki.png";
+import clownMentorPortraitUrl from "../assets/characters/battle/7/Lucien_Valmont.png";
 
 export interface StageDialogueLine {
   speaker: "player" | "enemy";
