@@ -11,10 +11,27 @@ generator client {
 
 // ユーザー情報を保存するモデル（Firebase Authのuidを主キーとする）
 model User {
-  id         String      @id
-  stageIndex Int         @default(0) // 現在進行中のステージインデックス
-  updatedAt  DateTime    @updatedAt
-  stages     StageCode[] // ユーザーが作成した各ステージのコードおよびルール履歴
+  id         String         @id
+  stageIndex Int            @default(0) // 現在進行中のステージインデックス
+  updatedAt  DateTime       @updatedAt
+  stages     StageCode[]    // ユーザーが作成した各ステージのコードおよびルール履歴
+  battles    BattleRecord[] // 1戦ごとの対戦履歴（勝敗・手数など）
+}
+
+// 1戦ごとの対戦履歴（対戦履歴画面で勝敗一覧を出すため）
+model BattleRecord {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  stageId   Int      // 何戦目か（battleIndex + 1）
+  enemyId   String   // 敵の識別子（表示名はフロントで解決）
+  result    String   // "victory" | "defeat"
+  turns     Int      @default(0) // その戦闘にかかった手数
+  score     Int      @default(0) // その戦闘で得た発見点
+  logJson   String?  // ターンごとの因果ログ（お互いの行動）のJSON
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // 各ステージの攻撃コードおよびルール設定履歴を保存するモデル

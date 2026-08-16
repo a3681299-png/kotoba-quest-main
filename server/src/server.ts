@@ -142,6 +142,66 @@ app.post("/api/stage-code", requireAuth, async (req, res) => {
   }
 });
 
+// 1戦ごとの対戦結果を保存するエンドポイント
+app.post("/api/battle-record", requireAuth, async (req, res) => {
+  const uid = (req as Request & { uid: string }).uid;
+  const { stageId, enemyId, result, turns, score, logJson } = req.body;
+
+  if (
+    !Number.isInteger(stageId) ||
+    stageId < 0 ||
+    typeof enemyId !== "string" ||
+    (result !== "victory" && result !== "defeat")
+  ) {
+    return res.status(400).json({ error: "Invalid parameters" });
+  }
+
+  try {
+    await prisma.user.upsert({
+      where: { id: uid },
+      update: {},
+      create: { id: uid, stageIndex: 0 },
+    });
+
+    const battle = await prisma.battleRecord.create({
+      data: {
+        userId: uid,
+        stageId,
+        enemyId,
+        result,
+        turns: Number.isInteger(turns) ? turns : 0,
+        score: Number.isInteger(score) ? score : 0,
+        logJson: typeof logJson === "string" ? logJson : null,
+      },
+    });
+
+    res.json({ success: true, battle });
+  } catch (error) {
+    console.error("Failed to save battle record:", error);
+    res.status(500).json({ error: "Failed to save battle record" });
+  }
+});
+
+// ユーザーの対戦履歴を新しい順で取得するエンドポイント
+app.get("/api/battle-records/:uid", requireAuth, async (req, res) => {
+  const uid = (req as Request & { uid: string }).uid;
+
+  if (req.params.uid !== uid) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  try {
+    const battles = await prisma.battleRecord.findMany({
+      where: { userId: uid },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ battles });
+  } catch (error) {
+    console.error("Failed to load battle records:", error);
+    res.status(500).json({ error: "Failed to load battle records" });
+  }
+});
+
 // サーバー起動
 app.listen(PORT, () => {
   console.log(`[Kotoba Quest Backend] Running on http://localhost:${PORT}`);
