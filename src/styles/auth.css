@@ -1,39 +1,86 @@
 .auth-screen-container {
+  --paper: #d8c59b;
+  --paper-light: #eadcba;
+  --paper-deep: #bda576;
+  --ink: #241c16;
+  --ink-soft: #5b4d3d;
+  --ink-faint: rgba(48, 36, 26, 0.26);
+  --rust: #994529;
+  --rust-dark: #6e301f;
+  --cream: #f0d8ae;
+
+  position: relative;
+  isolation: isolate;
   display: flex;
   justify-content: center;
-  align-items: center;
-  min-height: 100vh;
   width: 100%;
-  padding: 20px;
-  background: 
-    linear-gradient(135deg, #0d0614 0%, #150926 50%, #0d0614 100%),
-    radial-gradient(circle at 50% 50%, rgba(214, 156, 72, 0.08), transparent 60%);
-  color: #eaeaea;
-  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: 100vh;
+  padding: 24px;
   overflow-y: auto;
+  color: var(--ink);
+  color-scheme: light;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro",
+    "Times New Roman", serif;
+  /* 下地はカラーのタイトル画像 */
+  background: url("../assets/UI/title/auth-bg-color.jpg") center / cover no-repeat,
+    #17100a;
+}
+
+/* 外周だけグレースケール：グレー版を放射状マスクで重ね、中央は透過してカラーを覗かせる */
+.auth-screen-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("../assets/UI/title/auth-bg.jpg") center / cover no-repeat;
+  -webkit-mask-image: radial-gradient(
+    ellipse 52% 58% at 50% 50%,
+    transparent 18%,
+    #000 62%
+  );
+  mask-image: radial-gradient(
+    ellipse 52% 58% at 50% 50%,
+    transparent 18%,
+    #000 62%
+  );
+}
+
+/* 全体の暗転＋中央ヴィネット（カードを引き立てる） */
+.auth-screen-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 60% at 50% 50%, rgba(9, 7, 4, 0.4), transparent 72%),
+    linear-gradient(rgba(9, 7, 4, 0.26), rgba(9, 7, 4, 0.44));
 }
 
 .auth-card {
+  /* margin:auto でクロス軸中央寄せ。内容が画面より高い時もスクロールできる */
+  position: relative;
+  z-index: 1;
+  margin: auto;
   width: 100%;
-  max-width: 440px;
-  background: rgba(15, 11, 25, 0.76);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(214, 156, 72, 0.45);
-  border-radius: 16px;
-  padding: 40px 32px;
-  box-shadow: 
-    0 10px 40px rgba(0, 0, 0, 0.5),
-    inset 0 0 20px rgba(214, 156, 72, 0.06);
+  max-width: 392px;
+  /* 焼け羊皮紙の画像をカードに。金枠の内側に収まるよう余白を大きめに取る */
+  padding: 58px 50px 52px;
   text-align: center;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  animation: auth-card-fade-in 0.45s ease-out;
+  background: url("../assets/UI/title/auth-paper.png") center / 100% 100%
+    no-repeat;
+  /* 焼け縁（透過）に沿った柔らかい影 */
+  filter: drop-shadow(0 15px 24px rgba(4, 2, 1, 0.6));
+  animation: auth-card-fade-in 0.5s ease-out;
 }
 
 @keyframes auth-card-fade-in {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.97);
+    transform: translateY(18px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -42,97 +89,115 @@
 }
 
 .auth-header {
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
-.auth-logo-glyph {
-  font-size: 40px;
-  color: #ffd700;
-  text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-  margin-bottom: 8px;
-  display: inline-block;
-  animation: logo-float 2.5s ease-in-out infinite alternate;
+/* 印章ロゴ（画像を円形に切り抜き。白背景と隅の透かしはクリップで隠れる） */
+.auth-logo-seal {
+  display: block;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 15px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow:
+    0 5px 15px rgba(18, 11, 5, 0.5),
+    inset 0 0 0 1px rgba(60, 38, 20, 0.5);
+  transform: rotate(-2deg);
 }
 
-@keyframes logo-float {
-  from { transform: translateY(0); }
-  to { transform: translateY(-6px); }
+.auth-logo-seal img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 外周の白い余白を少し切って印章を縁いっぱいに */
+  transform: scale(1.08);
+  user-select: none;
 }
 
 .auth-title {
-  font-size: 26px;
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 27px;
   font-weight: 700;
-  letter-spacing: 1px;
-  background: linear-gradient(90deg, #ffd700 0%, #ff9e00 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 6px;
-  text-shadow: 0 0 8px rgba(255, 158, 0, 0.15);
+  letter-spacing: 0.14em;
 }
 
 .auth-subtitle {
-  font-size: 13px;
-  color: #a0a0c0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 17px;
 }
 
 .auth-input-group {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 5px;
 }
 
 .auth-label {
-  font-size: 12px;
-  color: rgba(230, 218, 190, 0.76);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
+/* 下線スタイルの入力欄（タイトル画面の意匠に合わせる） */
 .auth-input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 9px 4px 8px;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  outline: none;
+  color: var(--ink);
+  background: transparent;
+  font-family: inherit;
   font-size: 15px;
-  background: rgba(22, 17, 33, 0.85);
-  border: 1px solid rgba(214, 156, 72, 0.28);
-  border-radius: 8px;
-  color: #fff;
-  transition: all 0.25s ease;
+  letter-spacing: 0.04em;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input::placeholder {
+  color: rgba(48, 36, 26, 0.42);
 }
 
 .auth-input:focus {
-  outline: none;
-  border-color: #ffd700;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.24);
-  background: rgba(30, 24, 46, 0.95);
+  border-bottom-color: var(--rust);
+  box-shadow: 0 2px 0 -1px rgba(153, 69, 41, 0.45);
 }
 
 .auth-submit-btn {
   width: 100%;
-  padding: 14px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--rust-dark);
+  border-radius: 4px;
+  color: var(--cream);
+  background: linear-gradient(#8a4128, #5c2a1c);
+  font-family: inherit;
   font-size: 16px;
   font-weight: 700;
-  color: #120924;
-  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
-  border: none;
-  border-radius: 8px;
+  letter-spacing: 0.1em;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
-  transition: all 0.2s ease;
-  margin-top: 10px;
+  box-shadow:
+    0 4px 10px rgba(40, 22, 12, 0.3),
+    inset 0 0 0 1px rgba(238, 187, 130, 0.14);
+  transition: filter 0.2s ease, transform 0.15s ease;
 }
 
 .auth-submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 165, 0, 0.45);
-  filter: brightness(1.08);
+  filter: brightness(1.12);
+  transform: translateY(-1px);
 }
 
 .auth-submit-btn:active:not(:disabled) {
@@ -142,91 +207,16 @@
 .auth-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
-}
-
-.auth-toggle-text {
-  font-size: 13px;
-  color: #a0a0c0;
-  margin-top: 24px;
-}
-
-.auth-toggle-link {
-  color: #ffd700;
-  background: none;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0 4px;
-  transition: color 0.2s ease;
-  text-decoration: underline;
-}
-
-.auth-toggle-link:hover {
-  color: #ff9e00;
-}
-
-.auth-error-msg {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #f87171;
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  text-align: left;
-  line-height: 1.4;
-  animation: auth-shake 0.35s ease-in-out;
-}
-
-@keyframes auth-shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-4px); }
-  40%, 80% { transform: translateX(4px); }
-}
-
-.auth-loading-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: #0d0614;
-  color: #ffd700;
-}
-
-.auth-loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(255, 215, 0, 0.1);
-  border-radius: 50%;
-  border-top-color: #ffd700;
-  animation: auth-spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes auth-spin {
-  to { transform: rotate(360deg); }
-}
-
-.auth-loading-text {
-  font-size: 14px;
-  letter-spacing: 1.5px;
-  font-family: monospace;
-  animation: auth-pulse 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes auth-pulse {
-  from { opacity: 0.4; }
-  to { opacity: 1; }
 }
 
 .auth-divider {
   display: flex;
   align-items: center;
-  margin: 22px 0;
-  color: #8a8aa8;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.1em;
 }
 
 .auth-divider::before,
@@ -234,15 +224,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: rgba(214, 156, 72, 0.22);
-}
-
-.auth-divider::before {
-  margin-right: 12px;
-}
-
-.auth-divider::after {
-  margin-left: 12px;
+  background: linear-gradient(90deg, transparent, var(--ink-faint), transparent);
 }
 
 .auth-google-btn {
@@ -251,25 +233,22 @@
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 12px 16px;
-  font-size: 15px;
+  padding: 10px 16px;
+  border: 1px solid rgba(80, 52, 28, 0.45);
+  border-radius: 4px;
+  color: var(--ink);
+  background: rgba(255, 250, 236, 0.5);
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
-  color: #fff;
-  background: rgba(22, 17, 33, 0.75);
-  border: 1px solid rgba(214, 156, 72, 0.28);
-  border-radius: 8px;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .auth-google-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #ffd700;
-  box-shadow: 0 0 12px rgba(255, 215, 0, 0.18);
-}
-
-.auth-google-btn:active:not(:disabled) {
-  transform: scale(0.99);
+  border-color: var(--rust);
+  background: rgba(255, 250, 236, 0.82);
 }
 
 .auth-google-btn:disabled {
@@ -281,30 +260,86 @@
   flex-shrink: 0;
 }
 
-.logout-button-global {
-  position: fixed;
-  top: 15px;
-  left: 15px;
-  z-index: 9999;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
+.auth-toggle-text {
+  margin-top: 22px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.auth-toggle-link {
+  padding: 0 4px;
+  border: 0;
+  color: var(--rust);
+  background: none;
   font-family: inherit;
-  color: #f87171;
-  background: rgba(13, 6, 20, 0.75);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 6px;
+  font-weight: 700;
+  text-decoration: underline;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: color 0.2s ease;
 }
 
-.logout-button-global:hover {
-  background: rgba(239, 68, 68, 0.16);
-  border-color: #f87171;
-  color: #fff;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+.auth-toggle-link:hover {
+  color: var(--rust-dark);
 }
 
+.auth-error-msg {
+  padding: 9px 12px;
+  border: 1px solid rgba(153, 69, 41, 0.5);
+  border-radius: 4px;
+  color: #5a1e12;
+  background: rgba(153, 69, 41, 0.14);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: left;
+  animation: auth-shake 0.35s ease-in-out;
+}
+
+@keyframes auth-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* 読み込み画面 */
+.auth-loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  min-height: 100vh;
+  color: #f0d8ae;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Times New Roman", serif;
+  background:
+    linear-gradient(rgba(19, 12, 7, 0.72), rgba(19, 12, 7, 0.82)),
+    url("../assets/UI/table/table.png") center / cover no-repeat;
+}
+
+.auth-loading-spinner {
+  width: 46px;
+  height: 46px;
+  border: 3px solid rgba(240, 216, 174, 0.2);
+  border-top-color: #dda85c;
+  border-radius: 50%;
+  animation: auth-spin 1s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-loading-text {
+  font-size: 13px;
+  letter-spacing: 0.2em;
+}

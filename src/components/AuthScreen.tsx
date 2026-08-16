@@ -6,6 +6,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import authSealUrl from "../assets/UI/title/icon.jpeg";
 import "../styles/auth.css";
 
 export function AuthScreen() {
@@ -83,8 +84,10 @@ export function AuthScreen() {
     <div className="auth-screen-container">
       <div className="auth-card">
         <header className="auth-header">
-          <span className="auth-logo-glyph" aria-hidden="true">🔮</span>
-          <h1 className="auth-title">KOTOBA QUEST</h1>
+          <span className="auth-logo-seal" aria-hidden="true">
+            <img src={authSealUrl} alt="" draggable={false} />
+          </span>
+          <h1 className="auth-title">ことばクエスト</h1>
           <p className="auth-subtitle">
             コトバ of 力でプログラミングの論理を学ぶ
           </p>
