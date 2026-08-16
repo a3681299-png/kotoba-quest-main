@@ -434,11 +434,13 @@ export const LiveBattlefield = forwardRef<
         ) /
           Math.max(1, playerTexture.height);
         const enemyFrameHeight = enemyFrames[0]?.height ?? enemyTexture.height;
-        const enemyScale = Math.min(
-          height * enemyHeightRatio,
-          enemySheets.targetHeight * enemyTargetScale,
-        ) /
-          Math.max(1, enemyFrameHeight);
+        const enemyScale =
+          (Math.min(
+            height * enemyHeightRatio,
+            enemySheets.targetHeight * enemyTargetScale,
+          ) /
+            Math.max(1, enemyFrameHeight)) *
+          enemySheets.displayScale;
         targets.home = {
           width,
           height,

@@ -59,13 +59,13 @@ describe("character asset definitions", () => {
       rows: 1,
     });
     expect(decodeURIComponent(ENEMY_SHEETS.idle.src)).toContain(
-      "火喰らいの獣.png",
+      "火喰らいの獣2.png",
     );
     expect(decodeURIComponent(ENEMY_SHEETS.attack.src)).toContain(
-      "火喰らいの獣.png",
+      "火喰らいの獣2.png",
     );
     expect(decodeURIComponent(ENEMY_SHEETS.damage.src)).toContain(
-      "/1/1-3/敵/火喰らいの獣.png",
+      "/1/1-3/敵/火喰らいの獣2.png",
     );
   });
 
@@ -76,11 +76,16 @@ describe("character asset definitions", () => {
         decodeURIComponent(sheets.idle.src),
       ]),
     ).toEqual([
-      ["gaze-idol", expect.stringContaining("/1/1-1/敵/見張りの石像.png")],
-      ["echo-moth", expect.stringContaining("/1/1-2/敵/反響の翅.png")],
-      ["ember-maw", expect.stringContaining("/1/1-3/敵/火喰らいの獣.png")],
-      ["forgotten-king", expect.stringContaining("/1/1-4/敵/亡名神.png")],
+      ["gaze-idol", expect.stringContaining("/1/1-1/敵/見張りの石像2.png")],
+      ["echo-moth", expect.stringContaining("/1/1-2/敵/反響の翅2.png")],
+      ["ember-maw", expect.stringContaining("/1/1-3/敵/火喰らいの獣2.png")],
+      ["forgotten-king", expect.stringContaining("/1/1-4/敵/亡名神2.png")],
     ]);
+  });
+
+  it("shows the forgotten king at 1.25 times the standard enemy scale", () => {
+    expect(ENEMY_SHEETS_BY_ID["forgotten-king"].displayScale).toBe(1.25);
+    expect(ENEMY_SHEETS_BY_ID["ember-maw"].displayScale).toBe(1);
   });
 
   it("falls back to the legacy enemy artwork for an unknown enemy", () => {

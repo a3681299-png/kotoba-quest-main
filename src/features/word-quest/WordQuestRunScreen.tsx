@@ -38,6 +38,8 @@ import lottaIconUrl from "../../assets/UI/icon/character/Lotta_icon.png";
 import characterFrameUrl from "../../assets/UI/icon/frame/frame.png";
 import executionButtonUrl from "../../assets/UI/icon/hud/execution.png";
 import lottaAttackUrl from "../../assets/characters/battle/1/1-1/プレイヤー/Lotta_attack.png";
+import hitParticleEffectUrl from "../../assets/effects/hit_effect.png";
+import slashEffectUrl from "../../assets/effects/slash.png";
 import { getEnemySheets } from "../../game/characterAssets";
 import {
   LiveBattlefield,
@@ -171,8 +173,19 @@ function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
             />
           </div>
           <span className="word-game__attack-lane" />
+          <img
+            className="word-game__slash-effect"
+            src={slashEffectUrl}
+            alt=""
+            aria-hidden="true"
+          />
           <span className="word-game__impact-flash" />
-          <span className="word-game__impact-bloom" />
+          <img
+            className="word-game__hit-particle-effect"
+            src={hitParticleEffectUrl}
+            alt=""
+            aria-hidden="true"
+          />
           <span className="word-game__impact-sparks">
             {Array.from({ length: 12 }, (_, sparkIndex) => (
               <i
