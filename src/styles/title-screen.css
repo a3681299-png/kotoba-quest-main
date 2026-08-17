@@ -168,6 +168,511 @@
     drop-shadow(0 0.2rem 0.14rem rgba(0, 0, 0, 0.98));
 }
 
+/* 画像ではなくテキストのメニュー項目（ログアウト） */
+.title-screen__menu-button--text {
+  display: grid;
+  place-items: center;
+}
+
+.title-screen__menu-button--text span {
+  color: rgba(255, 244, 213, 0.94);
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Times New Roman", serif;
+  font-size: clamp(1.5rem, 3.2vh, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow:
+    0 0 0.12rem rgba(255, 246, 218, 0.2),
+    0 0.2rem 0.12rem rgba(0, 0, 0, 0.96);
+  transition: text-shadow 180ms ease;
+  user-select: none;
+}
+
+.title-screen__menu-button--text:hover:not(:disabled) span,
+.title-screen__menu-button--text:focus-visible span {
+  text-shadow:
+    0 0 0.4rem rgba(255, 238, 183, 0.8),
+    0 0.25rem 0.15rem rgba(0, 0, 0, 0.94);
+}
+
+/* 履歴モーダル */
+.title-history-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  /* 背後のタイトル画面をグレースケール＋暗めにして背景にする */
+  background: rgba(6, 5, 4, 0.4);
+  backdrop-filter: grayscale(1) brightness(0.5);
+  -webkit-backdrop-filter: grayscale(1) brightness(0.5);
+  animation: title-history-fade 180ms ease-out;
+}
+
+@keyframes title-history-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ログインと同じ「羊皮紙」の紙。金枠っぽい内側の縁を影で表現 */
+.title-history-panel {
+  width: min(540px, 100%);
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 1.7rem 1.7rem 1.4rem;
+  border-radius: 6px;
+  color: #2c2016;
+  background:
+    repeating-linear-gradient(
+      1.5deg,
+      transparent 0 22px,
+      rgba(72, 48, 27, 0.05) 23px,
+      transparent 24px
+    ),
+    linear-gradient(160deg, #ecdfbf 0%, #d9c69c 55%, #c7b280 100%);
+  box-shadow:
+    0 20px 52px rgba(0, 0, 0, 0.62),
+    inset 0 0 0 1px rgba(110, 74, 36, 0.55),
+    inset 0 0 0 6px rgba(150, 110, 50, 0.2);
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Times New Roman", serif;
+}
+
+.title-history-panel h2 {
+  margin: 0 0 1rem;
+  color: #6e301f;
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.title-history-message {
+  margin: 1.2rem 0;
+  color: #5b4d3d;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* 対戦履歴：ステージごとの欄 */
+.title-history-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin: 0 0 1.2rem;
+}
+
+.title-history-stage-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.title-history-stage-title {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(110, 74, 36, 0.35);
+  color: #6e301f;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.title-history-battles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 1戦＝1タブ（押すとターンログへ）。勝敗で左端の色を変える */
+.title-history-battle {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid rgba(90, 60, 30, 0.2);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(255, 250, 235, 0.42);
+  color: #2c2016;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+button.title-history-battle:hover {
+  filter: brightness(1.04);
+  transform: translateX(2px);
+}
+
+.title-history-battle.is-victory {
+  border-left-color: #2f6ba3;
+  background: rgba(47, 107, 163, 0.14);
+}
+
+.title-history-battle.is-defeat {
+  border-left-color: #a83e34;
+  background: rgba(168, 62, 52, 0.14);
+}
+
+.title-history-result {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.title-history-battle.is-victory .title-history-result {
+  color: #2f6ba3;
+}
+
+.title-history-battle.is-defeat .title-history-result {
+  color: #a83e34;
+}
+
+.title-history-enemy {
+  overflow: hidden;
+  color: #2c2016;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-history-meta {
+  color: #6b5c48;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Lv1: ステージのグリッド */
+.title-history-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin: 0 0 1.2rem;
+}
+
+@media (max-width: 460px) {
+  .title-history-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.title-history-stage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 4.6rem;
+  padding: 0.8rem 0.7rem;
+  border: 1px solid rgba(110, 74, 36, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 250, 235, 0.4);
+  color: #2c2016;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease,
+    transform 160ms ease;
+}
+
+.title-history-stage-card:hover {
+  border-color: #8a4128;
+  background: rgba(255, 250, 235, 0.72);
+  transform: translateY(-2px);
+}
+
+.title-history-stage-card__label {
+  color: #6e301f;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.title-history-stage-card__sub {
+  color: #6b5c48;
+  font-size: 0.75rem;
+}
+
+.title-history-stage-card.is-locked {
+  border-style: dashed;
+  border-color: rgba(90, 60, 30, 0.28);
+  background: rgba(120, 90, 50, 0.06);
+  color: #9a8a70;
+  cursor: default;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-history-stage-card.is-locked .title-history-stage-card__label {
+  color: #9a8a70;
+  letter-spacing: 0.18em;
+}
+
+.title-history-back {
+  align-self: flex-start;
+  padding: 0.25rem 0.2rem;
+  border: 0;
+  background: none;
+  color: #8a4128;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.title-history-back:hover {
+  color: #6e301f;
+  text-decoration: underline;
+}
+
+/* Lv2/Lv3: 詳細ビュー */
+.title-history-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 0 1.2rem;
+}
+
+/* Lv3: ターンログの見出し */
+.title-history-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 4px solid #8a6a3a;
+  border-radius: 6px;
+  background: rgba(255, 250, 235, 0.45);
+}
+
+.title-history-log-head.is-victory {
+  border-left-color: #2f6ba3;
+}
+
+.title-history-log-head.is-defeat {
+  border-left-color: #a83e34;
+}
+
+.title-history-log-head strong {
+  color: #2c2016;
+  font-size: 0.95rem;
+}
+
+.title-history-log-head small {
+  color: #6b5c48;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.title-history-log-head__right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 敵情報を開くiボタン */
+.title-history-info-btn {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid rgba(110, 74, 36, 0.5);
+  border-radius: 50%;
+  color: #6e301f;
+  background: rgba(255, 250, 235, 0.6);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.85rem;
+  font-style: italic;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.title-history-info-btn:hover,
+.title-history-info-btn[aria-pressed="true"] {
+  background: #8a4128;
+  border-color: #5c2a1c;
+  color: #f0d8ae;
+}
+
+/* 敵スペックのパネル */
+.title-history-enemy-info {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(110, 74, 36, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 250, 235, 0.55);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #3a2c1e;
+}
+
+.title-history-enemy-info__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.title-history-enemy-info__title strong {
+  color: #6e301f;
+  font-size: 0.95rem;
+}
+
+.title-history-enemy-info__title span {
+  color: #6b5c48;
+  font-size: 0.72rem;
+}
+
+.title-history-enemy-info__spec {
+  margin: 0.2rem 0;
+  color: #8a4128;
+  font-weight: 700;
+}
+
+.title-history-enemy-info p {
+  margin: 0.3rem 0 0;
+}
+
+.title-history-enemy-info__hint b {
+  margin-right: 0.4rem;
+  color: #6e301f;
+}
+
+/* Lv3: 使った作戦（6スロット） */
+.title-history-strategy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(110, 74, 36, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 250, 235, 0.5);
+}
+
+.title-history-strategy__label {
+  color: #6e301f;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.title-history-strategy__row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.35rem;
+}
+
+.title-history-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.35rem 0.3rem;
+  border: 1px solid rgba(110, 74, 36, 0.25);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.42);
+  text-align: center;
+}
+
+.title-history-slot small {
+  color: #8a7a60;
+  font-size: 0.58rem;
+  letter-spacing: 0.02em;
+}
+
+.title-history-slot strong {
+  overflow: hidden;
+  color: #2c2016;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 460px) {
+  .title-history-strategy__row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Lv3: ターンごとの表示 */
+.title-history-turns {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.title-history-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.title-history-turn__title {
+  margin: 0;
+  color: #5b4d3d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* 自分側=緑、敵側=赤のブロック */
+.title-history-turn-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.title-history-turn-block.is-player {
+  border-left-color: #3f7d4a;
+  background: rgba(63, 125, 74, 0.14);
+}
+
+.title-history-turn-block.is-enemy {
+  border-left-color: #b0562f;
+  background: rgba(176, 86, 47, 0.14);
+}
+
+.title-history-turn-line strong {
+  color: #2c2016;
+  font-size: 0.9rem;
+}
+
+.title-history-turn-line p {
+  margin: 0.1rem 0 0;
+  color: #5b4d3d;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.title-history-close {
+  display: block;
+  width: 100%;
+  padding: 0.7rem;
+  color: #f0d8ae;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border: 1px solid #5c2a1c;
+  border-radius: 6px;
+  background: linear-gradient(#8a4128, #5c2a1c);
+  cursor: pointer;
+  transition: filter 180ms ease;
+}
+
+.title-history-close:hover {
+  filter: brightness(1.1);
+}
+
 .title-screen__notice {
   min-height: 1.5em;
   margin: clamp(0.45rem, 1.2vh, 0.8rem) 1rem 0;

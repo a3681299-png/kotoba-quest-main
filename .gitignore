@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.next/
 *.local
 
 # Editor directories and files
@@ -27,3 +28,9 @@ andrej-karpathy-skills/
 .codegraph/
 .agents/
 CLAUDE.md
+.env
+.env.local
+
+# Database
+server/prisma/dev.db
+server/prisma/dev.db-journal

@@ -1,6 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./lib/firebase";
+import { AuthScreen } from "./components/AuthScreen";
 import { TitleScreen } from "./components/TitleScreen";
+import { WORD_QUEST_SAVE_KEY } from "./wordQuest";
 import "./styles/reading-loop-entry.css";
+import "./styles/auth.css";
 
 const WordQuestRunScreen = lazy(() =>
   import("./features/word-quest/WordQuestRunScreen").then((module) => ({
@@ -22,11 +27,19 @@ function isReadingLoopLocation() {
 }
 
 function App() {
-  const [isGameVisible, setIsGameVisible] = useState(
-    isReadingLoopLocation,
-  );
+  const [isGameVisible, setIsGameVisible] = useState(isReadingLoopLocation);
   const [startFresh, setStartFresh] = useState(false);
   const [gameSessionId, setGameSessionId] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const syncModeFromLocation = () => {
@@ -43,6 +56,19 @@ function App() {
       window.removeEventListener("popstate", syncModeFromLocation);
     };
   }, []);
+
+  if (isAuthLoading) {
+    return (
+      <div className="auth-loading-container">
+        <div className="auth-loading-spinner" />
+        <div className="auth-loading-text">ギルドデータを読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   if (
     import.meta.env.DEV &&
@@ -71,12 +97,24 @@ function App() {
   };
 
   if (!isGameVisible) {
+    const hasSave =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(WORD_QUEST_SAVE_KEY) !== null;
     return (
       <TitleScreen
+        hasSave={hasSave}
         onStart={() => {
           setStartFresh(true);
           setGameSessionId((current) => current + 1);
           setIsGameVisible(true);
+        }}
+        onContinue={() => {
+          setStartFresh(false);
+          setGameSessionId((current) => current + 1);
+          setIsGameVisible(true);
+        }}
+        onLogout={() => {
+          void auth.signOut();
         }}
       />
     );
