@@ -405,16 +405,17 @@ export const VOCABULARY: readonly VocabularyWord[] = [
       action: "call_name",
       basePower: 0,
       allowedTargets: ["enemy"],
-      apCost: 2,
+      apCost: 3,
     },
     allowedSlots: ["action"],
     connectsFrom: ["connector"],
     connectsTo: ["subject", "modifier"],
-    rarity: "rare",
+    rarity: "basic",
     rewardWeight: 1.2,
-    tooltip: "敵を名前を呼ばれた状態にする。忘名王への決め手。",
+    tooltip:
+      "敵を名前を呼ばれた状態にする。沈黙した忘名王を呼び覚ます唯一の言葉。",
     example: "敵が近くにいるなら、敵の名前を呼ぶ。",
-    unlockAfterBattle: 1,
+    unlockAfterBattle: 0,
   }),
   vocabularyWord({
     id: "action.shine",
@@ -478,6 +479,27 @@ export const VOCABULARY: readonly VocabularyWord[] = [
     rewardWeight: 1,
     tooltip: "自分に溜まった炎上を鎮める。燃え上がる敵との戦いに備える。",
     example: "自分が傷ついているなら、自分を冷ます。",
+    unlockAfterBattle: 0,
+  }),
+  vocabularyWord({
+    id: "action.recharge",
+    label: "息を整える",
+    category: "action",
+    grammarRole: "充填行動",
+    effect: {
+      kind: "action",
+      action: "recharge",
+      basePower: 0,
+      allowedTargets: ["self"],
+      apCost: 0,
+    },
+    allowedSlots: ["action"],
+    connectsFrom: ["connector"],
+    connectsTo: ["subject", "modifier"],
+    rarity: "basic",
+    rewardWeight: 1,
+    tooltip: "行動値を2回復する。コストなしで使え、行動値切れを立て直せる。",
+    example: "自分が傷ついているなら、自分の息を整える。",
     unlockAfterBattle: 0,
   }),
   vocabularyWord({
@@ -555,7 +577,7 @@ export const STARTER_WORD_IDS = [
   "action.attack",
   "action.guard",
   "action.heal",
-  "action.douse",
+  "action.recharge",
   "modifier.once",
 ] as const;
 
@@ -577,9 +599,13 @@ export function createStarterInventory(): WordInventory {
 export function getOwnedWords(
   inventory: WordInventory,
   category?: WordCategory,
+  extraWordIds: readonly WordId[] = [],
 ): readonly VocabularyWord[] {
+  const extraIds = new Set(extraWordIds);
   return VOCABULARY.filter(
-    (word) => inventory[word.id] && (!category || word.category === category),
+    (word) =>
+      (inventory[word.id] || extraIds.has(word.id)) &&
+      (!category || word.category === category),
   );
 }
 

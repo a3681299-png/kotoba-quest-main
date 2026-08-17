@@ -20,7 +20,9 @@ import { VOCABULARY_BY_ID } from "./vocabulary";
 const EMBER_STACK_DAMAGE_PER_STACK = 2;
 const EMBER_STACK_DOUSE_AMOUNT = 5;
 const AP_REGEN_PER_TURN = 2;
+const RECHARGE_AP_AMOUNT = 2;
 export const AP_MAX = 6;
+export const KING_SEAL_INTERVAL = 3;
 
 interface MutableBattleContext {
   player: {
@@ -37,6 +39,7 @@ interface MutableBattleContext {
     turn: number;
     emberStacks: number;
     lastPlayerAction: ActionEffectId | null;
+    kingSealCooldown: number;
   };
   logs: CausalLogEntry[];
   usedActions: ActionEffectId[];
@@ -187,6 +190,7 @@ function executeAction(
   if (!actionWord || actionWord.effect.kind !== "action") return false;
   const { apCost } = actionWord.effect;
   const isEchoMoth = context.battle.enemyId === "echo-moth";
+  const isForgottenKing = context.battle.enemyId === "forgotten-king";
 
   if (isEchoMoth && context.battle.lastPlayerAction === actionId) {
     appendLog(context, {
@@ -195,6 +199,20 @@ function executeAction(
       status: "failed",
       title: actionWord.label,
       detail: "同じ言葉を続けて使うと、反響の蛾に読まれてしまう。",
+    });
+    return false;
+  }
+  if (
+    isForgottenKing &&
+    context.player.statuses.has("sealed") &&
+    actionId !== "call_name"
+  ) {
+    appendLog(context, {
+      sentenceIndex,
+      kind: "failure",
+      status: "failed",
+      title: actionWord.label,
+      detail: "王が沈黙している間は、名を呼ぶ言葉しか届かない。",
     });
     return false;
   }
@@ -277,7 +295,13 @@ function executeAction(
       break;
     case "call_name":
       context.battle.enemyStatuses.add("named");
-      detail = "敵の古い名を呼んだ。";
+      if (isForgottenKing && context.player.statuses.has("sealed")) {
+        context.player.statuses.delete("sealed");
+        context.battle.enemyStatuses.add("stopped");
+        detail = "王が名を思い出し、沈黙が解けた。隙をついて王の身体が止まった。";
+      } else {
+        detail = "敵の古い名を呼んだ。";
+      }
       break;
     case "shine":
       context.battle.enemyStatuses.add("illuminated");
@@ -290,6 +314,15 @@ function executeAction(
         context.battle.emberStacks - EMBER_STACK_DOUSE_AMOUNT,
       );
       detail = `炎上を${before - context.battle.emberStacks}分鎮めた。残り炎上${context.battle.emberStacks}。`;
+      break;
+    }
+    case "recharge": {
+      const before = context.player.actionPoints;
+      context.player.actionPoints = Math.min(
+        AP_MAX,
+        context.player.actionPoints + RECHARGE_AP_AMOUNT,
+      );
+      detail = `行動値を${context.player.actionPoints - before}回復した。`;
       break;
     }
   }
@@ -339,6 +372,7 @@ function toBattleState(context: MutableBattleContext): BattleState {
     turn: context.battle.turn + 1,
     emberStacks: context.battle.emberStacks,
     lastPlayerAction: context.battle.lastPlayerAction,
+    kingSealCooldown: context.battle.kingSealCooldown,
   };
 }
 
@@ -389,7 +423,12 @@ export function simulateStrategyPlan(input: {
   strategies: readonly StrategySentence[];
   inventory: WordInventory;
 }): BattleResolution {
-  const validations = validatePlan(input.strategies, input.inventory);
+  const battleOnlyWordIds = getEnemy(input.battle.enemyId).battleOnlyWordIds;
+  const validations = validatePlan(
+    input.strategies,
+    input.inventory,
+    battleOnlyWordIds,
+  );
   const context: MutableBattleContext = {
     player: {
       hp: input.player.hp,
@@ -405,6 +444,7 @@ export function simulateStrategyPlan(input: {
       turn: input.battle.turn,
       emberStacks: input.battle.emberStacks,
       lastPlayerAction: input.battle.lastPlayerAction,
+      kingSealCooldown: input.battle.kingSealCooldown,
     },
     logs: [],
     usedActions: [],
@@ -581,6 +621,24 @@ export function simulateStrategyPlan(input: {
         title: "炎上によるダメージ",
         detail: `炎上${context.battle.emberStacks}スタック分、${emberDamage}ダメージを受けた。残りHP ${context.player.hp}。`,
       });
+    }
+
+    if (context.battle.enemyId === "forgotten-king") {
+      if (context.player.statuses.has("sealed")) {
+        // 封印中はカウントダウンを進めない（名前を呼ばれて解除されるまで続く）
+      } else if (context.battle.kingSealCooldown <= 1) {
+        context.player.statuses.add("sealed");
+        context.battle.kingSealCooldown = KING_SEAL_INTERVAL;
+        appendLog(context, {
+          sentenceIndex: null,
+          kind: "enemy",
+          status: "failed",
+          title: "王の沈黙",
+          detail: "王が己の名を忘れ、あらゆる言葉を拒み始めた。名を呼ぶ言葉しか届かない。",
+        });
+      } else {
+        context.battle.kingSealCooldown -= 1;
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { simulateStrategyPlan } from "./battle";
+import { KING_SEAL_INTERVAL, simulateStrategyPlan } from "./battle";
 import {
   BOSS_ENEMY_ID,
   NORMAL_ENEMY_IDS,
@@ -33,6 +33,7 @@ export function createBattleState(enemyId: string): BattleState {
     turn: 1,
     emberStacks: 0,
     lastPlayerAction: null,
+    kingSealCooldown: KING_SEAL_INTERVAL,
   };
 }
 
@@ -54,7 +55,7 @@ export function createWordQuestRun(seed: string): WordQuestRunState {
       actionPoints: 4,
     },
     inventory: createStarterInventory(),
-    strategies: [createStrategySentence(0)],
+    strategies: [createStrategySentence(0), createStrategySentence(1)],
     currentBattle: createBattleState(firstEnemy),
     rewardChoices: [],
     history: [],
@@ -99,7 +100,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
 
   const runWithRecoveredResources: WordQuestRunState = {
     ...run,
-    strategies: [createStrategySentence(0)],
+    strategies: [createStrategySentence(0), createStrategySentence(1)],
   };
 
   const enemy = getEnemy(run.currentBattle.enemyId);

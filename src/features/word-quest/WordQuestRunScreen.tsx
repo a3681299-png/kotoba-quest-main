@@ -13,7 +13,6 @@ import {
   WORD_CATEGORY_LABELS,
   WORD_QUEST_SAVE_KEY,
   chooseRunReward,
-  createStrategySentence,
   createWordQuestRun,
   estimatePlanApCost,
   executeRunBattle,
@@ -28,6 +27,7 @@ import {
   updateRunStrategies,
   validatePlan,
   wordFitsSlot,
+  type ActionEffectId,
   type EnemyStatus,
   type PlayerStatus,
   type SentenceSlot,
@@ -95,12 +95,14 @@ const PLAYER_STATUS_LABELS: Readonly<Record<PlayerStatus, string>> = {
   guarded: "守り",
   wounded: "負傷",
   attacked: "被弾",
+  sealed: "沈黙",
 };
 
 const PLAYER_STATUS_MARKS: Readonly<Record<PlayerStatus, string>> = {
   guarded: "守",
   wounded: "傷",
   attacked: "撃",
+  sealed: "封",
 };
 
 const BASE_ACTION_SLOTS = 2;
@@ -349,9 +351,16 @@ interface EnemyVitalBarProps {
     label: string;
     mark: string;
   }>;
+  isDisabled: boolean;
 }
 
-function EnemyVitalBar({ current, max, name, statuses }: EnemyVitalBarProps) {
+function EnemyVitalBar({
+  current,
+  max,
+  name,
+  statuses,
+  isDisabled,
+}: EnemyVitalBarProps) {
   const percent = hpPercent(current, max);
   const healthState =
     percent <= 25 ? "critical" : percent <= 50 ? "wounded" : "steady";
@@ -379,6 +388,12 @@ function EnemyVitalBar({ current, max, name, statuses }: EnemyVitalBarProps) {
         <span className="word-game__enemy-vitals-fill" aria-hidden="true" />
         <b>{current}</b>
       </div>
+
+      {isDisabled && (
+        <p className="word-game__enemy-disabled" role="status">
+          混乱
+        </p>
+      )}
 
       {statuses.length > 0 && (
         <div
@@ -480,13 +495,40 @@ export function WordQuestRunScreen({
 
   const enemy = run ? getEnemy(run.currentBattle.enemyId) : null;
   const validations = useMemo(
-    () => (run ? validatePlan(run.strategies, run.inventory) : []),
-    [run],
+    () =>
+      run
+        ? validatePlan(run.strategies, run.inventory, enemy?.battleOnlyWordIds)
+        : [],
+    [run, enemy],
   );
   const ownedWords = useMemo(
-    () => (run ? getOwnedWords(run.inventory) : []),
-    [run],
+    () =>
+      run
+        ? getOwnedWords(run.inventory, undefined, enemy?.battleOnlyWordIds)
+        : [],
+    [run, enemy],
   );
+  const isEchoMoth = run?.currentBattle.enemyId === "echo-moth";
+  const isSealedByKing =
+    run?.currentBattle.enemyId === "forgotten-king" &&
+    run.player.statuses.includes("sealed");
+  const blockedActionIds: readonly ActionEffectId[] = useMemo(() => {
+    if (isSealedByKing) {
+      const ownedActionIds = ownedWords
+        .filter((word): word is typeof word & { effect: { kind: "action" } } =>
+          word.effect.kind === "action",
+        )
+        .map((word) => word.effect.action);
+      return ownedActionIds.filter((actionId) => actionId !== "call_name");
+    }
+    if (isEchoMoth && run?.currentBattle.lastPlayerAction) {
+      return [run.currentBattle.lastPlayerAction];
+    }
+    return [];
+  }, [isSealedByKing, isEchoMoth, ownedWords, run]);
+  const blockedReason = isSealedByKing
+    ? "王が沈黙している間は、名を呼ぶ言葉しか届かない。"
+    : "同じ言葉を続けて使うと、反響の蛾に読まれてしまう。";
   const strategySynergy = useMemo(
     () => (run ? analyzeStrategySynergy(run.strategies, validations) : null),
     [run, validations],
@@ -576,7 +618,9 @@ export function WordQuestRunScreen({
     const next = run.strategies.map((item, index) =>
       index === sentenceIndex ? nextSentence : item,
     );
-    if (countUsedVocabularySlots(next) > Object.keys(run.inventory).length) {
+    const availableWordCount =
+      Object.keys(run.inventory).length + (enemy?.battleOnlyWordIds.length ?? 0);
+    if (countUsedVocabularySlots(next) > availableWordCount) {
       rejectWordPlacement(
         word.id,
         "語彙の残り回数がありません。完成した作戦を実行してください。",
@@ -584,7 +628,11 @@ export function WordQuestRunScreen({
       return;
     }
     updateStrategies(next);
-    const nextValidations = validatePlan(next, run.inventory);
+    const nextValidations = validatePlan(
+      next,
+      run.inventory,
+      enemy?.battleOnlyWordIds,
+    );
     const sentenceValidation = nextValidations[sentenceIndex];
     const sentenceIsReady = sentenceValidation?.valid ?? false;
     const nextIncompleteSentenceIndex = sentenceIsReady
@@ -668,38 +716,6 @@ export function WordQuestRunScreen({
           : item,
       ),
     );
-  };
-
-  const addSentence = () => {
-    if (!run || run.strategies.length >= 2) return;
-    const nextIndex = run.strategies.length;
-    updateStrategies([...run.strategies, createStrategySentence(nextIndex)]);
-    setActiveSentenceIndex(nextIndex);
-    setActiveSlot("condition");
-    setIsLexiconOpen(true);
-  };
-
-  const removeSentence = (sentenceIndex: number) => {
-    if (!run || run.strategies.length <= 1) return;
-    const next = run.strategies
-      .filter((_, index) => index !== sentenceIndex)
-      .map((sentence, index) => ({
-        ...sentence,
-        id: `strategy-${index + 1}`,
-      }));
-    const nextSentenceIndex = Math.max(
-      0,
-      Math.min(activeSentenceIndex, next.length - 1),
-    );
-    const nextSentence = next[nextSentenceIndex];
-    const nextValidation = validatePlan(next, run.inventory)[nextSentenceIndex];
-    updateStrategies(next);
-    setActiveSentenceIndex(nextSentenceIndex);
-    setActiveSlot(
-      nextValidation?.missingSlot ??
-        (nextSentence ? getNextEmptySlot(nextSentence) : "condition"),
-    );
-    setIsLexiconOpen(true);
   };
 
   const executePlan = () => {
@@ -953,12 +969,26 @@ export function WordQuestRunScreen({
             >
               <span>AP</span>
               <span className="word-game__ap-pips" aria-hidden="true">
-                {Array.from({ length: AP_MAX }).map((_, index) => (
-                  <i
-                    key={index}
-                    className={index < run.player.actionPoints ? "is-filled" : ""}
-                  />
-                ))}
+                {Array.from({ length: AP_MAX }).map((_, index) => {
+                  const isFilled = index < run.player.actionPoints;
+                  const consumedCount = Math.min(
+                    estimatedApCost,
+                    run.player.actionPoints,
+                  );
+                  const isConsuming =
+                    isFilled && index >= run.player.actionPoints - consumedCount;
+                  return (
+                    <i
+                      key={index}
+                      className={[
+                        isFilled ? "is-filled" : "",
+                        isConsuming ? "is-consuming" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                  );
+                })}
               </span>
               <b>{run.player.actionPoints}/{AP_MAX}</b>
             </div>
@@ -1012,6 +1042,7 @@ export function WordQuestRunScreen({
             label: STATUS_LABELS[status],
             mark: STATUS_MARKS[status],
           }))}
+          isDisabled={run.currentBattle.enemyStatuses.includes("stopped")}
         />
 
         <div className="word-game__stage-marks">
@@ -1163,18 +1194,6 @@ export function WordQuestRunScreen({
                   );
                 })}
               </div>
-
-              {run.strategies.length > 1 && (
-                <button
-                  type="button"
-                  className="strategy-dock__remove-sentence"
-                  onClick={() => removeSentence(activeSentenceIndex)}
-                  aria-label={`第${activeSentenceIndex + 1}文を削除`}
-                  title="この文を削除"
-                >
-                  文削除
-                </button>
-              )}
             </article>
           )}
         </section>
@@ -1183,11 +1202,8 @@ export function WordQuestRunScreen({
           activeCategory={activeCategory}
           activeSentenceIndex={activeSentenceIndex}
           activeSlot={activeSlot}
-          blockedActionId={
-            run.currentBattle.enemyId === "echo-moth"
-              ? run.currentBattle.lastPlayerAction
-              : null
-          }
+          blockedActionIds={blockedActionIds}
+          blockedReason={blockedReason}
           draggedWordId={draggedWordId}
           handCycle={0}
           isOpen={isLexiconOpen}
@@ -1201,81 +1217,34 @@ export function WordQuestRunScreen({
         />
 
         <aside className="strategy-dock__command-panel" aria-label="作戦操作">
-          {run.strategies.length > 1 && (
-            <nav
-              className="strategy-dock__sentence-nav"
-              aria-label="作戦文の切り替え"
-            >
-              {run.strategies.map((sentence, sentenceIndex) => {
-                const selected = sentenceIndex === activeSentenceIndex;
-                const valid = validations[sentenceIndex]?.valid ?? false;
-                return (
-                  <button
-                    key={sentence.id}
-                    type="button"
-                    className={[
-                      "strategy-dock__sentence-number",
-                      selected ? "is-active" : "",
-                      valid ? "is-valid" : "is-incomplete",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => selectSentence(sentenceIndex)}
-                    aria-current={selected ? "step" : undefined}
-                    aria-label={`作戦文${sentenceIndex + 1}を編集`}
-                    title={formatSentence(sentence)}
-                  >
-                    {sentenceIndex + 1}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
-
-          <button
-            type="button"
-            className="strategy-dock__add-sentence"
-            onClick={addSentence}
-            disabled={run.strategies.length >= 2 || run.phase !== "battle"}
-            aria-label="作戦文を追加"
-            title="作戦文を追加"
+          <nav
+            className="strategy-dock__sentence-nav"
+            aria-label="作戦文の切り替え"
           >
-            <span aria-hidden="true">＋</span>
-            <small>文追加</small>
-          </button>
-
-          <div className="strategy-dock__command-status">
-            <div className="strategy-dock__metric strategy-dock__metric--actions">
-              <span>行動</span>
-              <span
-                className="strategy-dock__action-gems"
-                aria-label={`基本行動 ${usedActionCount}/${BASE_ACTION_SLOTS}`}
-              >
-                {Array.from({ length: BASE_ACTION_SLOTS }).map((_, index) => (
-                  <i
-                    key={index}
-                    className={index < usedActionCount ? "is-used" : ""}
-                    aria-hidden="true"
-                  >
-                    ◆
-                  </i>
-                ))}
-              </span>
-              <b>{usedActionCount}/{BASE_ACTION_SLOTS}</b>
-              {bonusActionCount > 0 && (
-                <span
-                  className="strategy-dock__bonus-actions"
-                  aria-label={`追加行動 ${bonusActionCount}`}
+            {run.strategies.map((sentence, sentenceIndex) => {
+              const selected = sentenceIndex === activeSentenceIndex;
+              const valid = validations[sentenceIndex]?.valid ?? false;
+              return (
+                <button
+                  key={sentence.id}
+                  type="button"
+                  className={[
+                    "strategy-dock__sentence-number",
+                    selected ? "is-active" : "",
+                    valid ? "is-valid" : "is-incomplete",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => selectSentence(sentenceIndex)}
+                  aria-current={selected ? "step" : undefined}
+                  aria-label={`作戦文${sentenceIndex + 1}を編集`}
+                  title={formatSentence(sentence)}
                 >
-                  <small aria-hidden="true">＋</small>
-                  {Array.from({ length: bonusActionCount }).map((_, index) => (
-                    <i key={index} aria-hidden="true">◆</i>
-                  ))}
-                </span>
-              )}
-            </div>
-
-          </div>
+                  {sentenceIndex + 1}
+                </button>
+              );
+            })}
+          </nav>
 
           <div className="strategy-dock__command-tools">
             {activeSlot === "modifier" && activeSentence?.modifier && (

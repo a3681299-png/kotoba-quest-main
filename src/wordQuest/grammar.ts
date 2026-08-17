@@ -57,6 +57,7 @@ export function validateSentence(
   sentenceIndex: number,
   plan: readonly StrategySentence[],
   inventory: WordInventory,
+  extraWordIds: readonly WordId[] = [],
 ): SentenceValidation {
   for (const slot of REQUIRED_SLOTS) {
     if (!sentence[slot]) {
@@ -68,6 +69,7 @@ export function validateSentence(
     }
   }
 
+  const extraIds = new Set(extraWordIds);
   const slots: readonly SentenceSlot[] = [
     ...REQUIRED_SLOTS,
     "modifier",
@@ -77,7 +79,7 @@ export function validateSentence(
     if (!wordId) continue;
     const word = VOCABULARY_BY_ID[wordId];
     if (!word) return invalid(sentence, `不明な語彙「${wordId}」があります。`, slot);
-    if (!inventory[wordId]) {
+    if (!inventory[wordId] && !extraIds.has(wordId)) {
       return invalid(sentence, `「${word.label}」はまだ獲得していません。`, slot);
     }
     if (!wordFitsSlot(word, slot)) {
@@ -156,6 +158,7 @@ export function validateSentence(
 export function validatePlan(
   plan: readonly StrategySentence[],
   inventory: WordInventory,
+  extraWordIds: readonly WordId[] = [],
 ): readonly SentenceValidation[] {
   if (plan.length === 0) {
     return [
@@ -168,7 +171,7 @@ export function validatePlan(
     ];
   }
   return plan.map((sentence, index) =>
-    validateSentence(sentence, index, plan, inventory),
+    validateSentence(sentence, index, plan, inventory, extraWordIds),
   );
 }
 

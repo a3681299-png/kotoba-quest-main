@@ -204,6 +204,12 @@
   box-shadow: 0 0 4px rgba(143, 208, 224, 0.7);
 }
 
+.word-game__ap-pips i.is-consuming {
+  border-color: #e0c14a;
+  background: #e0c14a;
+  box-shadow: 0 0 4px rgba(224, 193, 74, 0.75);
+}
+
 .word-game__exit {
   grid-column: 3;
   justify-self: end;
@@ -519,6 +525,30 @@
   text-shadow:
     0 1px 2px #210507,
     0 0 4px rgba(43, 4, 8, 0.9);
+}
+
+.word-game__enemy-disabled {
+  margin: 4px 0 0;
+  border: 1px solid rgba(143, 208, 224, 0.8);
+  background: rgba(13, 11, 9, 0.92);
+  padding: 2px 8px;
+  color: #8fd0e0;
+  font-size: clamp(9px, 0.62vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(143, 208, 224, 0.65);
+  animation: word-game-enemy-disabled-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes word-game-enemy-disabled-pulse {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .word-game__enemy-statuses {

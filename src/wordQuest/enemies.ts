@@ -56,6 +56,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     icon: "火",
     accent: "#d85b42",
     isBoss: false,
+    battleOnlyWordIds: ["action.douse"],
   },
   {
     id: "gaze-idol",
@@ -111,6 +112,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     icon: "眼",
     accent: "#5b8fa8",
     isBoss: false,
+    battleOnlyWordIds: [],
   },
   {
     id: "echo-moth",
@@ -156,45 +158,32 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     icon: "響",
     accent: "#a16fb5",
     isBoss: false,
+    battleOnlyWordIds: [],
   },
   {
     id: "forgotten-king",
     name: "忘名王アステル",
     epithet: "名を失った王",
     description:
-      "王冠の内側には古い名が刻まれている。名を思い出した瞬間だけ、石の身体に隙が生まれる。",
+      "王冠の内側には古い名が刻まれている。時折、王は自らの名を忘れ、あらゆる言葉を拒む沈黙に沈む。その時に届く言葉は、ただ一つしかない。",
     readingClue:
-      "剣も火も、名のない私を止められない。昔の名を呼ばれた時だけ身体が止まり、鎖が届く。",
-    maxHp: 12,
+      "私はやがて全てを忘れ、言葉を拒む。その時、剣も盾も届かない。昔の名だけが私を呼び覚まし、束の間の隙を生む。",
+    maxHp: 40,
     basePower: 3,
     initialStatuses: [],
     reactions: [
       {
         id: "king-remembers-name",
         trigger: { kind: "after-action", action: "call_name" },
-        effects: [
-          { kind: "add-enemy-status", status: "named" },
-          { kind: "add-enemy-status", status: "stopped" },
-          { kind: "add-enemy-status", status: "exposed" },
-          { kind: "add-score", amount: 2 },
-        ],
-        log: "アステルの名が玉座へ響き、王の身体が止まった。",
-      },
-      {
-        id: "king-bound-opening",
-        trigger: { kind: "enemy-status-added", status: "bound" },
-        effects: [
-          { kind: "add-enemy-status", status: "exposed" },
-          { kind: "damage-enemy", amount: 2 },
-        ],
-        log: "停止した王へ鎖が届き、王冠の隙が開いた。",
+        effects: [{ kind: "add-enemy-status", status: "named" }],
+        log: "アステルの名が玉座へ響いた。",
       },
     ],
     solutionHints: [
       {
         id: "king-basic",
         label: "消耗戦",
-        description: "初期語彙でも三つの攻撃文を重ねれば届く。",
+        description: "沈黙のたびに名前を呼び、隙を突いて攻撃を重ねれば届く。",
         kind: "basic",
         requiresActions: ["attack"],
         requiresStatuses: [],
@@ -203,10 +192,10 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       {
         id: "king-name-chain",
         label: "真名の鎖",
-        description: "名前を呼び、停止を条件に拘束し、最後に攻撃する。",
+        description: "沈黙を名前で解き、止まった王へ確実に攻撃を届ける。",
         kind: "mastery",
-        requiresActions: ["call_name", "bind", "attack"],
-        requiresStatuses: ["named", "bound"],
+        requiresActions: ["call_name", "attack"],
+        requiresStatuses: ["named", "stopped"],
         bonusScore: 5,
       },
     ],
@@ -214,6 +203,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     icon: "王",
     accent: "#c4a45b",
     isBoss: true,
+    battleOnlyWordIds: ["action.call_name"],
   },
 ] as const;
 

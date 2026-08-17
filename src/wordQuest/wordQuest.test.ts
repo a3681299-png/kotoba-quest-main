@@ -14,6 +14,7 @@ import {
 import { grantVocabulary } from "./rewards";
 import { restoreWordQuestRun, serializeWordQuestRun } from "./save";
 import type {
+  PlayerStatus,
   StrategySentence,
   WordId,
   WordInventory,
@@ -58,21 +59,39 @@ function inventoryWith(...wordIds: readonly WordId[]): WordInventory {
 function testPlayer(overrides: {
   hp: number;
   maxHp: number;
-  statuses?: readonly [];
+  statuses?: readonly PlayerStatus[];
+  actionPoints?: number;
 }) {
   return {
     hp: overrides.hp,
     maxHp: overrides.maxHp,
     statuses: overrides.statuses ?? [],
-    actionPoints: 99,
+    actionPoints: overrides.actionPoints ?? 99,
   };
 }
 
-function executeUntilTransition(run: WordQuestRunState): WordQuestRunState {
-  const strategies = run.strategies;
+function callNameSentence(index: number): StrategySentence {
+  return {
+    id: `call-${index}`,
+    subject: "subject.enemy",
+    condition: "condition.always",
+    connector: "connector.then",
+    action: "action.call_name",
+    target: "subject.enemy",
+    modifier: "modifier.once",
+  };
+}
+
+function executeUntilTransition(
+  run: WordQuestRunState,
+  strategies: readonly StrategySentence[] = run.strategies,
+): WordQuestRunState {
   let current = run;
-  for (let turn = 0; turn < 10 && current.phase === "battle"; turn += 1) {
-    current = executeRunBattle(updateRunStrategies(current, strategies));
+  for (let turn = 0; turn < 20 && current.phase === "battle"; turn += 1) {
+    const plan = current.player.statuses.includes("sealed")
+      ? [callNameSentence(0)]
+      : strategies;
+    current = executeRunBattle(updateRunStrategies(current, plan));
   }
   return current;
 }
@@ -176,11 +195,11 @@ describe("word quest battle simulation", () => {
     ).toBe(true);
   });
 
-  it("resolves a three-sentence boss chain with ordered causal logs", () => {
+  it("breaks the king's silence with call_name, stunning him for attack", () => {
     const strategies: readonly StrategySentence[] = [
       {
         id: "name",
-        subject: "subject.self",
+        subject: "subject.enemy",
         condition: "condition.always",
         connector: "connector.then",
         action: "action.call_name",
@@ -188,40 +207,53 @@ describe("word quest battle simulation", () => {
         modifier: "modifier.once",
       },
       {
-        id: "bind",
-        subject: "subject.enemy",
-        condition: "condition.enemy_stopped",
+        ...attackSentence(1),
         connector: "connector.after",
-        action: "action.bind",
-        target: "subject.enemy",
-        modifier: "modifier.once",
-      },
-      {
-        ...attackSentence(2),
-        condition: "condition.enemy_bound",
-        connector: "connector.after",
-        modifier: "modifier.twice",
       },
     ];
     const resolution = simulateStrategyPlan({
-      player: testPlayer({ hp: 18, maxHp: 18 }),
-      battle: createBattleState(BOSS_ENEMY_ID),
+      player: testPlayer({
+        hp: 50,
+        maxHp: 50,
+        statuses: ["sealed"],
+      }),
+      battle: {
+        ...createBattleState(BOSS_ENEMY_ID),
+        enemyHp: 4,
+        kingSealCooldown: 3,
+      },
       strategies,
-      inventory: inventoryWith(
-        "action.call_name",
-        "condition.enemy_stopped",
-        "connector.after",
-        "action.bind",
-        "condition.enemy_bound",
-        "modifier.twice",
-      ),
+      inventory: inventoryWith("action.call_name", "connector.after"),
     });
     expect(resolution.victory).toBe(true);
+    expect(resolution.player.statuses).not.toContain("sealed");
+    expect(resolution.battle.enemyStatuses).toContain("named");
     expect(resolution.earnedDiscoveries).toContain("真名の鎖");
     expect(resolution.logs.map((log) => log.sequence)).toEqual(
       resolution.logs.map((_, index) => index + 1),
     );
-    expect(resolution.logs.at(-1)?.kind).toBe("success");
+  });
+
+  it("blocks non-call_name actions while the king has sealed the player", () => {
+    const resolution = simulateStrategyPlan({
+      player: testPlayer({
+        hp: 50,
+        maxHp: 50,
+        statuses: ["sealed"],
+      }),
+      battle: {
+        ...createBattleState(BOSS_ENEMY_ID),
+        kingSealCooldown: 3,
+      },
+      strategies: [attackSentence(0)],
+      inventory: createStarterInventory(),
+    });
+    expect(
+      resolution.logs.some(
+        (log) => log.status === "failed" && log.detail.includes("沈黙"),
+      ),
+    ).toBe(true);
+    expect(resolution.player.statuses).toContain("sealed");
   });
 });
 
@@ -229,12 +261,16 @@ describe("word quest run growth and persistence", () => {
   it("recovers action slots after each valid strategy execution", () => {
     const run = updateRunStrategies(createWordQuestRun("action-recovery"), [
       attackSentence(0),
+      attackSentence(1),
     ]);
 
     const next = executeRunBattle(run);
 
     expect(next.currentBattle.turn).toBe(run.currentBattle.turn + 1);
-    expect(next.strategies).toEqual([createStrategySentence(0)]);
+    expect(next.strategies).toEqual([
+      createStrategySentence(0),
+      createStrategySentence(1),
+    ]);
   });
 
   it("keeps encounters and rewards deterministic for a seed", () => {

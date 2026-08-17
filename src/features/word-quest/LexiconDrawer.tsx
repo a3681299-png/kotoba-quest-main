@@ -24,7 +24,8 @@ interface LexiconDrawerProps {
   activeCategory: WordCategory;
   activeSentenceIndex: number;
   activeSlot: SentenceSlot;
-  blockedActionId: ActionEffectId | null;
+  blockedActionIds: readonly ActionEffectId[];
+  blockedReason: string;
   draggedWordId: WordId | null;
   handCycle: number;
   isOpen: boolean;
@@ -44,7 +45,8 @@ export function LexiconDrawer({
   activeCategory,
   activeSentenceIndex,
   activeSlot,
-  blockedActionId,
+  blockedActionIds,
+  blockedReason,
   draggedWordId,
   handCycle,
   isOpen,
@@ -163,7 +165,7 @@ export function LexiconDrawer({
                 const stackOrder = 50 - Math.round(Math.abs(fanIndex) * 2);
                 const isOnCooldown =
                   word.effect.kind === "action" &&
-                  blockedActionId === word.effect.action;
+                  blockedActionIds.includes(word.effect.action);
 
                 return (
                   <button
@@ -247,7 +249,7 @@ export function LexiconDrawer({
                         className="strategy-dock__card-cooldown"
                         aria-hidden="true"
                       >
-                        連続不可
+                        使用不可
                       </span>
                     )}
                     <span
@@ -255,8 +257,7 @@ export function LexiconDrawer({
                       className="strategy-dock__sr-only"
                     >
                       {word.tooltip} 例：{word.example}
-                      {isOnCooldown &&
-                        " 同じ言葉を続けて使うと、反響の蛾に読まれてしまう。"}
+                      {isOnCooldown && ` ${blockedReason}`}
                     </span>
                   </button>
                 );

@@ -38,7 +38,8 @@ export type ActionEffectId =
   | "call_name"
   | "shine"
   | "counter"
-  | "douse";
+  | "douse"
+  | "recharge";
 
 export type ConnectorEffectId = "then" | "after" | "whenever";
 export type ModifierEffectId = "once" | "twice" | "again" | "negate";
@@ -110,7 +111,7 @@ export type EnemyStatus =
   | "bound"
   | "exposed";
 
-export type PlayerStatus = "guarded" | "wounded" | "attacked";
+export type PlayerStatus = "guarded" | "wounded" | "attacked" | "sealed";
 
 export type ReactionTrigger =
   | { kind: "after-action"; action: ActionEffectId }
@@ -162,6 +163,10 @@ export interface EnemyDefinition {
   icon: string;
   accent: string;
   isBoss: boolean;
+  /**
+   * この敵との戦闘中だけ手札に加わる専用語彙（永続所持インベントリには含めない）。
+   */
+  battleOnlyWordIds: readonly WordId[];
 }
 
 export interface PlayerRunState {
@@ -181,6 +186,8 @@ export interface BattleState {
   emberStacks: number;
   /** プレイヤーが直近に使用した行動（echo-moth専用の連続使用禁止判定に使う。ターンをまたいで保持） */
   lastPlayerAction: ActionEffectId | null;
+  /** 次に封印がかかるまでの残りターン数（forgotten-king専用） */
+  kingSealCooldown: number;
 }
 
 export type CausalLogKind =
