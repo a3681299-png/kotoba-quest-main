@@ -534,14 +534,19 @@ export function WordQuestRunScreen({
     [run, validations],
   );
   const estimatedApCost = useMemo(
-    () => (run ? estimatePlanApCost(run.strategies) : 0),
-    [run],
+    () =>
+      run
+        ? estimatePlanApCost(
+            run.strategies.filter((_, index) => validations[index]?.valid),
+          )
+        : 0,
+    [run, validations],
   );
   const hasEnoughAp = Boolean(run) && estimatedApCost <= (run?.player.actionPoints ?? 0);
   const planReady =
     Boolean(run) &&
     validations.length > 0 &&
-    validations.every((validation) => validation.valid) &&
+    validations.some((validation) => validation.valid) &&
     hasEnoughAp;
 
   const startRun = () => {
@@ -720,7 +725,14 @@ export function WordQuestRunScreen({
 
   const executePlan = () => {
     if (!run || run.phase !== "battle" || isResolving || !planReady) return;
-    const nextRun = executeRunBattle(run);
+    const validStrategies = run.strategies.filter(
+      (_, index) => validations[index]?.valid,
+    );
+    const runToExecute =
+      validStrategies.length === run.strategies.length
+        ? run
+        : { ...run, strategies: validStrategies };
+    const nextRun = executeRunBattle(runToExecute);
     const resolution = nextRun.lastResolution;
 
     if (!resolution?.valid) {
