@@ -721,19 +721,6 @@ export function WordQuestRunScreen({
     placeWord(wordId, sentenceIndex, slot);
   };
 
-  const clearModifier = () => {
-    if (!run) return;
-    const sentence = run.strategies[activeSentenceIndex];
-    if (!sentence) return;
-    updateStrategies(
-      run.strategies.map((item, index) =>
-        index === activeSentenceIndex
-          ? setSentenceSlot(sentence, "modifier", null)
-          : item,
-      ),
-    );
-  };
-
   const executePlan = () => {
     if (!run || run.phase !== "battle" || isResolving || !planReady) return;
     const validStrategies = run.strategies.filter(
@@ -1317,18 +1304,6 @@ export function WordQuestRunScreen({
               );
             })}
           </nav>
-
-          <div className="strategy-dock__command-tools">
-            {activeSlot === "modifier" && activeSentence?.modifier && (
-              <button
-                type="button"
-                className="strategy-dock__clear-modifier"
-                onClick={clearModifier}
-              >
-                修飾を外す
-              </button>
-            )}
-          </div>
 
           <div
             className={`strategy-dock__execution-cluster ${
