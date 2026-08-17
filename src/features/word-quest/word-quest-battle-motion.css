@@ -113,7 +113,6 @@
   transform: translateX(5%) skewX(18deg);
 }
 
-.word-game__impact-bloom,
 .word-game__counter-bloom {
   position: absolute;
   z-index: 4;
@@ -143,11 +142,45 @@
   transform: translate(-50%, -50%) scale(0.24) rotate(-16deg);
 }
 
-.word-game__impact-bloom {
+.word-game__slash-effect,
+.word-game__hit-particle-effect {
+  position: absolute;
+  display: block;
+  height: auto;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  will-change: clip-path, filter, opacity, transform;
+}
+
+.word-game__slash-effect {
+  z-index: 4;
+  top: 48%;
+  left: 77%;
+  width: clamp(280px, 31vw, 570px);
+  filter: drop-shadow(0 0 13px rgba(255, 53, 48, 0.78))
+    drop-shadow(0 0 28px rgba(126, 0, 8, 0.62));
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%) rotate(-13deg) scale(0.54);
+  animation: word-combat-slash-effect 480ms cubic-bezier(0.14, 0.82, 0.2, 1)
+    both;
+  animation-delay: calc(var(--word-enemy-impact-delay) - 110ms);
+}
+
+.word-game__hit-particle-effect {
+  z-index: 6;
   top: 48%;
   left: 78%;
-  animation: word-combat-impact-bloom 620ms cubic-bezier(0.12, 0.78, 0.2, 1)
-    both;
+  width: clamp(300px, 34vw, 620px);
+  clip-path: circle(2% at 27% 52%);
+  filter: drop-shadow(0 0 16px rgba(255, 234, 126, 0.94))
+    drop-shadow(0 0 34px rgba(255, 151, 29, 0.66));
+  mix-blend-mode: screen;
+  transform: translate(-27%, -52%) scale(0.18) rotate(-5deg);
+  transform-origin: 27% 52%;
+  animation: word-combat-hit-particle-effect 560ms
+    cubic-bezier(0.12, 0.78, 0.2, 1) both;
   animation-delay: var(--word-enemy-impact-delay);
 }
 
@@ -340,23 +373,57 @@
   }
 }
 
-@keyframes word-combat-impact-bloom {
+@keyframes word-combat-slash-effect {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.22) rotate(-16deg);
+    transform: translate(-50%, -50%) rotate(-20deg) scale(0.42);
   }
-  8%,
-  25% {
+
+  18% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(0.92) rotate(4deg);
+    transform: translate(-50%, -50%) rotate(-14deg) scale(0.92);
   }
-  42% {
-    opacity: 0.88;
-    transform: translate(-50%, -50%) scale(1.26) rotate(13deg);
+
+  46% {
+    opacity: 0.98;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1.05);
   }
+
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(2.1) rotate(28deg);
+    transform: translate(-46%, -54%) rotate(-4deg) scale(1.22);
+  }
+}
+
+@keyframes word-combat-hit-particle-effect {
+  0% {
+    clip-path: circle(2% at 27% 52%);
+    opacity: 0;
+    transform: translate(-27%, -52%) scale(0.18) rotate(-5deg);
+  }
+
+  12% {
+    clip-path: circle(32% at 27% 52%);
+    opacity: 1;
+    transform: translate(-27%, -52%) scale(0.62) rotate(-2deg);
+  }
+
+  38% {
+    clip-path: circle(84% at 27% 52%);
+    opacity: 0.98;
+    transform: translate(-27%, -52%) scale(0.94) rotate(1deg);
+  }
+
+  64% {
+    clip-path: circle(138% at 27% 52%);
+    opacity: 0.74;
+    transform: translate(-27%, -52%) scale(1.05) rotate(3deg);
+  }
+
+  100% {
+    clip-path: circle(160% at 27% 52%);
+    opacity: 0;
+    transform: translate(-23%, -52%) scale(1.16) rotate(5deg);
   }
 }
 
@@ -465,6 +532,14 @@
   .word-game__damage-number--enemy {
     left: 70%;
   }
+
+  .word-game__slash-effect {
+    width: clamp(250px, 48vw, 440px);
+  }
+
+  .word-game__hit-particle-effect {
+    width: clamp(280px, 54vw, 500px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -474,6 +549,7 @@
 
   .word-game__attack-art--echo,
   .word-game__attack-lane,
+  .word-game__slash-effect,
   .word-game__impact-sparks,
   .word-game__impact-flash {
     display: none;
@@ -483,7 +559,7 @@
     animation: word-combat-attack-reduced 160ms ease-out both;
   }
 
-  .word-game__impact-bloom,
+  .word-game__hit-particle-effect,
   .word-game__counter-bloom {
     animation-duration: 100ms;
   }

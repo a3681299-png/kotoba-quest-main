@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simulateStrategyPlan } from "./battle";
-import { BOSS_ENEMY_ID, NORMAL_ENEMY_IDS } from "./enemies";
+import { BOSS_ENEMY_ID, NORMAL_ENEMY_IDS, getEnemy } from "./enemies";
 import { createStrategySentence, validateSentence } from "./grammar";
 import {
   chooseRunReward,
@@ -124,6 +124,21 @@ describe("word quest grammar", () => {
     const again = { ...attackSentence(0), modifier: "modifier.again" };
     expect(validateSentence(after, 0, [after], inventory).valid).toBe(false);
     expect(validateSentence(again, 0, [again], inventory).valid).toBe(false);
+  });
+});
+
+describe("word quest enemy data", () => {
+  it("uses the names printed on the stage artwork", () => {
+    expect(
+      ["gaze-idol", "echo-moth", "ember-maw", BOSS_ENEMY_ID].map(
+        (enemyId) => getEnemy(enemyId).name,
+      ),
+    ).toEqual([
+      "見張りの石像",
+      "反響の翅",
+      "火喰らいの獣",
+      "亡名神",
+    ]);
   });
 });
 

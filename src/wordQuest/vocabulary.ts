@@ -413,7 +413,7 @@ export const VOCABULARY: readonly VocabularyWord[] = [
     rarity: "basic",
     rewardWeight: 1.2,
     tooltip:
-      "敵を名前を呼ばれた状態にする。沈黙した忘名王を呼び覚ます唯一の言葉。",
+      "敵を名前を呼ばれた状態にする。沈黙した亡名神を呼び覚ます唯一の言葉。",
     example: "敵が近くにいるなら、敵の名前を呼ぶ。",
     unlockAfterBattle: 0,
   }),

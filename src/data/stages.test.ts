@@ -50,27 +50,27 @@ describe("tutorial stage data", () => {
     ).toEqual([
       expect.objectContaining({
         mentor: "人形師",
-        portrait: expect.stringContaining("/3/Edgar_Grey.png"),
+        portrait: expect.stringContaining("/4/Edgar_Grey.png"),
       }),
       expect.objectContaining({
         mentor: "契約者",
-        portrait: expect.stringContaining("/2/Lisette_Rosalia.png"),
+        portrait: expect.stringContaining("/3/Lisette_Rosalia.png"),
       }),
       expect.objectContaining({
         mentor: "植物の魔女",
-        portrait: expect.stringContaining("/5/Shion_Yoizuki.png"),
+        portrait: expect.stringContaining("/6/Shion_Yoizuki.png"),
       }),
       expect.objectContaining({
         mentor: "司書",
-        portrait: expect.stringContaining("/1/Cécile_Asteria.png"),
+        portrait: expect.stringContaining("/2/Cécile_Asteria.png"),
       }),
       expect.objectContaining({
         mentor: "幽閉の姫",
-        portrait: expect.stringContaining("/4/Eleanor_Veil.png"),
+        portrait: expect.stringContaining("/5/Eleanor_Veil.png"),
       }),
       expect.objectContaining({
         mentor: "道化師",
-        portrait: expect.stringContaining("/6/Lucien_Valmont.png"),
+        portrait: expect.stringContaining("/7/Lucien_Valmont.png"),
       }),
     ]);
   });

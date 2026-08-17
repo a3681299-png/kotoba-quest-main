@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   ENEMY_SHEETS,
+  ENEMY_SHEETS_BY_ID,
   PLAYER_SHEETS,
   STAGE_PLAYER_SHEETS,
+  getEnemySheets,
 } from "./characterAssets";
 
 describe("character asset definitions", () => {
@@ -20,7 +22,9 @@ describe("character asset definitions", () => {
       columns: 1,
       rows: 1,
     });
-    expect(PLAYER_SHEETS.idle.src).toContain("Lotta_Rouge_dot.png");
+    expect(decodeURIComponent(PLAYER_SHEETS.idle.src)).toContain(
+      "/1/1-1/プレイヤー/Lotta_Rouge_dot.png",
+    );
     expect(PLAYER_SHEETS.attack.src).toContain("Lotta_Rouge_dot.png");
     expect(PLAYER_SHEETS.damage.src).toContain("Lotta_Rouge_dot.png");
   });
@@ -32,16 +36,16 @@ describe("character asset definitions", () => {
         decodeURIComponent(sheets.idle.src),
       ]),
     ).toEqual([
-      [1, expect.stringContaining("/3/Edgar_Grey_dot.png")],
-      [2, expect.stringContaining("/2/Lisette_Rosalia_dot.png")],
-      [3, expect.stringContaining("/5/Shion_Yoizuki_dot.png")],
-      [4, expect.stringContaining("/1/Cécile_Asteria_dot.png")],
-      [5, expect.stringContaining("/4/Eleanor_Veil_dot.png")],
-      [6, expect.stringContaining("/6/Lucien_Valmont_dot.png")],
+      [1, expect.stringContaining("/4/Edgar_Grey_dot.png")],
+      [2, expect.stringContaining("/3/Lisette_Rosalia_dot.png")],
+      [3, expect.stringContaining("/6/Shion_Yoizuki_dot.png")],
+      [4, expect.stringContaining("/2/Cécile_Asteria_dot.png")],
+      [5, expect.stringContaining("/5/Eleanor_Veil_dot.png")],
+      [6, expect.stringContaining("/7/Lucien_Valmont_dot.png")],
     ]);
   });
 
-  it("uses the fire-eating beast portrait for every enemy motion state", () => {
+  it("uses the fire-eating beast as the legacy enemy portrait", () => {
     expect(ENEMY_SHEETS.idle).toMatchObject({
       columns: 1,
       rows: 1,
@@ -55,13 +59,36 @@ describe("character asset definitions", () => {
       rows: 1,
     });
     expect(decodeURIComponent(ENEMY_SHEETS.idle.src)).toContain(
-      "火喰らいの獣.png",
+      "火喰らいの獣2.png",
     );
     expect(decodeURIComponent(ENEMY_SHEETS.attack.src)).toContain(
-      "火喰らいの獣.png",
+      "火喰らいの獣2.png",
     );
     expect(decodeURIComponent(ENEMY_SHEETS.damage.src)).toContain(
-      "火喰らいの獣.png",
+      "/1/1-3/敵/火喰らいの獣2.png",
     );
+  });
+
+  it("maps each Word Quest enemy to its stage artwork", () => {
+    expect(
+      Object.entries(ENEMY_SHEETS_BY_ID).map(([enemyId, sheets]) => [
+        enemyId,
+        decodeURIComponent(sheets.idle.src),
+      ]),
+    ).toEqual([
+      ["gaze-idol", expect.stringContaining("/1/1-1/敵/見張りの石像2.png")],
+      ["echo-moth", expect.stringContaining("/1/1-2/敵/反響の翅2.png")],
+      ["ember-maw", expect.stringContaining("/1/1-3/敵/火喰らいの獣2.png")],
+      ["forgotten-king", expect.stringContaining("/1/1-4/敵/亡名神2.png")],
+    ]);
+  });
+
+  it("shows the forgotten king at 1.25 times the standard enemy scale", () => {
+    expect(ENEMY_SHEETS_BY_ID["forgotten-king"].displayScale).toBe(1.25);
+    expect(ENEMY_SHEETS_BY_ID["ember-maw"].displayScale).toBe(1);
+  });
+
+  it("falls back to the legacy enemy artwork for an unknown enemy", () => {
+    expect(getEnemySheets("unknown-enemy")).toBe(ENEMY_SHEETS);
   });
 });

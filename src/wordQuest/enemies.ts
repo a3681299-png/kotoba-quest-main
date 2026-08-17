@@ -116,7 +116,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
   },
   {
     id: "echo-moth",
-    name: "反響の蛾",
+    name: "反響の翅",
     epithet: "同じ言葉を食べるもの",
     description:
       "薄い羽は同じ言葉を二度と聞き入れない。繰り返そうとした声は、宙で虚しく反響するだけに終わる。",
@@ -162,8 +162,8 @@ export const ENEMIES: readonly EnemyDefinition[] = [
   },
   {
     id: "forgotten-king",
-    name: "忘名王アステル",
-    epithet: "名を失った王",
+    name: "亡名神",
+    epithet: "名を失った神",
     description:
       "王冠の内側には古い名が刻まれている。時折、王は自らの名を忘れ、あらゆる言葉を拒む沈黙に沈む。その時に届く言葉は、ただ一つしかない。",
     readingClue:
@@ -176,7 +176,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
         id: "king-remembers-name",
         trigger: { kind: "after-action", action: "call_name" },
         effects: [{ kind: "add-enemy-status", status: "named" }],
-        log: "アステルの名が玉座へ響いた。",
+        log: "亡名神の名が玉座へ響いた。",
       },
     ],
     solutionHints: [
