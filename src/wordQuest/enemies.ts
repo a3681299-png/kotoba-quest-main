@@ -9,7 +9,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
       "煤けた獣は、こちらが手を出すたびに炎を吐き戻し、同じ構えを続けるほど自らを焦がしていく。",
     readingClue:
       "私に触れるたび、その手には火の粉が残る。同じ手を使い続ければ、いずれ自分の炎に飲まれる。冷ます術を持つ者だけが、長く戦える。",
-    maxHp: 16,
+    maxHp: 24,
     basePower: 3,
     initialStatuses: [],
     reactions: [

@@ -140,7 +140,7 @@ describe("word quest battle simulation", () => {
       strategies: [sentence],
       inventory: createStarterInventory(),
     });
-    expect(resolution.battle.enemyHp).toBe(16);
+    expect(resolution.battle.enemyHp).toBe(24);
     expect(resolution.logs.map((log) => log.status)).toContain("failed");
   });
 
