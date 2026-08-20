@@ -64,6 +64,12 @@ import {
   countUsedVocabularySlots,
 } from "./wordQuestUiMeta";
 import {
+  buildWordQuestResultPreview,
+  type ResultPreviewConditionState,
+  type ResultPreviewTone,
+  type WordQuestResultPreviewItem,
+} from "./wordQuestResultPreview";
+import {
   auth,
   saveBattleRecord,
   saveStageCode,
@@ -74,6 +80,7 @@ import "./word-quest-game.css";
 import "./word-quest-contextual-tray.css";
 import "./word-quest-stage-split.css";
 import "./word-quest-strategy-dock.css";
+import "./word-quest-result-preview.css";
 import "./word-quest-battle-motion.css";
 
 interface WordQuestRunScreenProps {
@@ -226,6 +233,94 @@ function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
         </p>
       )}
     </div>
+  );
+}
+
+const RESULT_PREVIEW_MARKS: Readonly<Record<ResultPreviewTone, string>> = {
+  damage: "撃",
+  defense: "守",
+  recovery: "復",
+  status: "効",
+  blocked: "止",
+};
+
+const CONDITION_PREVIEW_MARKS: Readonly<
+  Record<ResultPreviewConditionState, string>
+> = {
+  passed: "成",
+  failed: "否",
+  skipped: "済",
+};
+
+function StrategyResultPreview({
+  items,
+}: {
+  items: readonly WordQuestResultPreviewItem[];
+}) {
+  return (
+    <aside
+      className="word-game__result-preview"
+      aria-label="実行前の結果プレビュー"
+      aria-live="polite"
+    >
+      <header className="word-game__result-preview-heading">
+        <span>
+          <small>実行前</small>
+          <strong>結果プレビュー</strong>
+        </span>
+        <b>{items.length}作戦</b>
+      </header>
+
+      <ol className="word-game__result-preview-list">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="word-game__result-preview-item"
+            data-condition={item.conditionState}
+          >
+            <small className="word-game__result-preview-index">
+              作戦 {item.sentenceIndex + 1}
+            </small>
+
+            <p className="word-game__result-preview-condition">
+              <i aria-hidden="true">
+                {CONDITION_PREVIEW_MARKS[item.conditionState]}
+              </i>
+              <span>
+                <strong>{item.conditionLabel}</strong>
+                <small>{item.conditionDetail}</small>
+              </span>
+            </p>
+
+            <p
+              className="word-game__result-preview-outcome"
+              data-tone={item.outcomeTone}
+            >
+              <i aria-hidden="true">
+                {RESULT_PREVIEW_MARKS[item.outcomeTone]}
+              </i>
+              <strong>{item.outcomeLabel}</strong>
+            </p>
+
+            <p className="word-game__result-preview-cadence">
+              <i aria-hidden="true">回</i>
+              <span>{item.cadenceLabel}</span>
+            </p>
+
+            {item.notes.map((note, noteIndex) => (
+              <p
+                key={`${note.kind}-${noteIndex}`}
+                className="word-game__result-preview-note"
+                data-kind={note.kind}
+              >
+                <strong>{note.kind === "reaction" ? "敵の反応" : "不発"}</strong>
+                <span>{note.label}</span>
+              </p>
+            ))}
+          </li>
+        ))}
+      </ol>
+    </aside>
   );
 }
 
@@ -582,6 +677,21 @@ export function WordQuestRunScreen({
     validations.length > 0 &&
     validations.some((validation) => validation.valid) &&
     hasEnoughAp;
+  const resultPreview = useMemo(() => {
+    if (!run || !enemy) return [];
+    const completedStrategies = run.strategies.flatMap((sentence, index) =>
+      validations[index]?.valid
+        ? [{ sentence, sentenceIndex: index }]
+        : [],
+    );
+    return buildWordQuestResultPreview({
+      enemyName: enemy.name,
+      player: run.player,
+      battle: run.currentBattle,
+      strategies: completedStrategies,
+      inventory: run.inventory,
+    });
+  }, [run, enemy, validations]);
 
   const startRun = () => {
     combatTimelineRef.current?.kill();
@@ -1128,6 +1238,10 @@ export function WordQuestRunScreen({
           }))}
           isDisabled={run.currentBattle.enemyStatuses.includes("stopped")}
         />
+
+        {!isResolving && resultPreview.length > 0 && (
+          <StrategyResultPreview items={resultPreview} />
+        )}
 
         <div className="word-game__stage-marks">
           <span>敵威力 {run.currentBattle.enemyPower}</span>
