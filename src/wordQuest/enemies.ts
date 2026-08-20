@@ -67,7 +67,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     readingClue:
       "私は見ている間だけ動きを縛る。けれど光を向けられると目を閉じ、その場で止まる。",
     maxHp: 30,
-    basePower: 3,
+    basePower: 6,
     initialStatuses: ["watching"],
     reactions: [
       {
