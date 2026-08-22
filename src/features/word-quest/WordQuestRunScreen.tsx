@@ -123,6 +123,7 @@ const PLAYER_STATUS_MARKS: Readonly<Record<PlayerStatus, string>> = {
 };
 
 const BASE_ACTION_SLOTS = 2;
+const SENTENCE_FEEDBACK_MS = 4_200;
 
 interface CombatPlayback {
   id: number;
@@ -254,21 +255,29 @@ const CONDITION_PREVIEW_MARKS: Readonly<
 
 function StrategyResultPreview({
   items,
+  mode = "preview",
 }: {
   items: readonly WordQuestResultPreviewItem[];
+  mode?: "preview" | "result";
 }) {
+  const isResult = mode === "result";
+
   return (
     <aside
       className="word-game__result-preview"
-      aria-label="実行前の結果プレビュー"
+      data-mode={mode}
+      aria-label={isResult ? "実行した文の成立判定" : "実行前の結果プレビュー"}
       aria-live="polite"
     >
       <header className="word-game__result-preview-heading">
         <span>
-          <small>実行前</small>
-          <strong>結果プレビュー</strong>
+          <small>{isResult ? "実行結果" : "実行前"}</small>
+          <strong>{isResult ? "文の成立判定" : "結果プレビュー"}</strong>
         </span>
-        <b>{items.length}作戦</b>
+        <b>
+          {items.length}
+          {isResult ? "文" : "作戦"}
+        </b>
       </header>
 
       <ol className="word-game__result-preview-list">
@@ -287,7 +296,15 @@ function StrategyResultPreview({
                 {CONDITION_PREVIEW_MARKS[item.conditionState]}
               </i>
               <span>
-                <strong>{item.conditionLabel}</strong>
+                <strong>
+                  {isResult
+                    ? item.conditionState === "passed"
+                      ? "文が成立した"
+                      : item.conditionState === "failed"
+                        ? "文は成立しなかった"
+                        : "この文は実行されなかった"
+                    : item.conditionLabel}
+                </strong>
                 <small>{item.conditionDetail}</small>
               </span>
             </p>
@@ -568,6 +585,7 @@ export function WordQuestRunScreen({
   });
   const placementTimerRef = useRef<number | null>(null);
   const rejectionTimerRef = useRef<number | null>(null);
+  const sentenceFeedbackTimerRef = useRef<number | null>(null);
   const battlefieldRef = useRef<LiveBattlefieldHandle>(null);
   const combatTimelineRef = useRef<ReturnType<
     typeof createWordQuestBattleTimeline
@@ -591,6 +609,9 @@ export function WordQuestRunScreen({
   const [combatPlayback, setCombatPlayback] = useState<CombatPlayback | null>(
     null,
   );
+  const [sentenceFeedback, setSentenceFeedback] = useState<
+    readonly WordQuestResultPreviewItem[] | null
+  >(null);
 
   useEffect(() => {
     if (!run) return;
@@ -617,6 +638,9 @@ export function WordQuestRunScreen({
       }
       if (rejectionTimerRef.current !== null) {
         window.clearTimeout(rejectionTimerRef.current);
+      }
+      if (sentenceFeedbackTimerRef.current !== null) {
+        window.clearTimeout(sentenceFeedbackTimerRef.current);
       }
     },
     [],
@@ -693,6 +717,28 @@ export function WordQuestRunScreen({
     });
   }, [run, enemy, validations]);
 
+  const dismissSentenceFeedback = () => {
+    if (sentenceFeedbackTimerRef.current !== null) {
+      window.clearTimeout(sentenceFeedbackTimerRef.current);
+      sentenceFeedbackTimerRef.current = null;
+    }
+    setSentenceFeedback(null);
+  };
+
+  const showSentenceFeedback = (
+    items: readonly WordQuestResultPreviewItem[],
+  ) => {
+    if (items.length === 0) return;
+    if (sentenceFeedbackTimerRef.current !== null) {
+      window.clearTimeout(sentenceFeedbackTimerRef.current);
+    }
+    setSentenceFeedback(items);
+    sentenceFeedbackTimerRef.current = window.setTimeout(() => {
+      setSentenceFeedback(null);
+      sentenceFeedbackTimerRef.current = null;
+    }, SENTENCE_FEEDBACK_MS);
+  };
+
   const startRun = () => {
     combatTimelineRef.current?.kill();
     combatTimelineRef.current = null;
@@ -701,6 +747,7 @@ export function WordQuestRunScreen({
       window.clearTimeout(executionTimerRef.current);
       executionTimerRef.current = null;
     }
+    dismissSentenceFeedback();
     setCombatPlayback(null);
     setIsResolving(false);
     const next = createWordQuestRun(seed);
@@ -713,6 +760,7 @@ export function WordQuestRunScreen({
   };
 
   const updateStrategies = (strategies: readonly StrategySentence[]) => {
+    dismissSentenceFeedback();
     setRun((current) =>
       current ? updateRunStrategies(current, strategies) : current,
     );
@@ -918,6 +966,7 @@ export function WordQuestRunScreen({
       return;
     }
 
+    showSentenceFeedback(resultPreview);
     persistBattleProgress();
 
     const presentation = buildWordQuestBattlePresentation({
@@ -1007,6 +1056,7 @@ export function WordQuestRunScreen({
   const chooseReward = (wordId: WordId) => {
     if (!run) return;
     const label = VOCABULARY_BY_ID[wordId]?.label ?? wordId;
+    dismissSentenceFeedback();
     setRun(chooseRunReward(run, wordId));
     setNotice(`「${label}」を獲得。次の敵へ進みます。`);
     setActiveSentenceIndex(0);
@@ -1016,6 +1066,7 @@ export function WordQuestRunScreen({
 
   const retry = (sameSeed: boolean) => {
     if (!run) return;
+    dismissSentenceFeedback();
     const nextSeed = sameSeed
       ? run.seed
       : `KOTOBA-${Math.floor(Date.now() / 1000)
@@ -1239,8 +1290,13 @@ export function WordQuestRunScreen({
           isDisabled={run.currentBattle.enemyStatuses.includes("stopped")}
         />
 
-        {!isResolving && resultPreview.length > 0 && (
-          <StrategyResultPreview items={resultPreview} />
+        {sentenceFeedback ? (
+          <StrategyResultPreview items={sentenceFeedback} mode="result" />
+        ) : (
+          !isResolving &&
+          resultPreview.length > 0 && (
+            <StrategyResultPreview items={resultPreview} />
+          )
         )}
 
         <div className="word-game__stage-marks">

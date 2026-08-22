@@ -62,31 +62,111 @@ function appendLog(
   });
 }
 
+interface ConditionEvaluation {
+  matched: boolean;
+  fact: string;
+}
+
 function evaluateCondition(
   condition: ConditionEffectId,
   context: MutableBattleContext,
-): boolean {
+): ConditionEvaluation {
   switch (condition) {
     case "always":
+      return {
+        matched: true,
+        fact: "「いつでも」は戦況を問わない",
+      };
     case "enemy_near":
-      return true;
-    case "player_hurt":
-      return context.player.hp < context.player.maxHp;
-    case "player_attacked":
-      return context.player.statuses.has("attacked");
-    case "enemy_enraged":
-      return context.battle.enemyStatuses.has("enraged");
-    case "enemy_watching":
-      return context.battle.enemyStatuses.has("watching");
-    case "enemy_not_watching":
-      return !context.battle.enemyStatuses.has("watching");
-    case "enemy_stopped":
-      return context.battle.enemyStatuses.has("stopped");
-    case "enemy_bound":
-      return context.battle.enemyStatuses.has("bound");
-    case "enemy_named":
-      return context.battle.enemyStatuses.has("named");
+      return {
+        matched: true,
+        fact: "戦闘中は敵が近くにいる扱いになっている",
+      };
+    case "player_hurt": {
+      const matched = context.player.hp < context.player.maxHp;
+      return {
+        matched,
+        fact: `自分のHPが${context.player.hp}/${context.player.maxHp}で${
+          matched ? "最大値を下回っている" : "満タンになっている"
+        }`,
+      };
+    }
+    case "player_attacked": {
+      const matched = context.player.statuses.has("attacked");
+      return {
+        matched,
+        fact: `前の手番で敵の攻撃を${
+          matched ? "受けている" : "受けていない"
+        }`,
+      };
+    }
+    case "enemy_enraged": {
+      const matched = context.battle.enemyStatuses.has("enraged");
+      return {
+        matched,
+        fact: `敵が怒り状態に${matched ? "なっている" : "なっていない"}`,
+      };
+    }
+    case "enemy_watching": {
+      const matched = context.battle.enemyStatuses.has("watching");
+      return {
+        matched,
+        fact: `敵に視線状態が${matched ? "ある" : "ない"}`,
+      };
+    }
+    case "enemy_not_watching": {
+      const matched = !context.battle.enemyStatuses.has("watching");
+      return {
+        matched,
+        fact: `敵に視線状態が${matched ? "ない" : "ある"}`,
+      };
+    }
+    case "enemy_stopped": {
+      const matched = context.battle.enemyStatuses.has("stopped");
+      return {
+        matched,
+        fact: `敵が停止状態に${matched ? "なっている" : "なっていない"}`,
+      };
+    }
+    case "enemy_bound": {
+      const matched = context.battle.enemyStatuses.has("bound");
+      return {
+        matched,
+        fact: `敵が拘束状態に${matched ? "なっている" : "なっていない"}`,
+      };
+    }
+    case "enemy_named": {
+      const matched = context.battle.enemyStatuses.has("named");
+      return {
+        matched,
+        fact: `敵の名前を${matched ? "すでに呼んでいる" : "まだ呼んでいない"}`,
+      };
+    }
   }
+}
+
+function describeConditionEvaluation(
+  evaluation: ConditionEvaluation,
+  negated: boolean,
+): { matched: boolean; detail: string } {
+  if (!negated) {
+    return {
+      matched: evaluation.matched,
+      detail: `${evaluation.fact}ため、条件${
+        evaluation.matched ? "が成立した" : "は成立しなかった"
+      }。`,
+    };
+  }
+
+  const matched = !evaluation.matched;
+  return {
+    matched,
+    detail: `${evaluation.fact}ため、元の条件${
+      evaluation.matched ? "が成立した" : "は成立しなかった"
+    }。「ではない」で判定が反転し、最終的に条件${
+      matched ? "が成立した" : "は成立しなかった"
+    }。`,
+  };
 }
 
 function applyReactionEffect(
@@ -497,21 +577,26 @@ export function simulateStrategyPlan(input: {
       return;
     }
 
-    let conditionMatched = evaluateCondition(
+    const conditionEvaluation = evaluateCondition(
       conditionWord.effect.condition,
       context,
     );
-    if (
+    const isNegated =
       modifierWord?.effect.kind === "modifier" &&
-      modifierWord.effect.modifier === "negate"
-    ) {
-      conditionMatched = !conditionMatched;
-    }
+      modifierWord.effect.modifier === "negate";
+    const conditionResult = describeConditionEvaluation(
+      conditionEvaluation,
+      isNegated,
+    );
+    let conditionMatched = conditionResult.matched;
+    let conditionDetail = conditionResult.detail;
     if (
       connectorWord.effect.connector === "after" &&
       !context.previousSentenceExecuted
     ) {
       conditionMatched = false;
+      conditionDetail =
+        "直前の文が実行されなかったため、「その後」には進めず、この文は成立しなかった。";
     }
 
     appendLog(context, {
@@ -519,9 +604,7 @@ export function simulateStrategyPlan(input: {
       kind: "condition",
       status: conditionMatched ? "passed" : "failed",
       title: conditionWord.label,
-      detail: conditionMatched
-        ? "条件が成立し、次の語彙へ因果が進んだ。"
-        : "条件が成立せず、この文章で因果が途切れた。",
+      detail: conditionDetail,
     });
     if (!conditionMatched) {
       context.previousSentenceExecuted = false;

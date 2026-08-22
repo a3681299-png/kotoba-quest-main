@@ -57,24 +57,6 @@ function totalLoggedAmount(
   }, 0);
 }
 
-function conditionPhrase(sentence: StrategySentence): string {
-  const subject = sentence.subject
-    ? VOCABULARY_BY_ID[sentence.subject]
-    : null;
-  const condition = sentence.condition
-    ? VOCABULARY_BY_ID[sentence.condition]
-    : null;
-
-  if (
-    condition?.effect.kind === "condition" &&
-    condition.effect.condition === "always"
-  ) {
-    return condition.label;
-  }
-
-  return `${subject?.label ?? "対象"}が${condition?.label ?? "条件を満たす"}`;
-}
-
 function plannedRepetitions(sentence: StrategySentence): number {
   const connector = sentence.connector
     ? VOCABULARY_BY_ID[sentence.connector]
@@ -278,17 +260,10 @@ export function buildWordQuestResultPreview(
                 outcomeLabel: "行動を確認できません",
                 outcomeTone: "blocked" as const,
               };
-    const modifier = sentence.modifier
-      ? VOCABULARY_BY_ID[sentence.modifier]
-      : null;
-    const phrase = conditionPhrase(sentence);
     const conditionDetail =
-      modifier?.effect.kind === "modifier" &&
-      modifier.effect.modifier === "negate"
-        ? `条件を反転：${phrase}`
-        : conditionState === "skipped"
-          ? "前の作戦で戦闘が決着"
-          : phrase;
+      conditionState === "skipped"
+        ? "前の作戦で戦闘が決着したため、実行されなかった。"
+        : conditionLog?.detail ?? "判定理由を確認できませんでした。";
     const notes: WordQuestResultPreviewNote[] = [
       ...failureLogs
         .filter(() => actionLogs.length > 0)

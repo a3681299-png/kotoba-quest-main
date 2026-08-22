@@ -159,6 +159,29 @@ describe("word quest battle simulation", () => {
     expect(resolution.logs.map((log) => log.status)).toContain("failed");
   });
 
+  it("explains when the after connector cannot follow the previous sentence", () => {
+    const strategies: readonly StrategySentence[] = [
+      healSentence(0),
+      { ...attackSentence(1), connector: "connector.after" },
+    ];
+    const resolution = simulateStrategyPlan({
+      player: testPlayer({ hp: 18, maxHp: 18 }),
+      battle: createBattleState("gaze-idol"),
+      strategies,
+      inventory: inventoryWith("connector.after"),
+    });
+
+    expect(
+      resolution.logs.find(
+        (log) => log.kind === "condition" && log.sentenceIndex === 1,
+      ),
+    ).toMatchObject({
+      status: "failed",
+      detail:
+        "直前の文が実行されなかったため、「その後」には進めず、この文は成立しなかった。",
+    });
+  });
+
   it("applies each enemy's data-driven reaction", () => {
     const ember = simulateStrategyPlan({
       player: testPlayer({ hp: 18, maxHp: 18 }),
