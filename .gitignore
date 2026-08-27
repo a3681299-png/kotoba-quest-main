@@ -29,7 +29,8 @@ andrej-karpathy-skills/
 .agents/
 CLAUDE.md
 .env
-.env.local
+.env.*
+!.env.example
 
 # Database
 server/prisma/dev.db
