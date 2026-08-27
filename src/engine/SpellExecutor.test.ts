@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parse } from "../parser/parser";
+import { gameStore } from "../store/useGameStore";
 import { SpellExecutor } from "./SpellExecutor";
 
 async function executeTutorialCode(
@@ -35,6 +36,28 @@ describe("SpellExecutor tutorial commands", () => {
       { type: "attack", attackType: "normal", damage: 10 },
       { type: "heal", amount: 20 },
     ]);
+  });
+
+  it("applies a store-backed heal exactly once", async () => {
+    const parseResult = parse("回復する");
+    expect(parseResult.success).toBe(true);
+    if (!parseResult.success) return;
+
+    gameStore.getState().resetStage(20);
+    gameStore.getState().setPlayerHp(40);
+    const executor = new SpellExecutor(
+      {
+        playerHp: 40,
+        enemyHp: 20,
+        maxEnemyHp: 20,
+        variables: new Map(),
+      },
+      { useStore: true },
+    );
+
+    await executor.execute(parseResult.ast);
+
+    expect(gameStore.getState().playerHp).toBe(60);
   });
 
   it("emits meaning actions for observation and dialogue", async () => {

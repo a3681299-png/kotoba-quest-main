@@ -22,7 +22,6 @@ import { CATEGORY_META } from "./wordQuestUiMeta";
 
 interface LexiconDrawerProps {
   activeCategory: WordCategory;
-  activeSentenceIndex: number;
   activeSlot: SentenceSlot;
   blockedActionIds: readonly ActionEffectId[];
   blockedReason: string;
@@ -43,7 +42,6 @@ interface LexiconDrawerProps {
 
 export function LexiconDrawer({
   activeCategory,
-  activeSentenceIndex,
   activeSlot,
   blockedActionIds,
   blockedReason,
@@ -61,7 +59,7 @@ export function LexiconDrawer({
   const stageRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
-  const detailContextKey = `${activeSentenceIndex}:${activeSlot}:${handCycle}`;
+  const detailContextKey = `${activeSlot}:${handCycle}`;
   const [detailRequest, setDetailRequest] = useState<{
     wordId: WordId;
     contextKey: string;
@@ -138,7 +136,7 @@ export function LexiconDrawer({
       aria-labelledby="word-tray-title"
     >
       <h3 id="word-tray-title" className="strategy-dock__sr-only">
-        第{activeSentenceIndex + 1}文・{SENTENCE_SLOT_LABELS[activeSlot]}・
+        作戦文・{SENTENCE_SLOT_LABELS[activeSlot]}・
         {activeMeta.label}カード
       </h3>
 

@@ -1,4 +1,4 @@
-import type { ActionEffectId } from "../../wordQuest";
+import type { ActionEffectId, BattleTurnEffects } from "../../wordQuest";
 
 export type WordQuestBattleMotionPhase =
   "windup" | "strike" | "enemy-impact" | "counter" | "player-impact" | "settle";
@@ -6,8 +6,13 @@ export type WordQuestBattleMotionPhase =
 export interface WordQuestBattlePresentation {
   enemyDamage: number;
   playerDamage: number;
+  playerHealing: number;
+  guardApplied: number;
+  damageBlocked: number;
   hasPlayerStrike: boolean;
   hasEnemyStrike: boolean;
+  hasPlayerRecovery: boolean;
+  hasPlayerGuard: boolean;
   reducedMotion: boolean;
   enemyImpactMs: number | null;
   playerImpactMs: number | null;
@@ -29,6 +34,7 @@ export function buildWordQuestBattlePresentation({
   enemyHpAfter,
   playerHpBefore,
   playerHpAfter,
+  effects,
   usedActions,
   reducedMotion,
 }: {
@@ -36,22 +42,34 @@ export function buildWordQuestBattlePresentation({
   enemyHpAfter: number;
   playerHpBefore: number;
   playerHpAfter: number;
+  effects: BattleTurnEffects;
   usedActions: readonly ActionEffectId[];
   reducedMotion: boolean;
 }): WordQuestBattlePresentation {
   const enemyDamage = damageBetween(enemyHpBefore, enemyHpAfter);
-  const playerDamage = damageBetween(playerHpBefore, playerHpAfter);
+  const playerDamage = Math.max(
+    effects.playerDamageTaken,
+    damageBetween(playerHpBefore, playerHpAfter),
+  );
   const hasPlayerStrike =
     enemyDamage > 0 &&
     usedActions.some((action) => PLAYER_STRIKE_ACTIONS.has(action));
-  const hasEnemyStrike = playerDamage > 0;
+  const hasEnemyStrike = playerDamage > 0 || effects.damageBlocked > 0;
+  const effectPresentation = {
+    enemyDamage,
+    playerDamage,
+    playerHealing: effects.playerHealing,
+    guardApplied: effects.guardApplied,
+    damageBlocked: effects.damageBlocked,
+    hasPlayerStrike,
+    hasEnemyStrike,
+    hasPlayerRecovery: effects.playerHealing > 0,
+    hasPlayerGuard: effects.guardApplied > 0,
+  };
 
   if (reducedMotion) {
     return {
-      enemyDamage,
-      playerDamage,
-      hasPlayerStrike,
-      hasEnemyStrike,
+      ...effectPresentation,
       reducedMotion: true,
       enemyImpactMs: hasPlayerStrike ? 36 : null,
       playerImpactMs: hasEnemyStrike ? (hasPlayerStrike ? 92 : 36) : null,
@@ -62,10 +80,7 @@ export function buildWordQuestBattlePresentation({
 
   if (hasPlayerStrike && hasEnemyStrike) {
     return {
-      enemyDamage,
-      playerDamage,
-      hasPlayerStrike,
-      hasEnemyStrike,
+      ...effectPresentation,
       reducedMotion: false,
       enemyImpactMs: 470,
       playerImpactMs: 1320,
@@ -76,10 +91,7 @@ export function buildWordQuestBattlePresentation({
 
   if (hasPlayerStrike) {
     return {
-      enemyDamage,
-      playerDamage,
-      hasPlayerStrike,
-      hasEnemyStrike,
+      ...effectPresentation,
       reducedMotion: false,
       enemyImpactMs: 470,
       playerImpactMs: null,
@@ -90,10 +102,7 @@ export function buildWordQuestBattlePresentation({
 
   if (hasEnemyStrike) {
     return {
-      enemyDamage,
-      playerDamage,
-      hasPlayerStrike,
-      hasEnemyStrike,
+      ...effectPresentation,
       reducedMotion: false,
       enemyImpactMs: null,
       playerImpactMs: 500,
@@ -103,10 +112,7 @@ export function buildWordQuestBattlePresentation({
   }
 
   return {
-    enemyDamage,
-    playerDamage,
-    hasPlayerStrike,
-    hasEnemyStrike,
+    ...effectPresentation,
     reducedMotion: false,
     enemyImpactMs: null,
     playerImpactMs: null,

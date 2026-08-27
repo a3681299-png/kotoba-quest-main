@@ -1,3 +1,4 @@
+import { createStrategySentence } from "./grammar";
 import type { WordQuestRunState } from "./types";
 
 export const WORD_QUEST_SAVE_KEY = "kotoba-quest.word-run.v1";
@@ -30,7 +31,17 @@ export function restoreWordQuestRun(
   if (!serialized) return null;
   try {
     const parsed: unknown = JSON.parse(serialized);
-    return isRunState(parsed) ? parsed : null;
+    if (!isRunState(parsed)) return null;
+    return {
+      ...parsed,
+      strategies: [{ ...(parsed.strategies[0] ?? createStrategySentence(0)) }],
+      currentBattle: {
+        ...parsed.currentBattle,
+        usedPlayerActions: Array.isArray(parsed.currentBattle.usedPlayerActions)
+          ? [...parsed.currentBattle.usedPlayerActions]
+          : [],
+      },
+    };
   } catch {
     return null;
   }

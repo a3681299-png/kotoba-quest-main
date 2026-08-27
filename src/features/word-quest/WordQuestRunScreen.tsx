@@ -12,12 +12,14 @@ import {
   VOCABULARY_BY_ID,
   WORD_CATEGORY_LABELS,
   WORD_QUEST_SAVE_KEY,
+  WORD_QUEST_STRATEGY_COUNT,
   chooseRunReward,
   createWordQuestRun,
   estimatePlanApCost,
   executeRunBattle,
   formatSentence,
   getEnemy,
+  getEnemyAttackPreview,
   getNextEmptySlot,
   getOwnedWords,
   restoreWordQuestRun,
@@ -122,7 +124,6 @@ const PLAYER_STATUS_MARKS: Readonly<Record<PlayerStatus, string>> = {
   sealed: "封",
 };
 
-const BASE_ACTION_SLOTS = 2;
 const SENTENCE_FEEDBACK_MS = 4_200;
 
 interface CombatPlayback {
@@ -130,6 +131,7 @@ interface CombatPlayback {
   phase: WordQuestBattleMotionPhase;
   presentation: WordQuestBattlePresentation;
   enemyHpAfter: number;
+  playerHpAfterActions: number;
   playerHpAfter: number;
 }
 
@@ -158,10 +160,18 @@ function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
     "--word-combat-total": `${presentation.totalMs}ms`,
   } as CSSProperties;
   const statusParts = [
+    presentation.hasPlayerRecovery
+      ? `旅人のHPが${presentation.playerHealing}回復。`
+      : "",
+    presentation.hasPlayerGuard
+      ? presentation.damageBlocked > 0
+        ? `守りで${presentation.damageBlocked}ダメージ軽減。`
+        : `旅人は${presentation.guardApplied}点の守りを構えた。`
+      : "",
     presentation.hasPlayerStrike
       ? `ロッタの攻撃、敵に${presentation.enemyDamage}ダメージ。`
       : "",
-    presentation.hasEnemyStrike
+    presentation.hasEnemyStrike && presentation.playerDamage > 0
       ? `敵の反撃、旅人に${presentation.playerDamage}ダメージ。`
       : "",
   ].filter(Boolean);
@@ -171,8 +181,30 @@ function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
       key={playback.id}
       className="word-game__combat-motion"
       data-phase={playback.phase}
+      data-recovery={presentation.hasPlayerRecovery ? "true" : undefined}
+      data-guard={presentation.hasPlayerGuard ? "true" : undefined}
       style={motionStyle}
     >
+      {presentation.hasPlayerRecovery && (
+        <strong
+          className="word-game__support-number word-game__support-number--recovery"
+          aria-hidden="true"
+        >
+          +{presentation.playerHealing}
+        </strong>
+      )}
+
+      {presentation.hasPlayerGuard && (
+        <span className="word-game__guard-effect" aria-hidden="true">
+          <i>守</i>
+          <strong>
+            {presentation.damageBlocked > 0
+              ? `${presentation.damageBlocked}軽減`
+              : `${presentation.guardApplied}防御`}
+          </strong>
+        </span>
+      )}
+
       {presentation.hasPlayerStrike && (
         <>
           <div className="word-game__attack-artwork">
@@ -222,9 +254,11 @@ function BattleMotionOverlay({ playback }: { playback: CombatPlayback }) {
       {presentation.hasEnemyStrike && (
         <>
           <span className="word-game__counter-bloom" />
-          <strong className="word-game__damage-number word-game__damage-number--player">
-            -{presentation.playerDamage}
-          </strong>
+          {presentation.playerDamage > 0 && (
+            <strong className="word-game__damage-number word-game__damage-number--player">
+              -{presentation.playerDamage}
+            </strong>
+          )}
         </>
       )}
 
@@ -288,7 +322,7 @@ function StrategyResultPreview({
             data-condition={item.conditionState}
           >
             <small className="word-game__result-preview-index">
-              作戦 {item.sentenceIndex + 1}
+              作戦
             </small>
 
             <p className="word-game__result-preview-condition">
@@ -594,15 +628,13 @@ export function WordQuestRunScreen({
   const executeButtonRef = useRef<HTMLButtonElement>(null);
   const [run, setRun] = useState<WordQuestRunState | null>(initialState.saved);
   const [seed, setSeed] = useState(initialState.seed);
-  const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
   const [activeSlot, setActiveSlot] = useState<SentenceSlot>("condition");
   const [isLexiconOpen, setIsLexiconOpen] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
   const [draggedWordId, setDraggedWordId] = useState<WordId | null>(null);
-  const [placementTarget, setPlacementTarget] = useState<{
-    sentenceIndex: number;
-    slot: SentenceSlot;
-  } | null>(null);
+  const [placementTarget, setPlacementTarget] = useState<SentenceSlot | null>(
+    null,
+  );
   const [rejectedWordId, setRejectedWordId] = useState<WordId | null>(null);
   const [lexiconFocusRequestId, setLexiconFocusRequestId] = useState(0);
   const [notice, setNotice] = useState(initialState.notice);
@@ -698,8 +730,8 @@ export function WordQuestRunScreen({
   const hasEnoughAp = Boolean(run) && estimatedApCost <= (run?.player.actionPoints ?? 0);
   const planReady =
     Boolean(run) &&
-    validations.length > 0 &&
-    validations.some((validation) => validation.valid) &&
+    validations.length === WORD_QUEST_STRATEGY_COUNT &&
+    validations.every((validation) => validation.valid) &&
     hasEnoughAp;
   const resultPreview = useMemo(() => {
     if (!run || !enemy) return [];
@@ -753,7 +785,6 @@ export function WordQuestRunScreen({
     const next = createWordQuestRun(seed);
     setRun(next);
     setSeed(next.seed);
-    setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
     setNotice("少ない語彙で冒険を始めました。");
@@ -766,20 +797,8 @@ export function WordQuestRunScreen({
     );
   };
 
-  const selectSlot = (sentenceIndex: number, slot: SentenceSlot) => {
-    setActiveSentenceIndex(sentenceIndex);
+  const selectSlot = (slot: SentenceSlot) => {
     setActiveSlot(slot);
-    setIsLexiconOpen(true);
-  };
-
-  const selectSentence = (sentenceIndex: number) => {
-    if (!run) return;
-    const sentence = run.strategies[sentenceIndex];
-    if (!sentence) return;
-    setActiveSentenceIndex(sentenceIndex);
-    setActiveSlot(
-      validations[sentenceIndex]?.missingSlot ?? getNextEmptySlot(sentence),
-    );
     setIsLexiconOpen(true);
   };
 
@@ -797,12 +816,11 @@ export function WordQuestRunScreen({
 
   const placeWord = (
     wordId: WordId,
-    sentenceIndex = activeSentenceIndex,
     slot = activeSlot,
   ) => {
     if (!run || run.phase !== "battle") return;
     const word = VOCABULARY_BY_ID[wordId];
-    const sentence = run.strategies[sentenceIndex];
+    const sentence = run.strategies[0];
     if (!word || !sentence) return;
     if (!wordFitsSlot(word, slot)) {
       rejectWordPlacement(
@@ -812,9 +830,7 @@ export function WordQuestRunScreen({
       return;
     }
     const nextSentence = setSentenceSlot(sentence, slot, word.id);
-    const next = run.strategies.map((item, index) =>
-      index === sentenceIndex ? nextSentence : item,
-    );
+    const next = [nextSentence];
     const availableWordCount =
       Object.keys(run.inventory).length + (enemy?.battleOnlyWordIds.length ?? 0);
     if (countUsedVocabularySlots(next) > availableWordCount) {
@@ -830,34 +846,18 @@ export function WordQuestRunScreen({
       run.inventory,
       enemy?.battleOnlyWordIds,
     );
-    const sentenceValidation = nextValidations[sentenceIndex];
+    const sentenceValidation = nextValidations[0];
     const sentenceIsReady = sentenceValidation?.valid ?? false;
-    const nextIncompleteSentenceIndex = sentenceIsReady
-      ? nextValidations.findIndex((validation) => !validation.valid)
-      : sentenceIndex;
-    const nextActiveSentenceIndex =
-      nextIncompleteSentenceIndex >= 0
-        ? nextIncompleteSentenceIndex
-        : sentenceIndex;
-    const nextActiveSentence = next[nextActiveSentenceIndex];
     const nextSlot =
-      nextValidations[nextActiveSentenceIndex]?.missingSlot ??
-      (nextActiveSentence ? getNextEmptySlot(nextActiveSentence) : "condition");
-    const nextPlanIsReady = nextValidations.every(
-      (validation) => validation.valid,
-    );
-    setActiveSentenceIndex(nextActiveSentenceIndex);
+      sentenceValidation?.missingSlot ?? getNextEmptySlot(nextSentence);
     setActiveSlot(nextSlot);
     setIsLexiconOpen(true);
-    if (nextPlanIsReady) {
+    if (sentenceIsReady) {
       window.requestAnimationFrame(() => executeButtonRef.current?.focus());
     } else {
       setLexiconFocusRequestId((current) => current + 1);
     }
-    setPlacementTarget({
-      sentenceIndex,
-      slot,
-    });
+    setPlacementTarget(slot);
     if (placementTimerRef.current !== null) {
       window.clearTimeout(placementTimerRef.current);
     }
@@ -867,10 +867,8 @@ export function WordQuestRunScreen({
     }, 460);
     setNotice(
       sentenceIsReady
-        ? nextPlanIsReady
-          ? `第${sentenceIndex + 1}文が完成。作戦を実行できます。`
-          : `第${sentenceIndex + 1}文が完成。次の未完成スロットへ移動しました。`
-        : `「${word.label}」を第${sentenceIndex + 1}文へ刷りました。`,
+        ? "作戦文が完成。作戦を実行できます。"
+        : `「${word.label}」を作戦文へ刷りました。`,
     );
   };
 
@@ -890,7 +888,6 @@ export function WordQuestRunScreen({
 
   const dropWord = (
     event: DragEvent<HTMLButtonElement>,
-    sentenceIndex: number,
     slot: SentenceSlot,
   ) => {
     event.preventDefault();
@@ -899,7 +896,7 @@ export function WordQuestRunScreen({
       event.dataTransfer.getData("text/plain");
     setDraggedWordId(null);
     if (!wordId || !VOCABULARY_BY_ID[wordId]) return;
-    placeWord(wordId, sentenceIndex, slot);
+    placeWord(wordId, slot);
   };
 
   const executePlan = () => {
@@ -974,6 +971,7 @@ export function WordQuestRunScreen({
       enemyHpAfter: resolution.battle.enemyHp,
       playerHpBefore: run.player.hp,
       playerHpAfter: resolution.player.hp,
+      effects: resolution.effects,
       usedActions: resolution.usedActions,
       reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)")
         .matches,
@@ -999,7 +997,6 @@ export function WordQuestRunScreen({
       setRun(nextRun);
       setCombatPlayback(null);
       setIsResolving(false);
-      setActiveSentenceIndex(0);
       setActiveSlot("condition");
       setIsLexiconOpen(true);
       if (nextRun.phase === "battle") {
@@ -1014,11 +1011,27 @@ export function WordQuestRunScreen({
       phase: "windup",
       presentation,
       enemyHpAfter: resolution.battle.enemyHp,
+      playerHpAfterActions: resolution.effects.playerHpAfterActions,
       playerHpAfter: resolution.player.hp,
     });
 
     const battlefield = battlefieldRef.current?.getTargets();
     if (!battlefield) {
+      if (
+        presentation.hasPlayerRecovery &&
+        presentation.hasEnemyStrike &&
+        presentation.playerImpactMs !== null
+      ) {
+        executionTimerRef.current = window.setTimeout(() => {
+          updatePhase("player-impact");
+          executionTimerRef.current = window.setTimeout(
+            completeResolution,
+            Math.max(0, presentation.totalMs - presentation.playerImpactMs!),
+          );
+        }, presentation.playerImpactMs);
+        return;
+      }
+
       updatePhase(
         presentation.hasPlayerStrike
           ? "enemy-impact"
@@ -1058,8 +1071,7 @@ export function WordQuestRunScreen({
     const label = VOCABULARY_BY_ID[wordId]?.label ?? wordId;
     dismissSentenceFeedback();
     setRun(chooseRunReward(run, wordId));
-    setNotice(`「${label}」を獲得。次の敵へ進みます。`);
-    setActiveSentenceIndex(0);
+    setNotice(`「${label}」を獲得。HPを全回復して次の敵へ進みます。`);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
   };
@@ -1075,7 +1087,6 @@ export function WordQuestRunScreen({
     const next = retryWordQuestRun(run, nextSeed);
     setRun(next);
     setSeed(next.seed);
-    setActiveSentenceIndex(0);
     setActiveSlot("condition");
     setIsLexiconOpen(true);
     setNotice(
@@ -1102,7 +1113,7 @@ export function WordQuestRunScreen({
               因果を組む
             </h1>
             <p>
-              敵の記述を読み、限られた語彙から最大三つの作戦文を組みます。
+              敵の記述を読み、限られた語彙から一つの作戦文を組みます。
               相性のよい語は、長い因果を少ない文へ縮めます。
             </p>
             <label>
@@ -1139,25 +1150,35 @@ export function WordQuestRunScreen({
   }
 
   const panelStyle = { "--enemy-accent": enemy.accent } as CSSProperties;
-  const activeSentence = run.strategies[activeSentenceIndex];
-  const activeValidation = validations[activeSentenceIndex];
+  const enemyAttackPreview = getEnemyAttackPreview(
+    run.currentBattle,
+    run.player.maxHp,
+  );
+  const enemyCannotCounter = run.currentBattle.enemyStatuses.some(
+    (status) => status === "stopped" || status === "bound",
+  );
+  const activeSentence = run.strategies[0];
+  const activeValidation = validations[0];
   const activeCategory = categoryForSlot(activeSlot);
   const usedActionCount = Math.min(
-    BASE_ACTION_SLOTS,
+    WORD_QUEST_STRATEGY_COUNT,
     run.strategies.filter((sentence) => Boolean(sentence.action)).length,
   );
-  const remainingActionCount = BASE_ACTION_SLOTS - usedActionCount;
+  const remainingActionCount = WORD_QUEST_STRATEGY_COUNT - usedActionCount;
   const bonusActionCount = strategySynergy?.savedSentenceCount ?? 0;
   const displayedEnemyHp =
     combatPlayback?.presentation.hasPlayerStrike &&
     phaseReached(combatPlayback.phase, "enemy-impact")
       ? combatPlayback.enemyHpAfter
       : run.currentBattle.enemyHp;
-  const displayedPlayerHp =
-    combatPlayback?.presentation.hasEnemyStrike &&
-    phaseReached(combatPlayback.phase, "player-impact")
+  const displayedPlayerHp = combatPlayback
+    ? combatPlayback.presentation.hasEnemyStrike &&
+      phaseReached(combatPlayback.phase, "player-impact")
       ? combatPlayback.playerHpAfter
-      : run.player.hp;
+      : combatPlayback.presentation.hasPlayerRecovery
+        ? combatPlayback.playerHpAfterActions
+        : run.player.hp
+    : run.player.hp;
 
   return (
     <main
@@ -1264,6 +1285,26 @@ export function WordQuestRunScreen({
           </p>
         )}
 
+        {enemyAttackPreview.kind === "heavy" && (
+          <aside
+            key={`heavy-warning-${run.currentBattle.turn}`}
+            className="word-game__heavy-warning"
+            role="alert"
+          >
+            <strong>{enemyCannotCounter ? "大技は不発" : "大技が来る"}</strong>
+            <span>
+              {enemyCannotCounter ? (
+                "敵は行動不能です。この手番の大技は発動しません。"
+              ) : (
+                <>
+                  防御なしで{enemyAttackPreview.power}ダメージ。最大HPの約8割です。
+                  「守る」で大幅に軽減できます。
+                </>
+              )}
+            </span>
+          </aside>
+        )}
+
         <PlayerVitalBar
           side="player"
           name="旅人"
@@ -1287,7 +1328,7 @@ export function WordQuestRunScreen({
             label: STATUS_LABELS[status],
             mark: STATUS_MARKS[status],
           }))}
-          isDisabled={run.currentBattle.enemyStatuses.includes("stopped")}
+          isDisabled={enemyCannotCounter}
         />
 
         {sentenceFeedback ? (
@@ -1301,6 +1342,20 @@ export function WordQuestRunScreen({
 
         <div className="word-game__stage-marks">
           <span>敵威力 {run.currentBattle.enemyPower}</span>
+          <span
+            className={[
+              "word-game__heavy-countdown",
+              enemyAttackPreview.kind === "heavy" ? "is-heavy" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {enemyAttackPreview.kind === "heavy"
+              ? enemyCannotCounter
+                ? "大技は行動不能で不発"
+                : `大技 威力 ${enemyAttackPreview.power}`
+              : `大技まで ${enemyAttackPreview.turnsUntilHeavyAttack}手番`}
+          </span>
           <span>発見点 {run.totalScore}</span>
           <span>語彙 {Object.keys(run.inventory).length}語</span>
           {run.currentBattle.emberStacks > 0 && (
@@ -1360,7 +1415,7 @@ export function WordQuestRunScreen({
               className={`strategy-dock__sentence ${
                 activeValidation?.valid ? "is-valid" : "is-invalid"
               }`}
-              aria-label={`第${activeSentenceIndex + 1}文の編集`}
+              aria-label="作戦文の編集"
             >
               <div className="strategy-dock__slots">
                 {SLOT_ORDER.map((slot) => {
@@ -1368,13 +1423,10 @@ export function WordQuestRunScreen({
                   const word = wordId ? VOCABULARY_BY_ID[wordId] : null;
                   const category = categoryForSlot(slot);
                   const categoryMeta = CATEGORY_META[category];
-                  const insight =
-                    strategySynergy?.sentences[activeSentenceIndex];
+                  const insight = strategySynergy?.sentences[0];
                   const isSynergyNode =
                     insight?.highlightedSlots.includes(slot) ?? false;
-                  const isSettling =
-                    placementTarget?.sentenceIndex === activeSentenceIndex &&
-                    placementTarget.slot === slot;
+                  const isSettling = placementTarget === slot;
                   const slotIssue =
                     !activeValidation?.valid &&
                     activeValidation?.missingSlot === slot
@@ -1385,7 +1437,7 @@ export function WordQuestRunScreen({
                       ? slotIssue
                       : SLOT_ERROR_LABELS[slot]
                     : null;
-                  const errorId = `strategy-slot-error-${activeSentenceIndex}-${slot}`;
+                  const errorId = `strategy-slot-error-${slot}`;
 
                   return (
                     <button
@@ -1402,7 +1454,7 @@ export function WordQuestRunScreen({
                       ]
                         .filter(Boolean)
                         .join(" ")}
-                      onClick={() => selectSlot(activeSentenceIndex, slot)}
+                      onClick={() => selectSlot(slot)}
                       aria-pressed={activeSlot === slot}
                       aria-invalid={Boolean(issueLabel)}
                       aria-describedby={issueLabel ? errorId : undefined}
@@ -1423,9 +1475,7 @@ export function WordQuestRunScreen({
                             ? "copy"
                             : "none";
                       }}
-                      onDrop={(event) =>
-                        dropWord(event, activeSentenceIndex, slot)
-                      }
+                      onDrop={(event) => dropWord(event, slot)}
                       disabled={run.phase !== "battle"}
                     >
                       <span
@@ -1454,7 +1504,6 @@ export function WordQuestRunScreen({
 
         <LexiconDrawer
           activeCategory={activeCategory}
-          activeSentenceIndex={activeSentenceIndex}
           activeSlot={activeSlot}
           blockedActionIds={blockedActionIds}
           blockedReason={blockedReason}
@@ -1471,35 +1520,6 @@ export function WordQuestRunScreen({
         />
 
         <aside className="strategy-dock__command-panel" aria-label="作戦操作">
-          <nav
-            className="strategy-dock__sentence-nav"
-            aria-label="作戦文の切り替え"
-          >
-            {run.strategies.map((sentence, sentenceIndex) => {
-              const selected = sentenceIndex === activeSentenceIndex;
-              const valid = validations[sentenceIndex]?.valid ?? false;
-              return (
-                <button
-                  key={sentence.id}
-                  type="button"
-                  className={[
-                    "strategy-dock__sentence-number",
-                    selected ? "is-active" : "",
-                    valid ? "is-valid" : "is-incomplete",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => selectSentence(sentenceIndex)}
-                  aria-current={selected ? "step" : undefined}
-                  aria-label={`作戦文${sentenceIndex + 1}を編集`}
-                  title={formatSentence(sentence)}
-                >
-                  {sentenceIndex + 1}
-                </button>
-              );
-            })}
-          </nav>
-
           <div
             className={`strategy-dock__execution-cluster ${
               planReady ? "is-ready" : ""
@@ -1535,9 +1555,9 @@ export function WordQuestRunScreen({
               role="meter"
               aria-label="残りターン数"
               aria-valuemin={0}
-              aria-valuemax={BASE_ACTION_SLOTS}
+              aria-valuemax={WORD_QUEST_STRATEGY_COUNT}
               aria-valuenow={remainingActionCount}
-              aria-valuetext={`残りターン ${remainingActionCount}/${BASE_ACTION_SLOTS}${
+              aria-valuetext={`残りターン ${remainingActionCount}/${WORD_QUEST_STRATEGY_COUNT}${
                 bonusActionCount > 0 ? `、追加ターン ${bonusActionCount}` : ""
               }`}
             >
@@ -1545,7 +1565,7 @@ export function WordQuestRunScreen({
                 <small>TURN</small>
                 <strong>
                   {remainingActionCount}
-                  <b>/{BASE_ACTION_SLOTS}</b>
+                  <b>/{WORD_QUEST_STRATEGY_COUNT}</b>
                 </strong>
                 {bonusActionCount > 0 && <em>+{bonusActionCount}</em>}
               </span>

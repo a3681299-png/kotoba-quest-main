@@ -109,7 +109,7 @@ function cadenceLabel(
     return "この行動は一度だけ発動";
   }
   if (modifierId === "again" && plannedCount === 2) {
-    return "直前と同じ行動をもう一度発動";
+    return "同じ行動をもう一度発動";
   }
   if (modifierId === "negate") {
     return "条件の結果を反転し、この行動は一度発動";

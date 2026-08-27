@@ -186,6 +186,8 @@ export interface BattleState {
   emberStacks: number;
   /** プレイヤーが直近に使用した行動（echo-moth専用の連続使用禁止判定に使う。ターンをまたいで保持） */
   lastPlayerAction: ActionEffectId | null;
+  /** 現在の戦闘で実行済みの行動。攻略条件の判定に使う。 */
+  usedPlayerActions: readonly ActionEffectId[];
   /** 次に封印がかかるまでの残りターン数（forgotten-king専用） */
   kingSealCooldown: number;
 }
@@ -223,9 +225,23 @@ export interface BattleResolution {
   logs: readonly CausalLogEntry[];
   player: PlayerRunState;
   battle: BattleState;
+  effects: BattleTurnEffects;
   usedActions: readonly ActionEffectId[];
   earnedDiscoveries: readonly string[];
   scoreDelta: number;
+}
+
+export interface BattleTurnEffects {
+  /** 行動をすべて解決し、敵の反撃を受ける直前のHP */
+  playerHpAfterActions: number;
+  /** この手番に回復カードで実際に戻ったHP */
+  playerHealing: number;
+  /** この手番に守るカードで得た軽減量 */
+  guardApplied: number;
+  /** 敵の反撃から実際に防いだダメージ */
+  damageBlocked: number;
+  /** 敵の反撃や継続効果で実際に失ったHP */
+  playerDamageTaken: number;
 }
 
 export interface BattleRecord {

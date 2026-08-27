@@ -97,7 +97,7 @@ function sentenceCompression(
       highlightedSlots.add("modifier");
     } else if (modifier.effect.modifier === "again") {
       actionRuns += 1;
-      labels.push("直前の行動を再利用");
+      labels.push("同じ行動をもう一度実行");
       highlightedSlots.add("modifier");
     } else if (modifier.effect.modifier === "negate") {
       labels.push("条件を反転して語彙を再利用");
@@ -157,7 +157,7 @@ function causalLink(
     return {
       fromSentenceIndex: toSentenceIndex - 1,
       toSentenceIndex,
-      label: "前文の実行結果を受け渡す",
+      label: "前の手番の実行結果を受け渡す",
     };
   }
 

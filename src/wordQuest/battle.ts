@@ -4,6 +4,7 @@ import type {
   ActionEffectId,
   BattleResolution,
   BattleState,
+  BattleTurnEffects,
   CausalLogEntry,
   ConditionEffectId,
   EnemyReactionRule,
@@ -23,6 +24,34 @@ const AP_REGEN_PER_TURN = 2;
 const RECHARGE_AP_AMOUNT = 2;
 export const AP_MAX = 6;
 export const KING_SEAL_INTERVAL = 3;
+export const HEAVY_ATTACK_INTERVAL = 3;
+export const HEAVY_ATTACK_MAX_HP_RATIO = 0.8;
+export const HEAVY_ATTACK_GUARD_MULTIPLIER = 12;
+
+export interface EnemyAttackPreview {
+  kind: "normal" | "heavy";
+  power: number;
+  turnsUntilHeavyAttack: number;
+}
+
+export function getEnemyAttackPreview(
+  battle: Pick<BattleState, "enemyPower" | "turn">,
+  playerMaxHp: number,
+): EnemyAttackPreview {
+  const remainder = battle.turn % HEAVY_ATTACK_INTERVAL;
+  const turnsUntilHeavyAttack =
+    remainder === 0 ? 0 : HEAVY_ATTACK_INTERVAL - remainder;
+  const kind = turnsUntilHeavyAttack === 0 ? "heavy" : "normal";
+
+  return {
+    kind,
+    power:
+      kind === "heavy"
+        ? Math.max(0, Math.round(playerMaxHp * HEAVY_ATTACK_MAX_HP_RATIO))
+        : Math.max(0, battle.enemyPower),
+    turnsUntilHeavyAttack,
+  };
+}
 
 interface MutableBattleContext {
   player: {
@@ -39,14 +68,19 @@ interface MutableBattleContext {
     turn: number;
     emberStacks: number;
     lastPlayerAction: ActionEffectId | null;
+    usedPlayerActions: Set<ActionEffectId>;
     kingSealCooldown: number;
   };
   logs: CausalLogEntry[];
   usedActions: ActionEffectId[];
   scoreDelta: number;
   guard: number;
+  playerHealing: number;
+  playerHpAfterActions: number;
+  damageBlocked: number;
+  playerDamageTaken: number;
   lastAction: ActionEffectId | null;
-  previousSentenceExecuted: boolean;
+  priorActionExecuted: boolean;
   maxEmberStacksReached: number;
 }
 
@@ -351,7 +385,9 @@ function executeAction(
     case "heal": {
       const before = context.player.hp;
       context.player.hp = Math.min(context.player.maxHp, context.player.hp + power);
-      detail = `HPを${context.player.hp - before}回復した。`;
+      const healed = context.player.hp - before;
+      context.playerHealing += healed;
+      detail = `HPを${healed}回復した。`;
       if (context.player.hp === context.player.maxHp) {
         context.player.statuses.delete("wounded");
       }
@@ -405,6 +441,10 @@ function executeAction(
       detail = `行動値を${context.player.actionPoints - before}回復した。`;
       break;
     }
+    default: {
+      const unhandledAction: never = actionId;
+      throw new Error(`未実装のカード効果です: ${String(unhandledAction)}`);
+    }
   }
 
   appendLog(context, {
@@ -417,6 +457,7 @@ function executeAction(
 
   if (!executed) return false;
   context.usedActions.push(actionId);
+  context.battle.usedPlayerActions.add(actionId);
   if (context.battle.enemyHp > 0) {
     applyEnemyReactions(
       actionId,
@@ -451,8 +492,21 @@ function toBattleState(context: MutableBattleContext): BattleState {
     enemyStatuses: [...context.battle.enemyStatuses],
     turn: context.battle.turn + 1,
     emberStacks: context.battle.emberStacks,
-    lastPlayerAction: context.battle.lastPlayerAction,
+    lastPlayerAction: context.usedActions.at(-1) ?? null,
+    usedPlayerActions: [...context.battle.usedPlayerActions],
     kingSealCooldown: context.battle.kingSealCooldown,
+  };
+}
+
+function toBattleTurnEffects(
+  context: MutableBattleContext,
+): BattleTurnEffects {
+  return {
+    playerHpAfterActions: context.playerHpAfterActions,
+    playerHealing: context.playerHealing,
+    guardApplied: context.guard,
+    damageBlocked: context.damageBlocked,
+    playerDamageTaken: context.playerDamageTaken,
   };
 }
 
@@ -524,14 +578,19 @@ export function simulateStrategyPlan(input: {
       turn: input.battle.turn,
       emberStacks: input.battle.emberStacks,
       lastPlayerAction: input.battle.lastPlayerAction,
+      usedPlayerActions: new Set(input.battle.usedPlayerActions ?? []),
       kingSealCooldown: input.battle.kingSealCooldown,
     },
     logs: [],
     usedActions: [],
     scoreDelta: 0,
     guard: 0,
+    playerHealing: 0,
+    playerHpAfterActions: input.player.hp,
+    damageBlocked: 0,
+    playerDamageTaken: 0,
     lastAction: null,
-    previousSentenceExecuted: false,
+    priorActionExecuted: input.battle.lastPlayerAction !== null,
     maxEmberStacksReached: input.battle.emberStacks,
   };
 
@@ -555,6 +614,7 @@ export function simulateStrategyPlan(input: {
       logs: context.logs,
       player: input.player,
       battle: input.battle,
+      effects: toBattleTurnEffects(context),
       usedActions: [],
       earnedDiscoveries: [],
       scoreDelta: 0,
@@ -592,11 +652,11 @@ export function simulateStrategyPlan(input: {
     let conditionDetail = conditionResult.detail;
     if (
       connectorWord.effect.connector === "after" &&
-      !context.previousSentenceExecuted
+      !context.priorActionExecuted
     ) {
       conditionMatched = false;
       conditionDetail =
-        "直前の文が実行されなかったため、「その後」には進めず、この文は成立しなかった。";
+        "前の手番で行動していないため、「その後」は成立しなかった。";
     }
 
     appendLog(context, {
@@ -607,7 +667,7 @@ export function simulateStrategyPlan(input: {
       detail: conditionDetail,
     });
     if (!conditionMatched) {
-      context.previousSentenceExecuted = false;
+      context.priorActionExecuted = false;
       return;
     }
 
@@ -635,7 +695,7 @@ export function simulateStrategyPlan(input: {
           title: modifierWord?.label ?? "修飾",
           detail: `行動値が足りない（必要${extraApCost}、残り${context.player.actionPoints}）。`,
         });
-        context.previousSentenceExecuted = false;
+        context.priorActionExecuted = false;
         return;
       }
       context.player.actionPoints -= extraApCost;
@@ -653,8 +713,14 @@ export function simulateStrategyPlan(input: {
           context,
         ) || executed;
     }
-    context.previousSentenceExecuted = executed;
+    context.priorActionExecuted = executed;
   });
+
+  context.playerHpAfterActions = context.player.hp;
+
+  // attacked と guarded は直前の手番を表す一時状態。条件判定が終わったら
+  // 今回の敵行動に合わせて更新し直す。
+  context.player.statuses.delete("attacked");
 
   const victory = context.battle.enemyHp <= 0;
   const enemy = getEnemy(context.battle.enemyId);
@@ -670,11 +736,26 @@ export function simulateStrategyPlan(input: {
         title: `${enemy.name}は動けない`,
         detail: "停止または拘束により、敵の反撃は発生しなかった。",
       });
-      context.battle.enemyStatuses.delete("stopped");
+      const disablingStatus = context.battle.enemyStatuses.has("stopped")
+        ? "stopped"
+        : "bound";
+      context.battle.enemyStatuses.delete(disablingStatus);
     } else {
-      const damage = Math.max(0, context.battle.enemyPower - context.guard);
+      const enemyAttack = getEnemyAttackPreview(
+        context.battle,
+        context.player.maxHp,
+      );
+      const guardPower =
+        enemyAttack.kind === "heavy"
+          ? context.guard * HEAVY_ATTACK_GUARD_MULTIPLIER
+          : context.guard;
+      const incomingDamage = enemyAttack.power;
+      const damage = Math.max(0, incomingDamage - guardPower);
+      const blockedDamage = incomingDamage - damage;
+      context.damageBlocked += blockedDamage;
+      const hpBeforeDamage = context.player.hp;
       context.player.hp = Math.max(0, context.player.hp - damage);
-      context.player.statuses.delete("guarded");
+      context.playerDamageTaken += hpBeforeDamage - context.player.hp;
       if (damage > 0) context.player.statuses.add("attacked");
       if (context.player.hp < context.player.maxHp) {
         context.player.statuses.add("wounded");
@@ -683,17 +764,24 @@ export function simulateStrategyPlan(input: {
         sentenceIndex: null,
         kind: "enemy",
         status: damage === 0 ? "passed" : "failed",
-        title: `${enemy.name}の反撃`,
+        title:
+          enemyAttack.kind === "heavy"
+            ? `${enemy.name}の大技`
+            : `${enemy.name}の反撃`,
         detail:
           damage === 0
-            ? "防御が反撃をすべて受け止めた。"
-            : `${damage}ダメージを受けた。残りHP ${context.player.hp}。`,
+            ? "「守る」で攻撃をすべて受け止めた。"
+            : blockedDamage > 0
+              ? `「守る」で${blockedDamage}軽減し、${damage}ダメージを受けた。残りHP ${context.player.hp}。`
+              : `${damage}ダメージを受けた。残りHP ${context.player.hp}。`,
       });
     }
 
     if (context.battle.enemyId === "ember-maw" && context.battle.emberStacks > 0) {
       const emberDamage = context.battle.emberStacks * EMBER_STACK_DAMAGE_PER_STACK;
+      const hpBeforeEmberDamage = context.player.hp;
       context.player.hp = Math.max(0, context.player.hp - emberDamage);
+      context.playerDamageTaken += hpBeforeEmberDamage - context.player.hp;
       if (context.player.hp < context.player.maxHp) {
         context.player.statuses.add("wounded");
       }
@@ -725,13 +813,17 @@ export function simulateStrategyPlan(input: {
     }
   }
 
+  // 防御はこの手番だけ有効。敵が停止して使われなかった場合も、
+  // 次の手番へ見かけだけの防御状態を持ち越さない。
+  context.player.statuses.delete("guarded");
+
   const defeat = context.player.hp <= 0;
   const earnedDiscoveries: string[] = [];
   if (victory) {
     const allStatuses = context.battle.enemyStatuses;
     for (const solution of enemy.solutionHints) {
       const actionsMatched = solution.requiresActions.every((action) =>
-        context.usedActions.includes(action),
+        context.battle.usedPlayerActions.has(action),
       );
       const statusesMatched = solution.requiresStatuses.every((status) =>
         allStatuses.has(status),
@@ -770,6 +862,7 @@ export function simulateStrategyPlan(input: {
     logs: context.logs,
     player: toPlayerState(context),
     battle: toBattleState(context),
+    effects: toBattleTurnEffects(context),
     usedActions: context.usedActions,
     earnedDiscoveries,
     scoreDelta: context.scoreDelta,

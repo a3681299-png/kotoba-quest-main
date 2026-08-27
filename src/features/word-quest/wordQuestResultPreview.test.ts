@@ -74,6 +74,28 @@ describe("word quest result preview", () => {
     });
   });
 
+  it("shows the strengthened recovery amount before execution", () => {
+    const sentence = attackSentence({
+      subject: "subject.self",
+      condition: "condition.player_hurt",
+      action: "action.heal",
+      target: "subject.self",
+    });
+    const preview = buildWordQuestResultPreview({
+      enemyName: "見張りの石像",
+      player: { ...player, hp: 35 },
+      battle: createBattleState("gaze-idol"),
+      strategies: [{ sentence, sentenceIndex: 0 }],
+      inventory: createStarterInventory(),
+    });
+
+    expect(preview[0]).toMatchObject({
+      conditionState: "passed",
+      outcomeLabel: "自分のHPを8回復",
+      outcomeTone: "recovery",
+    });
+  });
+
   it("shows a partial repeat when the enemy blocks the second action", () => {
     const sentence = attackSentence({ modifier: "modifier.twice" });
     const inventory = {

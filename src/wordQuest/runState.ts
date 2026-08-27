@@ -16,6 +16,12 @@ import type {
 } from "./types";
 import { createStarterInventory } from "./vocabulary";
 
+export const WORD_QUEST_STRATEGY_COUNT = 1;
+
+function createTurnStrategies(): readonly StrategySentence[] {
+  return [createStrategySentence(0)];
+}
+
 export function createEncounterOrder(seed: string): readonly string[] {
   return [
     ...seededShuffle(NORMAL_ENEMY_IDS, `${seed}:encounters`),
@@ -33,6 +39,7 @@ export function createBattleState(enemyId: string): BattleState {
     turn: 1,
     emberStacks: 0,
     lastPlayerAction: null,
+    usedPlayerActions: [],
     kingSealCooldown: KING_SEAL_INTERVAL,
   };
 }
@@ -55,7 +62,7 @@ export function createWordQuestRun(seed: string): WordQuestRunState {
       actionPoints: 4,
     },
     inventory: createStarterInventory(),
-    strategies: [createStrategySentence(0), createStrategySentence(1)],
+    strategies: createTurnStrategies(),
     currentBattle: createBattleState(firstEnemy),
     rewardChoices: [],
     history: [],
@@ -69,7 +76,10 @@ export function updateRunStrategies(
   run: WordQuestRunState,
   strategies: readonly StrategySentence[],
 ): WordQuestRunState {
-  if (run.phase !== "battle" || strategies.length < 1 || strategies.length > 2) {
+  if (
+    run.phase !== "battle" ||
+    strategies.length !== WORD_QUEST_STRATEGY_COUNT
+  ) {
     return run;
   }
   return {
@@ -100,7 +110,7 @@ export function executeRunBattle(run: WordQuestRunState): WordQuestRunState {
 
   const runWithRecoveredResources: WordQuestRunState = {
     ...run,
-    strategies: [createStrategySentence(0), createStrategySentence(1)],
+    strategies: createTurnStrategies(),
   };
 
   const enemy = getEnemy(run.currentBattle.enemyId);
@@ -187,7 +197,7 @@ export function chooseRunReward(
   const nextBattleIndex = run.battleIndex + 1;
   const nextEnemyId = run.encounterOrder[nextBattleIndex];
   if (!nextEnemyId) return run;
-  const healedHp = Math.min(run.player.maxHp, run.player.hp + 2);
+  const healedHp = run.player.maxHp;
   const history = run.history.map((record, index) =>
     index === run.history.length - 1
       ? { ...record, rewardWordId: wordId }

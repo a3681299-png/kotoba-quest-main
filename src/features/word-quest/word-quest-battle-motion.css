@@ -254,6 +254,74 @@
     0 7px 8px rgba(0, 0, 0, 0.8);
 }
 
+.word-game__support-number {
+  position: absolute;
+  z-index: 7;
+  top: 32%;
+  left: 27%;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(30px, 3.8vw, 68px);
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  opacity: 0;
+}
+
+.word-game__support-number--recovery {
+  color: #dfffc3;
+  text-shadow:
+    -2px 3px 0 #235e37,
+    0 0 15px rgba(132, 255, 151, 0.9),
+    0 7px 8px rgba(0, 0, 0, 0.74);
+  animation: word-combat-recovery-number 680ms ease-out 70ms both;
+}
+
+.word-game__guard-effect {
+  position: absolute;
+  z-index: 6;
+  top: 43%;
+  left: 31%;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #eaf7ff;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.72);
+  animation: word-combat-guard var(--word-combat-total) ease-out both;
+}
+
+.word-game__guard-effect > i {
+  display: grid;
+  width: clamp(58px, 6.5vw, 112px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 3px solid rgba(222, 245, 255, 0.92);
+  border-radius: 46% 46% 54% 54%;
+  background:
+    linear-gradient(145deg, rgba(222, 247, 255, 0.38), rgba(45, 91, 132, 0.7)),
+    rgba(21, 44, 69, 0.72);
+  box-shadow:
+    inset 0 0 18px rgba(225, 248, 255, 0.42),
+    0 0 22px rgba(127, 209, 255, 0.72);
+  font-family: serif;
+  font-size: clamp(25px, 3vw, 48px);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.word-game__guard-effect > strong {
+  padding: 3px 10px;
+  border: 1px solid rgba(216, 240, 255, 0.62);
+  border-radius: 999px;
+  background: rgba(12, 31, 49, 0.82);
+  font-size: clamp(13px, 1.2vw, 18px);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
 .word-game__damage-number--enemy {
   top: 25%;
   left: 73%;
@@ -279,6 +347,13 @@
 .word-game__combat-motion[data-phase="player-impact"]
   ~ .word-game__vitals--player {
   animation: word-combat-vitals-hit 220ms ease-out both;
+}
+
+.word-game__combat-motion[data-recovery="true"]:not(
+    [data-phase="player-impact"]
+  ):not([data-phase="settle"])
+  ~ .word-game__vitals--player {
+  animation: word-combat-vitals-heal 420ms ease-out both;
 }
 
 .word-game.is-resolving .strategy-dock {
@@ -504,6 +579,43 @@
   }
 }
 
+@keyframes word-combat-recovery-number {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.72);
+  }
+  22%,
+  58% {
+    opacity: 1;
+    transform: translate3d(0, -5px, 0) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(8px, -42px, 0) scale(0.92);
+  }
+}
+
+@keyframes word-combat-guard {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.58);
+  }
+  12%,
+  66% {
+    opacity: 0.96;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+    filter: brightness(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+
 @keyframes word-combat-vitals-hit {
   0% {
     filter: brightness(1.9) saturate(0.45)
@@ -519,6 +631,19 @@
   100% {
     filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.82));
     transform: translateX(0);
+  }
+}
+
+@keyframes word-combat-vitals-heal {
+  0% {
+    filter: brightness(1) saturate(1);
+  }
+  36% {
+    filter: brightness(1.45) saturate(1.35)
+      drop-shadow(0 0 14px rgba(140, 255, 159, 0.82));
+  }
+  100% {
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.82));
   }
 }
 
@@ -565,8 +690,13 @@
   }
 
   .word-game__damage-number--enemy,
-  .word-game__damage-number--player {
+  .word-game__damage-number--player,
+  .word-game__support-number--recovery {
     animation-duration: 140ms;
+  }
+
+  .word-game__guard-effect {
+    animation-duration: 180ms;
   }
 }
 

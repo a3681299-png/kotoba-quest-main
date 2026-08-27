@@ -54,8 +54,6 @@ function invalid(
 
 export function validateSentence(
   sentence: StrategySentence,
-  sentenceIndex: number,
-  plan: readonly StrategySentence[],
   inventory: WordInventory,
   extraWordIds: readonly WordId[] = [],
 ): SentenceValidation {
@@ -128,25 +126,6 @@ export function validateSentence(
     );
   }
 
-  if (connector.effect.connector === "after" && sentenceIndex === 0) {
-    return invalid(
-      sentence,
-      "「その後」の前には、実行される作戦文が必要です。",
-      "connector",
-    );
-  }
-
-  if (modifier?.effect.kind === "modifier" && modifier.effect.modifier === "again") {
-    const previousAction = sentenceIndex > 0 ? plan[sentenceIndex - 1]?.action : null;
-    if (!previousAction || previousAction !== sentence.action) {
-      return invalid(
-        sentence,
-        "「もう一度」は、直前と同じ行動を置いた文章で使えます。",
-        "modifier",
-      );
-    }
-  }
-
   return {
     sentenceId: sentence.id,
     valid: true,
@@ -170,8 +149,8 @@ export function validatePlan(
       },
     ];
   }
-  return plan.map((sentence, index) =>
-    validateSentence(sentence, index, plan, inventory, extraWordIds),
+  return plan.map((sentence) =>
+    validateSentence(sentence, inventory, extraWordIds),
   );
 }
 

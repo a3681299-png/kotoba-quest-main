@@ -83,7 +83,6 @@ export function BattleScreen({
     isStepMode,
     battlePhase,
     turnCount,
-    isDefending,
     lastDamageBlocked,
     resetStage,
     clearVariables,
@@ -289,8 +288,9 @@ export function BattleScreen({
       await new Promise((resolve) => setTimeout(resolve, 500));
     } else {
       // ステージ3以降: 攻撃
-      const damage = calculateDamage(activeIntent, isDefending);
-      const blocked = isDefending ? activeIntent.damage - damage : 0;
+      const defending = useGameStore.getState().isDefending;
+      const damage = calculateDamage(activeIntent, defending);
+      const blocked = defending ? activeIntent.damage - damage : 0;
 
       // 攻撃アニメーション
       const attackType =
@@ -299,12 +299,12 @@ export function BattleScreen({
           : activeIntent.type === "attack_multi"
             ? "multi"
             : "normal";
-      await playEnemyAttackAnimation(attackType, isDefending);
+      await playEnemyAttackAnimation(attackType, defending);
 
       // ダメージ適用
       damagePlayer(activeIntent.damage);
 
-      if (isDefending) {
+      if (defending) {
         addLog(`🛡️ 防御成功！ ${blocked}ダメージを軽減！`, "block");
         addLog(`${damage}ダメージを受けた！`, "damage");
       } else {
@@ -458,8 +458,6 @@ export function BattleScreen({
         usedMeaningAction = true;
         currentEnemyHp = await executeAction(action, currentEnemyHp);
         useGameStore.getState().damageEnemy(action.amount);
-      } else if (action.type === "heal") {
-        useGameStore.getState().healPlayer(action.amount);
       }
     }
 
